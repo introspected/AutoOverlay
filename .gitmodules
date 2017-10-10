@@ -1,0 +1,3 @@
+[submodule "AvsFilterNet"]
+	path = AvsFilterNet
+	url = https://github.com/introspected/AvsFilterNet.git
