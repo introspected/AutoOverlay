@@ -1,16 +1,17 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>570fd8ee-8e77-4ab2-a985-ea566fd838f2</ProjectGuid>
+    <ProjectGuid>{570FD8EE-8E77-4AB2-A985-EA566FD838F2}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>AutoOverlay</RootNamespace>
     <AssemblyName>AutoOverlay</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -20,32 +21,74 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>
+    </DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Prefer32Bit>false</Prefer32Bit>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="System"/>
-    
-    <Reference Include="System.Core"/>
-    <Reference Include="System.Xml.Linq"/>
-    <Reference Include="System.Data.DataSetExtensions"/>
-    
-    
-    <Reference Include="Microsoft.CSharp"/>
-    
-    <Reference Include="System.Data"/>
-    
-    <Reference Include="System.Xml"/>
+    <Reference Include="Microsoft.VisualBasic" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Class1.cs" />
+    <Compile Include="ColorAdjust.cs" />
+    <Compile Include="ColorAdjustMode.cs" />
+    <Compile Include="ColorRangeMask.cs" />
+    <Compile Include="FrameEventArgs.cs" />
+    <Compile Include="KeyboardHook.cs" />
+    <Compile Include="OverlayCompare.cs" />
+    <Compile Include="OverlayEditor.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="OverlayEditor.Designer.cs">
+      <DependentUpon>OverlayEditor.cs</DependentUpon>
+    </Compile>
+    <Compile Include="OverlayFilter.cs" />
+    <Compile Include="AbstractOverlayInfo.cs" />
+    <Compile Include="BilinearRotate.cs" />
+    <Compile Include="DynamicEnviroment.cs" />
+    <Compile Include="FileOverlayStat.cs" />
+    <Compile Include="FrameInterval.cs" />
+    <Compile Include="OverlayMask.cs" />
+    <Compile Include="OverlayMode.cs" />
+    <Compile Include="DynamicOverlayRender.cs" />
+    <Compile Include="OverlayRender.cs" />
+    <Compile Include="StaticOverlayRender.cs" />
+    <Compile Include="OverlayUtils.cs" />
+    <Compile Include="IOverlayStat.cs" />
+    <Compile Include="OverlayConfig.cs" />
+    <Compile Include="OverlayEngine.cs" />
+    <Compile Include="OverlayInfo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="OverlayEditor.resx">
+      <DependentUpon>OverlayEditor.cs</DependentUpon>
+    </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\AvsFilterNet\AvsFilterNet\AvsFilterNet.vcxproj">
+      <Project>{6679c5bf-bd2a-454f-9a97-719a00cd5be0}</Project>
+      <Name>AvsFilterNet</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
- </Project>
+</Project>
