@@ -145,47 +145,47 @@ namespace AutoOverlay
             var prevInfo = n > 0 ? OverlayStat[n - 1] : null;
             var prevFrames = Enumerable.Range(0, n)
                 .Reverse().Select(p => OverlayStat[p])
-                .TakeWhile(p => p != null && p.Diff <= MaxDiff && p.Equals(prevInfo)).ToArray();
+                .TakeWhile((p, i) => i >= n - backwardFrameCount && p != null && p.Diff <= MaxDiff && p.Equals(prevInfo)).ToArray();
             var prevFramesCount = Math.Min(prevFrames.Length, backwardFrameCount);
-            if (prevFrames.Length >= backwardFrameCount)
+            if (prevFramesCount == backwardFrameCount)
             {
                 var info = Repeat(prevFrames.First(), n);
-                if (!CheckDev(prevFrames.Append(info)))
-                    goto stabilize;
-                if (forwardFrameCount > 0)
+                if (CheckDev(prevFrames.Append(info)))
                 {
-                    for (var nextFrame = n + 1;
-                        nextFrame <= n + forwardFrameCount && nextFrame < GetVideoInfo().num_frames;
-                        nextFrame++)
+                    if (forwardFrameCount > 0)
                     {
-                        var stat = OverlayStat[nextFrame];
-                        if (stat != null)
+                        for (var nextFrame = n + 1;
+                            nextFrame <= n + forwardFrameCount && nextFrame < GetVideoInfo().num_frames;
+                            nextFrame++)
                         {
-                            if (stat.Equals(info))
+                            var stat = OverlayStat[nextFrame];
+                            if (stat != null)
                             {
-                                if (stat.Diff <= MaxDiff && CheckDev(prevFrames.Append(stat)))
-                                    continue;
-                                goto simple;
+                                if (stat.Equals(info))
+                                {
+                                    if (stat.Diff <= MaxDiff && CheckDev(prevFrames.Append(stat)))
+                                        continue;
+                                    goto simple;
+                                }
+                                if (stat.NearlyEquals(info, overSize, maxDeviation))
+                                {
+                                    goto simple;
+                                }
+                                break;
                             }
-                            if (stat.NearlyEquals(info, overSize, maxDeviation))
+                            stat = Repeat(info, nextFrame);
+                            if (stat.Diff > MaxDiff || !CheckDev(prevFrames.Append(stat)))
                             {
-                                goto simple;
+                                stat = AutoOverlay(nextFrame);
+                                if (stat.NearlyEquals(info, overSize, maxDeviation))
+                                    goto simple;
+                                break;
                             }
-                            break;
-                        }
-                        stat = Repeat(info, nextFrame);
-                        if (stat.Diff > MaxDiff || !CheckDev(prevFrames.Append(stat)))
-                        {
-                            stat = AutoOverlay(nextFrame);
-                            if (stat.NearlyEquals(info, overSize, maxDeviation))
-                                goto simple;
-                            break;
                         }
                     }
+                    return OverlayStat[n] = info;
                 }
-                return OverlayStat[n] = info;
             }
-            stabilize:
             if (stabilize)
             {
                 var info = AutoOverlay(n).Clone();
@@ -216,7 +216,7 @@ namespace AutoOverlay
                         .Info;
 
                     stabilizeFrames.Clear();
-                    for (int frame = n; frame < n + backwardFrameCount && frame < GetVideoInfo().num_frames; frame++)
+                    for (var frame = n; frame < n + backwardFrameCount && frame < GetVideoInfo().num_frames; frame++)
                     {
                         var stabInfo = Repeat(averageInfo, frame);
                         stabilizeFrames.Add(stabInfo);
