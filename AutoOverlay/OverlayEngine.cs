@@ -404,8 +404,8 @@ namespace AutoOverlay
 
                             if (!initStep)
                             {
-                                minWidth = Math.Max(minWidth, Round((best.Width - config.Correction) * coefDiff));
-                                maxWidth = Math.Min(maxWidth, Round((best.Width + config.Correction) * coefDiff));
+                                minWidth = Math.Max(minWidth, (int)((best.Width - config.Correction) * coefDiff));
+                                maxWidth = Math.Min(maxWidth, Round((best.Width + config.Correction) * coefDiff) + 1);
                             }
                             
                             for (var width = minWidth; width <= maxWidth; width++)
