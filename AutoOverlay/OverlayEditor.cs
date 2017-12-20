@@ -115,7 +115,7 @@ namespace AutoOverlay
             nudCropTop.Value = info.CropTop / (OverlayInfo.CROP_VALUE_COUNT / 1000);
             nudCropRight.Value = info.CropRight / (OverlayInfo.CROP_VALUE_COUNT / 1000);
             nudCropBottom.Value = info.CropBottom / (OverlayInfo.CROP_VALUE_COUNT / 1000);
-            chbOverlaySizeSync.Checked = Round(engine.OverInfo.width / info.AspectRatio) == engine.OverInfo.height;
+            chbOverlaySizeSync.Checked = Round(engine.OverInfo.Width / info.AspectRatio) == engine.OverInfo.Height;
 
             update = false;
         }
@@ -130,8 +130,8 @@ namespace AutoOverlay
             InitializeComponent();
             cbMode.Items.AddRange(Enum.GetValues(typeof(OverlayMode)).Cast<object>().ToArray());
             cbMode.SelectedItem = OverlayMode.Fit;
-            nudOutputWidth.Value = engine.SrcInfo.width;
-            nudOutputHeight.Value = engine.SrcInfo.height;
+            nudOutputWidth.Value = engine.SrcInfo.Width;
+            nudOutputHeight.Value = engine.SrcInfo.Height;
             nudCurrentFrame.Maximum = trackBar.Maximum = engine.GetVideoInfo().num_frames;
             engine.CurrentFrameChanged += OnCurrentFrameChanged;
             keyboardHook.KeyDown += keyboardHook_KeyDown;
@@ -650,8 +650,7 @@ namespace AutoOverlay
                     config.MaxX = lastInterval.X + delta;
                     config.MinY = lastInterval.Y - delta;
                     config.MaxY = lastInterval.Y + delta;
-                    var size = new Size(engine.OverInfo.width, engine.OverInfo.height);
-                    var rect = lastInterval.GetRectangle(size);
+                    var rect = lastInterval.GetRectangle(engine.OverInfo.Size);
                     var ar = rect.Width / rect.Height;
                     config.AspectRatio1 = ar * 0.999;
                     config.AspectRatio2 = ar * 1.001;

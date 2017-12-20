@@ -52,6 +52,7 @@
     <Compile Include="ColorAdjust.cs" />
     <Compile Include="ColorAdjustMode.cs" />
     <Compile Include="ColorRangeMask.cs" />
+    <Compile Include="ExtraVideoInfo.cs" />
     <Compile Include="FrameEventArgs.cs" />
     <Compile Include="KeyboardHook.cs" />
     <Compile Include="OverlayCompare.cs" />

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using AutoOverlay;
@@ -22,11 +23,10 @@ namespace AutoOverlay
         public Clip OverClip { get; private set; }
         public Clip SrcMaskClip { get; private set; }
         public Clip OverMaskClip { get; private set; }
-        private Size srcSize, overSize;
         private Clip configClip;
-        public VideoInfo SrcInfo { get; private set; }
-        public VideoInfo OverInfo { get; private set; }
-        public VideoInfo srcMaskInfo, overMaskInfo;
+        public ExtraVideoInfo SrcInfo { get; private set; }
+        public ExtraVideoInfo OverInfo { get; private set; }
+        public ExtraVideoInfo srcMaskInfo, overMaskInfo;
         private string statFile;
         private int backwardFrameCount = 3;
         private int forwardFrameCount = 3;
@@ -54,10 +54,8 @@ namespace AutoOverlay
             OverClip = args[1].AsClip();
             SrcInfo = SrcClip.GetVideoInfo();
             OverInfo = OverClip.GetVideoInfo();
-            if ((SrcInfo.pixel_type ^ OverInfo.pixel_type).HasFlag(ColorSpaces.CS_PLANAR))
+            if ((SrcInfo.ColorSpace ^ OverInfo.ColorSpace).HasFlag(ColorSpaces.CS_PLANAR))
                 throw new AvisynthException();
-            srcSize = new Size(SrcInfo.width, SrcInfo.height);
-            overSize = new Size(OverInfo.width, OverInfo.height);
             statFile = args[2].AsString();
             backwardFrameCount = args[3].AsInt(backwardFrameCount);
             forwardFrameCount = args[4].AsInt(forwardFrameCount);
@@ -73,7 +71,7 @@ namespace AutoOverlay
             rotateFunc = args[14].AsString(rotateFunc);
 
             var vi = GetVideoInfo();
-            vi.num_frames = Math.Min(SrcInfo.num_frames, OverInfo.num_frames);
+            vi.num_frames = Math.Min(SrcInfo.FrameCount, OverInfo.FrameCount);
             SetVideoInfo(ref vi);
 
             OverlayStat = new FileOverlayStat(statFile);
@@ -119,7 +117,10 @@ namespace AutoOverlay
             var existed = OverlayStat[n];
             if (existed != null)
                 return existed;
-            return GetOverlayInfoImpl(n);
+            StringBuilder log;
+            var info = GetOverlayInfoImpl(n, out log);
+            Debug.WriteLine(log);
+            return info;
         }
 
         private double StdDev(IEnumerable<OverlayInfo> sample)
@@ -139,36 +140,57 @@ namespace AutoOverlay
             return sample.All(p => p.Diff - mean <= maxDiffIncrease);
         }
 
-        private OverlayInfo GetOverlayInfoImpl(int n)
+        private OverlayInfo GetOverlayInfoImpl(int n, out StringBuilder log)
         {
+            log = new StringBuilder();
+            log.AppendLine($"Frame: {n}");
+
             if (backwardFrameCount == 0 || n < backwardFrameCount) goto simple;
             var prevInfo = n > 0 ? OverlayStat[n - 1] : null;
             var prevFrames = Enumerable.Range(0, n)
                 .Reverse().Select(p => OverlayStat[p])
-                .TakeWhile((p, i) => i >= n - backwardFrameCount && p != null && p.Diff <= MaxDiff && p.Equals(prevInfo)).ToArray();
+                .TakeWhile(p => p != null && p.FrameNumber >= n - backwardFrameCount && p.Diff <= MaxDiff && p.Equals(prevInfo)).ToArray();
             var prevFramesCount = Math.Min(prevFrames.Length, backwardFrameCount);
+
+            log.AppendLine($"Prev frames: {prevFramesCount}");
+
             if (prevFramesCount == backwardFrameCount)
             {
+                log.AppendLine($"Analyze prev frames info:\n{prevFrames.First()}");
+
                 var info = Repeat(prevFrames.First(), n);
+
+                log.AppendLine($"Repeated diff: {info.Diff:F3}");
+
                 if (CheckDev(prevFrames.Append(info)))
                 {
+                    log.AppendLine("CheckDev success");
                     if (forwardFrameCount > 0)
                     {
+                        log.AppendLine($"Analyze next frames: {forwardFrameCount}");
                         for (var nextFrame = n + 1;
                             nextFrame <= n + forwardFrameCount && nextFrame < GetVideoInfo().num_frames;
                             nextFrame++)
                         {
+                            log.AppendLine($"Next frame: {nextFrame}");
                             var stat = OverlayStat[nextFrame];
                             if (stat != null)
                             {
+                                log.AppendLine($"Existed info found:\n{stat}");
                                 if (stat.Equals(info))
                                 {
+                                    log.AppendLine($"Existed info is equal");
                                     if (stat.Diff <= MaxDiff && CheckDev(prevFrames.Append(stat)))
+                                    {
+                                        log.AppendLine($"Existed info diff {stat.Diff:F3} is OK");
                                         continue;
+                                    }
+                                    log.AppendLine($"Existed info diff {stat.Diff:F3} is not OK");
                                     goto simple;
                                 }
-                                if (stat.NearlyEquals(info, overSize, maxDeviation))
+                                if (stat.NearlyEquals(info, OverInfo.Size, maxDeviation))
                                 {
+                                    log.AppendLine($"Existed info is nearly equal. Pan&scan mode.");
                                     goto simple;
                                 }
                                 break;
@@ -176,15 +198,23 @@ namespace AutoOverlay
                             stat = Repeat(info, nextFrame);
                             if (stat.Diff > MaxDiff || !CheckDev(prevFrames.Append(stat)))
                             {
+                                log.AppendLine($"Repeated info diff {stat.Diff:F3} is not OK");
                                 stat = AutoOverlay(nextFrame);
-                                if (stat.NearlyEquals(info, overSize, maxDeviation))
+                                log.AppendLine($"Own info: {stat}");
+                                if (stat.NearlyEquals(info, OverInfo.Size, maxDeviation))
+                                {
+                                    log.AppendLine($"Own info is nearly equal. Pan&scan mode.");
                                     goto simple;
+                                }
+                                log.AppendLine($"Next scene detected");
                                 break;
                             }
+                            log.AppendLine($"Repeated info diff: {stat.Diff:F3} is OK");
                         }
                     }
                     return OverlayStat[n] = info;
                 }
+                log.AppendLine("CheckDev failed");
             }
             if (stabilize)
             {
@@ -240,7 +270,7 @@ namespace AutoOverlay
                                 continue;
                             goto simple;
                         }
-                        if (stat.NearlyEquals(info, overSize, maxDeviation))
+                        if (stat.NearlyEquals(info, OverInfo.Size, maxDeviation))
                         {
                             goto simple;
                         }
@@ -251,7 +281,7 @@ namespace AutoOverlay
                     if (stat.Diff > MaxDiff || !CheckDev(prevFrames.Concat(stabilizeFrames)))
                     {
                         stat = AutoOverlay(nextFrame);
-                        if (stat.NearlyEquals(info, overSize, maxDeviation))
+                        if (stat.NearlyEquals(info, OverInfo.Size, maxDeviation))
                             goto simple;
                         break;
                     }
@@ -274,7 +304,7 @@ namespace AutoOverlay
 
         private dynamic ResizeRotate(Clip clip, int width, int height, int angle = 0, RectangleF crop = default(RectangleF))
         {
-            var resizeFunc = srcSize.Width * srcSize.Height < width * height ? upsizeFunc : downsizeFunc;
+            var resizeFunc = SrcInfo.Width * SrcInfo.Height < width * height ? upsizeFunc : downsizeFunc;
             return base.ResizeRotate(clip, resizeFunc, rotateFunc, width, height, angle, crop);
         }
 
@@ -288,10 +318,6 @@ namespace AutoOverlay
 
         public OverlayInfo AutoOverlayImpl(int n, IEnumerable<OverlayConfig> configs = null)
         {
-            int srcWidth = SrcClip.GetVideoInfo().width, srcHeight = SrcClip.GetVideoInfo().height;
-            var sourceArea = srcWidth * srcHeight;
-            int overWidth = OverClip.GetVideoInfo().width, overHeight = OverClip.GetVideoInfo().height;
-            double srcAr = (double) srcWidth / srcHeight, overAr = (double) overWidth / overHeight;
 #if DEBUG
             var total = new Stopwatch();
             var extraWatch = new Stopwatch();
@@ -317,8 +343,8 @@ namespace AutoOverlay
                         var baseClip = baseStep <= 1 ? clip : StepResize(clip, baseStep);
                         return ResizeRotate(baseClip, width, height);
                     }
-                    var ar1 = config.AspectRatio1 < double.Epsilon ? overAr : config.AspectRatio1;
-                    var ar2 = config.AspectRatio2 < double.Epsilon ? overAr : config.AspectRatio2;
+                    var ar1 = config.AspectRatio1 < double.Epsilon ? OverInfo.AspectRatio : config.AspectRatio1;
+                    var ar2 = config.AspectRatio2 < double.Epsilon ? OverInfo.AspectRatio : config.AspectRatio2;
                     var maxAspectRatio = Math.Max(ar1, ar2);
                     var minAspectRatio = Math.Min(ar1, ar2);
 
@@ -328,21 +354,18 @@ namespace AutoOverlay
                     var stepCount = 0;
                     for (;;stepCount++)
                     {
-                        var testArea = Coef(stepCount + 1) * Coef(stepCount + 1) * sourceArea;
-
+                        var testArea = Coef(stepCount + 1) * Coef(stepCount + 1) * SrcInfo.Area;
                         if (testArea < config.MinSampleArea)
                             break;
-
                         if (testArea < config.RequiredSampleArea && config.MaxSampleDifference < byte.MaxValue)
                         {
                             var baseStep = BaseResizeStep(stepCount + 1);
                             var baseClip = StepResize(SrcClip, baseStep);
                             var testSize = new Size(baseClip.GetVideoInfo().width, baseClip.GetVideoInfo().height);
                             var testClip = ResizeRotate(StepResize(SrcClip, stepCount + 1), testSize.Width, testSize.Height);
-
                             var test1 = baseClip.GetFrame(n, StaticEnv);
                             VideoFrame test2 = testClip[n];
-                            var diff = FindBestIntersect(test1, null, testSize, test2, null, testSize, new Rectangle(0, 0, 1, 1), 0).Diff;
+                            var diff = FindBestIntersect(test1, null, testSize, test2, null, testSize, new Rectangle(0, 0, 1, 1), 0, 0).Diff;
                             if (diff > config.MaxSampleDifference)
                                 break;
                         }
@@ -355,21 +378,23 @@ namespace AutoOverlay
 
                         var coefDiff = initStep ? 1 : Coef(step) / Coef(step + 1);
                         var coefCurrent = Coef(step);
-                        int srcScaledWidth = Scale(srcWidth, coefCurrent), srcScaledHeight = Scale(srcHeight, coefCurrent);
+
+                        int srcScaledWidth = Scale(SrcInfo.Width, coefCurrent), srcScaledHeight = Scale(SrcInfo.Height, coefCurrent);
+                        var srcScaledArea = srcScaledWidth * srcScaledHeight;
+
                         var srcBase = StepResize(SrcClip, step);
                         var srcMaskBase = SrcMaskClip == null ? null : StepResize(SrcMaskClip, step);
                         var overBase = StepResize(OverClip, step - 1);
                         var overMaskBase = OverMaskClip == null ? null : StepResize(OverMaskClip, step - 1);
-                        var srcArea = srcScaledWidth * srcScaledHeight;
-
-                        var defArea = (Math.Min(srcAr, overAr) / Math.Max(srcAr, overAr)) * 100;
+                        
+                        var defArea = Math.Min(SrcInfo.AspectRatio, OverInfo.AspectRatio) / Math.Max(SrcInfo.AspectRatio, OverInfo.AspectRatio) * 100;
                         if (config.MinSourceArea < double.Epsilon)
                             config.MinSourceArea = defArea;
                         if (config.MinOverlayArea < double.Epsilon)
                             config.MinOverlayArea = defArea;
 
-                        var minIntersectArea = Round(srcArea * config.MinSourceArea / 100.0);
-                        var maxOverlayArea = Round(srcArea / (config.MinOverlayArea / 100.0));
+                        var minIntersectArea = (int) (srcScaledArea * config.MinSourceArea / 100.0);
+                        var maxOverlayArea = (int) (srcScaledArea / (config.MinOverlayArea / 100.0));
 
                         var testParams = new HashSet<TestOverlay>();
                         foreach (var best in bestAr)
@@ -379,8 +404,8 @@ namespace AutoOverlay
 
                             if (!initStep)
                             {
-                                minWidth = Math.Max(minWidth, (int)((best.Width - 1) * coefDiff));
-                                maxWidth = Math.Min(maxWidth, Round((best.Width + 1) * coefDiff));
+                                minWidth = Math.Max(minWidth, Round((best.Width - config.Correction) * coefDiff));
+                                maxWidth = Math.Min(maxWidth, Round((best.Width + config.Correction) * coefDiff));
                             }
                             
                             for (var width = minWidth; width <= maxWidth; width++)
@@ -390,14 +415,14 @@ namespace AutoOverlay
 
                                 if (!initStep)
                                 {
-                                    minHeight = Math.Max(minHeight, (int)((best.Height - config.Correction) * coefDiff));
+                                    minHeight = Math.Max(minHeight, Round((best.Height - config.Correction) * coefDiff));
                                     maxHeight = Math.Min(maxHeight, Round((best.Height + config.Correction) * coefDiff));
                                 }
                                 
                                 for (var height = minHeight; height <= maxHeight; height++)
                                 {
                                     var area = width * height;
-                                    if (area < config.MinArea * coefCurrent * coefCurrent || area > Math.Round(config.MaxArea * coefCurrent * coefCurrent))
+                                    if (area < config.MinArea * coefCurrent * coefCurrent || area > Round(config.MaxArea * coefCurrent * coefCurrent))
                                         continue;
 
                                     var crop = RectangleF.Empty;
@@ -434,11 +459,11 @@ namespace AutoOverlay
                                         );
                                     }
 
-                                    int oldMaxX = searchArea.Right, oldMaxY = searchArea.Bottom;
+                                    int oldMaxX = searchArea.Right - 1, oldMaxY = searchArea.Bottom - 1;
                                     searchArea.X = Math.Max(searchArea.X, (int) (config.MinX * coefCurrent));
                                     searchArea.Y = Math.Max(searchArea.Y, (int) (config.MinY * coefCurrent));
-                                    searchArea.Width = Math.Min(oldMaxX - searchArea.X + 1, (int)Math.Round(config.MaxX * coefCurrent) - searchArea.X + 1);
-                                    searchArea.Height = Math.Min(oldMaxY - searchArea.Y + 1, (int)Math.Round(config.MaxY * coefCurrent) - searchArea.Y + 1);
+                                    searchArea.Width = Math.Min(oldMaxX - searchArea.X + 1, Round(config.MaxX * coefCurrent) - searchArea.X + 1);
+                                    searchArea.Height = Math.Min(oldMaxY - searchArea.Y + 1, Round(config.MaxY * coefCurrent) - searchArea.Y + 1);
 
                                     //if (searchArea.Width < 1 || searchArea.Height < 1)
                                     //    continue;
@@ -475,7 +500,7 @@ namespace AutoOverlay
 
                         var results = PerformTest(testParams, n, 
                             srcBase, srcMaskBase, overBase, overMaskBase,
-                            minIntersectArea, config.Branches);
+                            minIntersectArea, config.MinOverlayArea, config.Branches);
 
                         bestAr = results
                             .TakeWhile((p, i) => i < config.Branches && (p.Diff < float.Epsilon || p.Diff/results.First().Diff < 1 + config.BranchCorrelation/100.0))
@@ -504,7 +529,7 @@ namespace AutoOverlay
                         extraWatch.Start();
 #endif
                         //config.PointCount = 1;
-                        var subResults = new SortedSet<OverlayInfo> { res };
+                        var subResults = new SortedSet<OverlayInfo>(bestAr);// { res };
                         int cropHorizontalShrinkWidth = OverlayInfo.CROP_VALUE_COUNT,
                             cropVerticalShrinkHeight = OverlayInfo.CROP_VALUE_COUNT, 
                             cropHorizontalFullWidth = 0,
@@ -550,11 +575,11 @@ namespace AutoOverlay
                             {
                                 if (config.FixedAspectRatio)
                                 {
-                                    var orgWidth = overWidth - (cropLeft + cropRight) / OverlayInfo.CROP_VALUE_COUNT_R;
-                                    var realWidth = (overWidth / orgWidth) * width;
+                                    var orgWidth = OverInfo.Width - (cropLeft + cropRight) / OverlayInfo.CROP_VALUE_COUNT_R;
+                                    var realWidth = (OverInfo.Width / orgWidth) * width;
                                     var realHeight = realWidth / maxAspectRatio;
-                                    var orgHeight = overHeight / (realHeight / height);
-                                    cropBottom = (int)((overHeight - orgHeight - cropTop / OverlayInfo.CROP_VALUE_COUNT_R)* OverlayInfo.CROP_VALUE_COUNT_R);
+                                    var orgHeight = OverInfo.Height / (realHeight / height);
+                                    cropBottom = (int)((OverInfo.Height - orgHeight - cropTop / OverlayInfo.CROP_VALUE_COUNT_R)* OverlayInfo.CROP_VALUE_COUNT_R);
                                 }
                                 var subinfo = new OverlayInfo
                                 {
@@ -563,9 +588,9 @@ namespace AutoOverlay
                                     CropRight = cropRight,
                                     CropBottom = cropBottom
                                 };
-                                var actualWidth = width + (width / overWidth) * (cropLeft + cropRight) /
+                                var actualWidth = width + (width / OverInfo.Width) * (cropLeft + cropRight) /
                                                     OverlayInfo.CROP_VALUE_COUNT_R;
-                                var actualHeight = height + (height / overHeight) * (cropTop + cropBottom) /
+                                var actualHeight = height + (height / OverInfo.Height) * (cropTop + cropBottom) /
                                                     OverlayInfo.CROP_VALUE_COUNT_R;
                                 var actualAspectRatio = actualWidth / actualHeight;
 
@@ -600,7 +625,7 @@ namespace AutoOverlay
                                     testParams.Add(test);
                             }
                             subResults.UnionWith(PerformTest(testParams, n,
-                                SrcClip, SrcMaskClip, OverClip, OverMaskClip, 0, config.Branches));
+                                SrcClip, SrcMaskClip, OverClip, OverMaskClip, 0, 0, config.Branches));
                         }
                         if (subResults.Any())
                             res = subResults.Min;
@@ -666,9 +691,9 @@ namespace AutoOverlay
                     testInfo.GetCrop())[n];
                 var searchArea = new Rectangle(testInfo.X, testInfo.Y, 1, 1);
                 var info = FindBestIntersect(
-                    src, srcMask, new Size(SrcInfo.width, SrcInfo.height),
+                    src, srcMask, new Size(SrcInfo.Width, SrcInfo.Height),
                     over, overMask, new Size(testInfo.Width, testInfo.Height),
-                    searchArea, 0);
+                    searchArea, 0, 0);
                 info.Angle = testInfo.Angle;
                 info.Width = testInfo.Width;
                 info.Height = testInfo.Height;
@@ -680,7 +705,7 @@ namespace AutoOverlay
         private ISet<OverlayInfo> PerformTest(
             IEnumerable<TestOverlay> testParams, 
             int n, Clip srcBase, Clip srcMaskBase, Clip overBase, Clip overMaskBase, 
-            int minIntersectArea, int branches)
+            int minIntersectArea, double minOverlayArea, int branches)
         {
             var results = new SortedSet<OverlayInfo>();
             var tasks = from test in testParams
@@ -714,7 +739,7 @@ namespace AutoOverlay
                     var stat = FindBestIntersect(
                         task.src, task.srcMask, task.srcSize,
                         task.over, task.overMask, task.overSize,
-                        searchArea, minIntersectArea);
+                        searchArea, minIntersectArea, minOverlayArea);
                     stat.Angle = task.testGroup.Key.Angle;
                     stat.Width = task.testGroup.Key.Width;
                     stat.Height = task.testGroup.Key.Height;
@@ -729,7 +754,7 @@ namespace AutoOverlay
         private OverlayInfo FindBestIntersect(
             VideoFrame src, VideoFrame srcMask, Size srcSize, 
             VideoFrame over, VideoFrame overMask, Size overSize, 
-            Rectangle searchArea, int minIntersectArea)
+            Rectangle searchArea, int minIntersectArea, double minOverlayArea)
         {
             var pixelSize = src.GetRowSize() / srcSize.Width;
             var srcData = src.GetReadPtr();
@@ -764,7 +789,8 @@ namespace AutoOverlay
                     var overMaskOffset = (byte*) overMaskData + Math.Max(0, -testPoint.Y) * overMaskStride;
                     var sampleWidth = Math.Min(overSize.Width - Math.Max(0, -testPoint.X),
                         srcSize.Width - Math.Max(0, testPoint.X));
-                    if (sampleWidth * sampleHeight < minIntersectArea)
+                    double sampleArea = sampleWidth * sampleHeight;
+                    if (sampleArea < minIntersectArea || (sampleArea/(overSize.Width*overSize.Height) < (minOverlayArea/100.0)))
                         return;
                     var rowSize = sampleWidth * pixelSize;
                     var srcRow = srcOffset + Math.Max(0, testPoint.X) * pixelSize;
