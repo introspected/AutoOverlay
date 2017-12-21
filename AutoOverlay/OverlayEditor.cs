@@ -111,10 +111,10 @@ namespace AutoOverlay
             nudAngle.Value = info.Angle;
             nudOverlayWidth.Value = info.Width;
             nudOverlayHeight.Value = info.Height;
-            nudCropLeft.Value = info.CropLeft / (OverlayInfo.CROP_VALUE_COUNT / 1000);
-            nudCropTop.Value = info.CropTop / (OverlayInfo.CROP_VALUE_COUNT / 1000);
-            nudCropRight.Value = info.CropRight / (OverlayInfo.CROP_VALUE_COUNT / 1000);
-            nudCropBottom.Value = info.CropBottom / (OverlayInfo.CROP_VALUE_COUNT / 1000);
+            nudCropLeft.Value = info.CropLeft;
+            nudCropTop.Value = info.CropTop;
+            nudCropRight.Value = info.CropRight;
+            nudCropBottom.Value = info.CropBottom;
             chbOverlaySizeSync.Checked = Round(engine.OverInfo.Width / info.AspectRatio) == engine.OverInfo.Height;
 
             update = false;
@@ -284,10 +284,10 @@ namespace AutoOverlay
                 Angle = (int) nudAngle.Value,
                 Width = (int) nudOverlayWidth.Value,
                 Height = (int) nudOverlayHeight.Value,
-                CropLeft = (int) nudCropLeft.Value * (OverlayInfo.CROP_VALUE_COUNT / 1000),
-                CropTop = (int) nudCropTop.Value * (OverlayInfo.CROP_VALUE_COUNT / 1000),
-                CropRight = (int) nudCropRight.Value * (OverlayInfo.CROP_VALUE_COUNT / 1000),
-                CropBottom = (int) nudCropBottom.Value * (OverlayInfo.CROP_VALUE_COUNT / 1000),
+                CropLeft = (int) nudCropLeft.Value,
+                CropTop = (int) nudCropTop.Value,
+                CropRight = (int) nudCropRight.Value,
+                CropBottom = (int) nudCropBottom.Value,
                 Diff = FrameInfo?.Diff ?? -1
             };
         }
@@ -652,8 +652,11 @@ namespace AutoOverlay
                     config.MaxY = lastInterval.Y + delta;
                     var rect = lastInterval.GetRectangle(engine.OverInfo.Size);
                     var ar = rect.Width / rect.Height;
-                    config.AspectRatio1 = ar * 0.999;
-                    config.AspectRatio2 = ar * 1.001;
+                    if (!config.FixedAspectRatio)
+                    {
+                        config.AspectRatio1 = ar * 0.999;
+                        config.AspectRatio2 = ar * 1.001;
+                    }
                     //config.Subpixel = 0;
                     config.MinSampleArea = 10000;
                     //config.ScaleBase = 1.9;
