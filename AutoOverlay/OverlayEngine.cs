@@ -224,7 +224,7 @@ namespace AutoOverlay
                 prevFrames = prevFrames.TakeWhile(p => p.Equals(info)).ToArray();
                 var stabilizeFrames = new List<OverlayInfo> { info };
                 for (var nextFrame = n + 1;
-                    nextFrame < n + backwardFrameCount - prevFrames.Length &&
+                    nextFrame < n + backwardFrameCount - prevFramesCount &&
                     nextFrame < GetVideoInfo().num_frames;
                     nextFrame++)
                 {
@@ -287,7 +287,7 @@ namespace AutoOverlay
                     }
                 }
                 for (var frame = n;
-                    frame < n + backwardFrameCount - prevFramesCount &&
+                    frame <= n + backwardFrameCount - prevFramesCount &&
                     frame < GetVideoInfo().num_frames;
                     frame++)
                     if (frame == n || OverlayStat[frame] == null)
@@ -415,8 +415,8 @@ namespace AutoOverlay
 
                                 if (!initStep)
                                 {
-                                    minHeight = Math.Max(minHeight, Round((best.Height - config.Correction) * coefDiff));
-                                    maxHeight = Math.Min(maxHeight, Round((best.Height + config.Correction) * coefDiff));
+                                    minHeight = Math.Max(minHeight, (int)((best.Height - config.Correction) * coefDiff));
+                                    maxHeight = Math.Min(maxHeight, Round((best.Height + config.Correction) * coefDiff) + 1);
                                 }
                                 
                                 for (var height = minHeight; height <= maxHeight; height++)
