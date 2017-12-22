@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Drawing;
+using System.Windows.Forms;
 using AvsFilterNet;
 
 namespace AutoOverlay
@@ -60,6 +61,8 @@ namespace AutoOverlay
             int width, int height, int angle = 0, 
             RectangleF crop = default(RectangleF))
         {
+            if (clip == null || crop == RectangleF.Empty && width == clip.GetVideoInfo().width && height == clip.GetVideoInfo().height)
+                return clip;
             dynamic resized;
             if (crop == RectangleF.Empty)
                 resized = clip.Dynamic().Invoke(resizeFunc, width, height);

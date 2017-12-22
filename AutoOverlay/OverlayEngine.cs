@@ -13,7 +13,7 @@ using AvsFilterNet;
 [assembly: AvisynthFilterClass(
     typeof(OverlayEngine),
     nameof(OverlayEngine),
-    "cc[statFile]s[backwardFrames]i[forwardFrames]i[sourceMask]c[overlayMask]c[maxDiff]f[maxDiffIncrease]f[maxDeviation]f[stabilize]b[configs]c[downsize]s[upsize]s[rotate]s[editor]b",
+    "cc[statFile]s[backwardFrames]i[forwardFrames]i[sourceMask]c[overlayMask]c[maxDiff]f[maxDiffIncrease]f[maxDeviation]f[stabilize]b[configs]c[downsize]s[upsize]s[rotate]s[editor]b[forceUpdate]b",
     MtMode.SERIALIZED)]
 namespace AutoOverlay
 {
@@ -37,6 +37,7 @@ namespace AutoOverlay
         private string downsizeFunc = "BilinearResize";
         private string upsizeFunc = "BilinearResize";
         private string rotateFunc = "BilinearRotate";
+        private bool forceUpdate = false;
         public IOverlayStat OverlayStat { get; private set; }
 
         private readonly ConcurrentDictionary<Tuple<OverlayInfo, int>, OverlayInfo> repeatCache = new ConcurrentDictionary<Tuple<OverlayInfo, int>, OverlayInfo>();
@@ -80,6 +81,7 @@ namespace AutoOverlay
             OverClip.SetCacheHints(CacheType.CACHE_RANGE, cacheSize);
             SrcMaskClip?.SetCacheHints(CacheType.CACHE_RANGE, cacheSize);
             OverMaskClip?.SetCacheHints(CacheType.CACHE_RANGE, cacheSize);
+            forceUpdate = args[16].AsBool(forceUpdate);
 
             if (args[15].AsBool())
             {
@@ -116,7 +118,15 @@ namespace AutoOverlay
         {
             var existed = OverlayStat[n];
             if (existed != null)
+            {
+                if (forceUpdate)
+                {
+                    var repeated = Repeat(existed, n);
+                    if (Math.Abs(repeated.Diff - existed.Diff) > double.Epsilon)
+                        OverlayStat[n] = repeated;
+                }
                 return existed;
+            }
             StringBuilder log;
             var info = GetOverlayInfoImpl(n, out log);
             Debug.WriteLine(log);
@@ -160,11 +170,9 @@ namespace AutoOverlay
 
                 var info = Repeat(prevFrames.First(), n);
 
-                log.AppendLine($"Repeated diff: {info.Diff:F3}");
-
-                if (CheckDev(prevFrames.Append(info)))
+                if (info.Diff <= MaxDiff && CheckDev(prevFrames.Append(info)))
                 {
-                    log.AppendLine("CheckDev success");
+                    log.AppendLine($"Repeated diff: {info.Diff:F3} is OK");
                     if (forwardFrameCount > 0)
                     {
                         log.AppendLine($"Analyze next frames: {forwardFrameCount}");
@@ -214,7 +222,7 @@ namespace AutoOverlay
                     }
                     return OverlayStat[n] = info;
                 }
-                log.AppendLine("CheckDev failed");
+                log.AppendLine($"Repeated diff: {info.Diff:F3} is not OK");
             }
             if (stabilize)
             {
@@ -222,6 +230,7 @@ namespace AutoOverlay
                 if (info.Diff > MaxDiff)
                     goto simple;
                 prevFrames = prevFrames.TakeWhile(p => p.Equals(info)).ToArray();
+                prevFramesCount = Math.Min(prevFrames.Length, backwardFrameCount);
                 var stabilizeFrames = new List<OverlayInfo> { info };
                 for (var nextFrame = n + 1;
                     nextFrame < n + backwardFrameCount - prevFramesCount &&
@@ -246,7 +255,7 @@ namespace AutoOverlay
                         .Info;
 
                     stabilizeFrames.Clear();
-                    for (var frame = n; frame < n + backwardFrameCount && frame < GetVideoInfo().num_frames; frame++)
+                    for (var frame = n; frame < n + backwardFrameCount - prevFramesCount && frame < GetVideoInfo().num_frames; frame++)
                     {
                         var stabInfo = Repeat(averageInfo, frame);
                         stabilizeFrames.Add(stabInfo);

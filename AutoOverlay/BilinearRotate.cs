@@ -30,6 +30,9 @@ namespace AutoOverlay
         {
             angle = args[1].AsFloat() % 360;
 
+            if (GetVideoInfo().IsRGB())
+                angle = -angle;
+
             var vi = GetVideoInfo();
             var colorSpace = vi.pixel_type;
             if (colorSpace.HasFlag(ColorSpaces.CS_INTERLEAVED))

@@ -30,9 +30,13 @@ namespace AutoOverlay
         {
             var src = srcClip.Dynamic();
             var crop = info.GetCrop();
-            var over = overClip.Dynamic().Invoke(
-                info.Width > overClip.GetVideoInfo().width ? upsizeFunc : downsizeFunc,
-                info.Width, info.Height, crop.Left, crop.Top, -crop.Right, -crop.Bottom);
+            var over = overClip.Dynamic();
+            if (info.GetCrop() != RectangleF.Empty || info.Width != overSize.Width || info.Height != overSize.Height)
+            {
+                over = over.Invoke(
+                    info.Width > overClip.GetVideoInfo().width ? upsizeFunc : downsizeFunc,
+                    info.Width, info.Height, crop.Left, crop.Top, -crop.Right, -crop.Bottom);
+            }
             var overMask = overMaskClip?.Dynamic().BilinearResize(info.Width, info.Height);
 
             var mergedWidth = srcSize.Width + Math.Max(-info.X, 0) + Math.Max(info.Width + info.X - srcSize.Width, 0);
@@ -130,6 +134,10 @@ namespace AutoOverlay
                 return mask;
             }
 
+            dynamic Rotate(dynamic clip, bool invert) => clip == null
+                ? null
+                : (info.Angle == 0 ? clip : clip.Invoke(rotateFunc, (invert ? -info.Angle : info.Angle) / 100.0));
+
             switch (overlayMode)
             {
                 case OverlayMode.Fit:
@@ -144,11 +152,12 @@ namespace AutoOverlay
                     if (overMask != null && mask != null)
                         mask = mask.Overlay(overMask, mode: "darken");
                     if (srcMaskClip != null && mask != null)
-                        mask = mask.Overlay(srcMaskClip.Dynamic().Invert().Invoke(rotateFunc, -info.Angle / 100.0), -info.X, -info.Y, mode: "lighten");
+                        mask = mask.Overlay(Rotate(srcMaskClip.Dynamic().Invert(), true), -info.X, -info.Y, mode: "lighten");
                     if (mask == null && info.Angle != 0)
                         mask = ((Clip)GetBlankClip(over, true)).Dynamic();
-                    var hybrid = src.Overlay(over.Invoke(rotateFunc, info.Angle / 100.0), info.X, info.Y,
-                        mask: mask?.Invoke(rotateFunc, info.Angle / 100.0), opacity: opacity, mode: mode);
+                    var hybrid = src.Overlay(Rotate(over, false), info.X, info.Y, mask: Rotate(mask, false), opacity: opacity, mode: mode);
+                    if (GetVideoInfo().width == srcSize.Width && GetVideoInfo().height == srcSize.Height)
+                        return hybrid;
                     return hybrid.Invoke(downsizeFunc, GetVideoInfo().width, GetVideoInfo().height);
                 }
                 case OverlayMode.Fill:

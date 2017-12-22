@@ -99,7 +99,6 @@ namespace AutoOverlay
                         }
                     }
                 }
-
                 LeftRight(left, x => x);
                 LeftRight(right, x => width - x - 1);
                 TopBottom(top, y => y);
