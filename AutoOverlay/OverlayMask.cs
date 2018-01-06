@@ -68,7 +68,7 @@ namespace AutoOverlay
                             for (var y = 0; y < height; y++, data += stride)
                             {
                                 var val = gradientVal;
-                                if (noise && random.Next(length + 1) > x)
+                                if (noise && random.Next(length + 1) > x && random.Next(length + 1) > x)
                                     val = 0;
                                 if (val != byte.MaxValue)
                                     for (var i = 0; i < pixelSize; i++)
@@ -90,7 +90,7 @@ namespace AutoOverlay
                             for (var x = 0; x < width; x++, data += pixelSize)
                             {
                                 var val = gradientVal;
-                                if (noise && random.Next(length + 1) > y)
+                                if (noise && random.Next(length + 1) > y && random.Next(length + 1) > y)
                                     val = 0;
                                 if (val != byte.MaxValue && data[0] > val)
                                     for (var i = 0; i < pixelSize; i++)
@@ -109,7 +109,7 @@ namespace AutoOverlay
 
         private byte GradientVal(int current, int total)
         {
-            return !gradient ? byte.MaxValue : (byte) (byte.MaxValue * ((current + 1.0) / (total + 2)));
+            return !gradient ? byte.MaxValue : (byte) (255 * ((current + 1.0) / (total + 2)));
         }
     }
 }
