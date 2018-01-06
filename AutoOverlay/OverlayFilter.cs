@@ -7,6 +7,8 @@ namespace AutoOverlay
 {
     public abstract class OverlayFilter : AvisynthFilter
     {
+        protected bool debug;
+
         protected dynamic DynamicEnv => DynamicEnviroment.Env;
         protected ScriptEnvironment StaticEnv => DynamicEnviroment.Env;
 
@@ -21,9 +23,9 @@ namespace AutoOverlay
         {
             var vi = new VideoInfo
             {
-                width = 800,
-                height = 400,
-                pixel_type = ColorSpaces.CS_YV12,
+                width = 640,
+                height = 320,
+                pixel_type = ColorSpaces.CS_BGR32,
                 fps_numerator = 25,
                 fps_denominator = 1,
                 num_frames = 1
@@ -41,8 +43,13 @@ namespace AutoOverlay
 
         protected virtual VideoFrame GetFrame(int n)
         {
+            return debug ? GetSubtitledFrame(ToString()) : NewVideoFrame(StaticEnv);
+        }
+
+        protected VideoFrame GetSubtitledFrame(string text)
+        {
             var blank = DynamicEnv.BlankClip(width: GetVideoInfo().width, height: GetVideoInfo().height);
-            var subtitled = blank.Subtitle(ToString().Replace("\n", "\\n"), align: 8, lsp: 0, size: 30);
+            var subtitled = blank.Subtitle(text.Replace("\n", "\\n"), align: 8, lsp: 0, size: 24);
             return subtitled[0];
         }
 

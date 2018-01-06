@@ -14,7 +14,6 @@ namespace AutoOverlay
         protected Clip overMaskClip;
         protected Size srcSize, overSize;
         protected bool lumaOnly = false;
-        protected bool debug = false;
         protected int gradient = 0;
         protected int noise = 0;
         protected bool dynamicNoise = true;

@@ -62,6 +62,7 @@
     <Compile Include="OverlayEditor.Designer.cs">
       <DependentUpon>OverlayEditor.cs</DependentUpon>
     </Compile>
+    <Compile Include="OverlayEngineMode.cs" />
     <Compile Include="OverlayFilter.cs" />
     <Compile Include="AbstractOverlayInfo.cs" />
     <Compile Include="BilinearRotate.cs" />

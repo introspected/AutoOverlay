@@ -7,7 +7,7 @@ using AvsFilterNet;
     nameof(OverlayConfig),
     "[MinOverlayArea]f[MinSourceArea]f[AspectRatio1]f[AspectRatio2]f[Angle1]f[Angle2]f" +
     "[MinSampleArea]i[RequiredSampleArea]i[MaxSampleDifference]f[Subpixel]i[ScaleBase]f[Branches]i[AcceptableDiff]f[Correction]i" +
-    "[minX]i[maxX]i[minY]i[maxY]i[minArea]i[maxArea]i[fixedAspectRatio]b",
+    "[minX]i[maxX]i[minY]i[maxY]i[minArea]i[maxArea]i[fixedAspectRatio]b[debug]b",
     MtMode.SERIALIZED)]
 namespace AutoOverlay
 {
@@ -68,6 +68,7 @@ namespace AutoOverlay
             MinArea = args[18].AsInt(MinArea);
             MaxArea = args[19].AsInt(MaxArea);
             FixedAspectRatio = args[20].AsBool(FixedAspectRatio);
+            debug = args[21].AsBool(debug);
             if (Math.Abs(AspectRatio1 - AspectRatio2) >= double.Epsilon && FixedAspectRatio)
                 throw new AvisynthException("Aspect ratio must be fixed");
             if (Math.Abs(AspectRatio1 - AspectRatio2) < double.Epsilon && !args[20].Defined())

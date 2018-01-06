@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -13,7 +12,7 @@ using AvsFilterNet;
 [assembly: AvisynthFilterClass(
     typeof(OverlayEngine),
     nameof(OverlayEngine),
-    "cc[statFile]s[backwardFrames]i[forwardFrames]i[sourceMask]c[overlayMask]c[maxDiff]f[maxDiffIncrease]f[maxDeviation]f[stabilize]b[configs]c[downsize]s[upsize]s[rotate]s[editor]b[forceUpdate]b",
+    "cc[statFile]s[backwardFrames]i[forwardFrames]i[sourceMask]c[overlayMask]c[maxDiff]f[maxDiffIncrease]f[maxDeviation]f[stabilize]b[configs]c[downsize]s[upsize]s[rotate]s[editor]b[mode]s[debug]b",
     MtMode.SERIALIZED)]
 namespace AutoOverlay
 {
@@ -37,7 +36,7 @@ namespace AutoOverlay
         private string downsizeFunc = "BilinearResize";
         private string upsizeFunc = "BilinearResize";
         private string rotateFunc = "BilinearRotate";
-        private bool forceUpdate = false;
+        private OverlayEngineMode mode = OverlayEngineMode.DEFAULT;
         public IOverlayStat OverlayStat { get; private set; }
 
         private readonly ConcurrentDictionary<Tuple<OverlayInfo, int>, OverlayInfo> repeatCache = new ConcurrentDictionary<Tuple<OverlayInfo, int>, OverlayInfo>();
@@ -81,7 +80,9 @@ namespace AutoOverlay
             OverClip.SetCacheHints(CacheType.CACHE_RANGE, cacheSize);
             SrcMaskClip?.SetCacheHints(CacheType.CACHE_RANGE, cacheSize);
             OverMaskClip?.SetCacheHints(CacheType.CACHE_RANGE, cacheSize);
-            forceUpdate = args[16].AsBool(forceUpdate);
+            if (!Enum.TryParse(args[16].AsString(mode.ToString()).ToUpper(), out mode))
+                throw new AvisynthException();
+            debug = args[17].AsBool(debug);
 
             if (args[15].AsBool())
             {
@@ -96,9 +97,7 @@ namespace AutoOverlay
         {
             var info = GetOverlayInfo(n);
             CurrentFrameChanged?.Invoke(this, new FrameEventArgs(n));
-            var blank = DynamicEnv.BlankClip(width: GetVideoInfo().width, height: GetVideoInfo().height);
-            var subtitled = blank.Subtitle((this + "\n" + info).Replace("\n", "\\n"), align: 8, lsp: 0, size: 30);
-            var frame = subtitled[0];
+            var frame = debug ? GetSubtitledFrame(this + "\n" + info) : base.GetFrame(n);
             StaticEnv.MakeWritable(frame);
             info.ToFrame(frame);
             return frame;
@@ -116,20 +115,43 @@ namespace AutoOverlay
 
         public OverlayInfo GetOverlayInfo(int n)
         {
+            if (mode == OverlayEngineMode.ERASE)
+            {
+                OverlayStat[n] = null;
+                return new OverlayInfo
+                {
+                    FrameNumber = n,
+                    Width = OverInfo.Width,
+                    Height = OverInfo.Height,
+                    Diff = -1
+                };
+            }
             var existed = OverlayStat[n];
+            if (existed == null && mode == OverlayEngineMode.READONLY)
+            {
+                return new OverlayInfo
+                {
+                    FrameNumber = n,
+                    Width = OverInfo.Width,
+                    Height = OverInfo.Height,
+                    Diff = -1
+                };
+            }
             if (existed != null)
             {
-                if (forceUpdate)
+                if (mode == OverlayEngineMode.UPDATE)
                 {
                     var repeated = Repeat(existed, n);
                     if (Math.Abs(repeated.Diff - existed.Diff) > double.Epsilon)
-                        OverlayStat[n] = repeated;
+                        return OverlayStat[n] = repeated;
                 }
                 return existed;
             }
             StringBuilder log;
             var info = GetOverlayInfoImpl(n, out log);
-            Debug.WriteLine(log);
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine(log);
+#endif
             return info;
         }
 
@@ -380,10 +402,13 @@ namespace AutoOverlay
                         }
                     }
 
-                    var bestAr = new List<OverlayInfo> { OverlayInfo.EMPTY };
+                    var bestAr = new List<OverlayInfo>();
                     for (var step = stepCount; step > 0; step--)
                     {
-                        var initStep = step == stepCount;
+                        var initStep = !bestAr.Any();
+
+                        if (initStep)
+                            bestAr.Add(OverlayInfo.EMPTY);
 
                         var coefDiff = initStep ? 1 : Coef(step) / Coef(step + 1);
                         var coefCurrent = Coef(step);
@@ -641,7 +666,7 @@ namespace AutoOverlay
 #if DEBUG
                         extraWatch.Stop();
                         total.Stop();
-                        Debug.WriteLine($"{total.ElapsedMilliseconds} (extra {extraWatch.ElapsedMilliseconds}) ms. Step count: {stepCount}");
+                        System.Diagnostics.Debug.WriteLine($"{total.ElapsedMilliseconds} (extra {extraWatch.ElapsedMilliseconds}) ms. Step count: {stepCount}");
 #endif
                         res.FrameNumber = n;
                         return res;
