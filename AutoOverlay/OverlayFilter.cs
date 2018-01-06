@@ -23,7 +23,7 @@ namespace AutoOverlay
             {
                 width = 800,
                 height = 400,
-                pixel_type = ColorSpaces.CS_BGR32,
+                pixel_type = ColorSpaces.CS_YV12,
                 fps_numerator = 25,
                 fps_denominator = 1,
                 num_frames = 1
@@ -62,7 +62,7 @@ namespace AutoOverlay
             RectangleF crop = default(RectangleF))
         {
             if (clip == null || crop == RectangleF.Empty && width == clip.GetVideoInfo().width && height == clip.GetVideoInfo().height)
-                return clip;
+                return clip.Dynamic();
             dynamic resized;
             if (crop == RectangleF.Empty)
                 resized = clip.Dynamic().Invoke(resizeFunc, width, height);
