@@ -6,6 +6,12 @@ namespace AutoOverlay
 {
     public class FrameInterval : AbstractOverlayInfo, IEquatable<FrameInterval>
     {
+        public List<OverlayInfo> Frames { get; } = new List<OverlayInfo>();
+
+        public bool Modified { get; set; }
+
+        public OverlayInfo this[int frame] => Frames.FirstOrDefault(p => p.FrameNumber == frame);
+
         public int First => Frames.Count == 0 ? -1 : Frames.Min(p => p.FrameNumber);
         public int Last => Frames.Count == 0 ? -1 : Frames.Max(p => p.FrameNumber);
         public int Length => Last - First + 1;
@@ -76,10 +82,6 @@ namespace AutoOverlay
             get => Frames.FirstOrDefault()?.Angle ?? 0;
             set => Frames.ForEach(p => p.Angle = value);
         }
-
-        public bool Modified { get; set; }
-
-        public List<OverlayInfo> Frames { get; } = new List<OverlayInfo>();
 
         public bool Contains(int frame)
         {

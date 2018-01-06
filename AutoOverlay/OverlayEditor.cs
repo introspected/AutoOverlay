@@ -300,10 +300,10 @@ namespace AutoOverlay
                 var info = GetOverlayInfo();
                 var outSize = new Size((int) nudOutputWidth.Value, (int) nudOutputHeight.Value);
                 var crop = info.GetCrop();
-                using (var src = engine.SrcClip.Dynamic().ConvertToRGB(matrix: "Rec709"))
-                using (var over = engine.OverClip.Dynamic().ConvertToRGB(matrix: "Rec709"))
-                using (var srcMask = engine.SrcMaskClip?.Dynamic().ConvertToRGB(matrix: "Rec709"))
-                using (var overMask = engine.OverMaskClip ?.Dynamic().ConvertToRGB(matrix: "Rec709"))
+                using (var src = engine.SrcClip.Dynamic().ConvertToRGB24(matrix: "Rec709"))
+                using (var over = engine.OverClip.Dynamic().ConvertToRGB24(matrix: "Rec709"))
+                using (var srcMask = engine.SrcMaskClip?.Dynamic().ConvertToRGB24(matrix: "Rec709"))
+                using (var overMask = engine.OverMaskClip ?.Dynamic().ConvertToRGB24(matrix: "Rec709"))
                 {
                     VideoFrame frame;
                     if (chbPreview.Checked)
@@ -319,7 +319,7 @@ namespace AutoOverlay
                     }
                     else frame = src.BilinearResize(outSize.Width, outSize.Height)[CurrentFrame];
                     var wrapper = new Bitmap(outSize.Width, outSize.Height, frame.GetPitch(),
-                        PixelFormat.Format32bppArgb, frame.GetReadPtr());
+                        PixelFormat.Format24bppRgb, frame.GetReadPtr());
                     var res = new Bitmap(wrapper);
                     res.RotateFlip(RotateFlipType.Rotate180FlipX);
                     pictureBox.SuspendLayout();
@@ -415,13 +415,15 @@ namespace AutoOverlay
             Cursor.Current = Cursors.Default;
         }
 
-        private void btnAutoOverlay_Click(object sender, EventArgs e)
+        private void btnAutoOverlaySingleFrame_Click(object sender, EventArgs e)
         {
             if (Interval == null) return;
             Cursor.Current = Cursors.WaitCursor;
             using (new DynamicEnviroment(env))
+            using (new VideoFrameCollector())
             {
                 var info = engine.AutoOverlayImpl(CurrentFrame);
+                Interval[CurrentFrame].Diff = info.Diff;
                 UpdateControls(info);
             }
             RenderImpl();
@@ -644,25 +646,27 @@ namespace AutoOverlay
                 using (new DynamicEnviroment(env))
                 using (new VideoFrameCollector())
                 {
-                    var config = engine.LoadConfigs().First();
-                    var delta = 2;
-                    config.MinX = lastInterval.X - delta;
-                    config.MaxX = lastInterval.X + delta;
-                    config.MinY = lastInterval.Y - delta;
-                    config.MaxY = lastInterval.Y + delta;
-                    var rect = lastInterval.GetRectangle(engine.OverInfo.Size);
-                    var ar = rect.Width / rect.Height;
-                    if (!config.FixedAspectRatio)
+                    var configs = engine.LoadConfigs();
+                    foreach (var config in configs)
                     {
-                        config.AspectRatio1 = ar * 0.999;
-                        config.AspectRatio2 = ar * 1.001;
+                        var delta = (int) nudDistance.Value;
+                        config.MinX = Math.Max(config.MinX, lastInterval.X - delta);
+                        config.MaxX = Math.Min(config.MaxX, lastInterval.X + delta);
+                        config.MinY = Math.Max(config.MinY, lastInterval.Y - delta);
+                        config.MaxY = Math.Min(config.MaxY, lastInterval.Y + delta);
+                        config.Angle1 = config.Angle2 = lastInterval.Angle / 100.0; //TODO fix
+                        var rect = lastInterval.GetRectangle(engine.OverInfo.Size);
+                        var ar = rect.Width / rect.Height;
+                        if (!config.FixedAspectRatio) //TODO fix
+                        {
+                            config.AspectRatio1 = ar * 0.999;
+                            config.AspectRatio2 = ar * 1.001;
+                        }
+                        var scale = (double) nudScale.Value / 1000;
+                        config.MinArea = Math.Max(config.MinArea, (int) (lastInterval.Area * (1 - scale)));
+                        config.MaxArea = Math.Min(config.MaxArea, (int) Math.Round(lastInterval.Area * (1 + scale)));
                     }
-                    //config.Subpixel = 0;
-                    config.MinSampleArea = 10000;
-                    //config.ScaleBase = 1.9;
-                    config.MinArea = (int) (lastInterval.Area * 0.9876);
-                    config.MaxArea = (int) Math.Round(lastInterval.Area * 1.0124);
-                    var info = engine.AutoOverlayImpl(frame, new []{config});
+                    var info = engine.AutoOverlayImpl(frame, configs);
                     info.FrameNumber = frame;
                     if (frame == CurrentFrame)
                         UpdateControls(info);
@@ -695,6 +699,25 @@ namespace AutoOverlay
             Interval = Intervals.First(p => p.Contains(CurrentFrame));
             Intervals.RaiseListChangedEvents = true;
             Intervals.ResetBindings();
+            RenderImpl();
+            Cursor.Current = Cursors.Default;
+        }
+
+        private void btnAutoOverlaySeparatedFrame_Click(object sender, EventArgs e)
+        {
+            if (Interval == null) return;
+            Cursor.Current = Cursors.WaitCursor;
+            using (new DynamicEnviroment(env))
+            using (new VideoFrameCollector())
+            {
+                var info = engine.AutoOverlayImpl(CurrentFrame);
+                Interval[CurrentFrame].Diff = info.Diff;
+                if (!info.Equals(Interval))
+                {
+                    btnSeparate_Click(sender, e);
+                    UpdateControls(info);
+                }
+            }
             RenderImpl();
             Cursor.Current = Cursors.Default;
         }
