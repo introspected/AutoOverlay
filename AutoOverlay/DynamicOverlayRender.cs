@@ -1,4 +1,5 @@
 ﻿using System.Drawing;
+using System.Threading.Tasks;
 using AutoOverlay;
 using AvsFilterNet;
 
@@ -41,17 +42,28 @@ namespace AutoOverlay
             rotateFunc = args[17].AsString(rotateFunc);
             debug = args[18].AsBool(debug);
         }
-
+        
         protected override VideoFrame GetFrame(int n)
         {
-            using (var infoFrame = Child.GetFrame(n, StaticEnv))
+            OverlayInfo info;
+            lock (Child)
+                using (var infoFrame = Child.GetFrame(n, StaticEnv))
+                    info = OverlayInfo.FromFrame(infoFrame);
+            var hybrid = RenderFrame(info);
+            if (debug)
+                return hybrid.Subtitle(info.ToString().Replace("\n", "\\n"), lsp: 0)[n];
+
+            var res = NewVideoFrame(StaticEnv);
+            using (VideoFrame frame = hybrid[n])
             {
-                var info = OverlayInfo.FromFrame(infoFrame);
-                var hybrid = RenderFrame(info);
-                if (debug)
-                    return hybrid.Subtitle(info.ToString().Replace("\n", "\\n"), lsp: 0)[n];
-                return hybrid[n];
+                Parallel.ForEach(new[] {YUVPlanes.PLANAR_Y, YUVPlanes.PLANAR_U, YUVPlanes.PLANAR_V}, plane =>
+                {
+                    for (var y = 0; y < frame.GetHeight(plane); y++)
+                        OverlayUtils.CopyMemory(res.GetWritePtr(plane) + y * res.GetPitch(plane),
+                            frame.GetReadPtr(plane) + y * frame.GetPitch(plane), res.GetRowSize(plane));
+                });
             }
+            return res;
         }
     }
 }
