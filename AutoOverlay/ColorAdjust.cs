@@ -1,17 +1,17 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using AutoOverlay;
 using AvsFilterNet;
 
-[assembly: AvisynthFilterClass(typeof(ColorAdjust), nameof(ColorAdjust), "ccc[mask]c[tr]i", MtMode.SERIALIZED)]
+[assembly: AvisynthFilterClass(typeof(ColorAdjust), nameof(ColorAdjust), "ccc[mask]c[tr]i[limitedRange]b", MtMode.SERIALIZED)]
 namespace AutoOverlay
 {
     public class ColorAdjust : AvisynthFilter
     {
         private int tr = 0;
         private Clip sampleClip, referenceClip, maskClip;
+        private bool limitedRange;
 
         public override void Initialize(AVSValue args, ScriptEnvironment env)
         {
@@ -19,6 +19,7 @@ namespace AutoOverlay
             referenceClip = args[2].AsClip();
             maskClip = args[3].IsClip() ? args[3].AsClip() : null;
             tr = args[4].AsInt(tr);
+            limitedRange = args[5].AsBool(GetVideoInfo().IsPlanar());
         }
 
         public override VideoFrame GetFrame(int n, ScriptEnvironment env)
@@ -43,11 +44,11 @@ namespace AutoOverlay
                         var referenceHist = GetHistogram(referenceFrame, maskFrame, pixelSize, channel, plane);
                         var map = GetTransitionMap(sampleHist, referenceHist);
 #if DEBUG
-                    Debug.WriteLine($"Channel {channel}: ");
-                    for (var i = 0; i < 256; i++)
-                    //    Debug.WriteLine($"{i}: {sampleHist[i]} - {map.Select((newColor, oldColor) => new { newColor, oldColor }).Where(p => p.newColor == i).Sum(p => sampleHist[p.oldColor])} - {referenceHist[i]}");
-                    Debug.WriteIf(i != map[i], $"{i} -> {map[i]}, ");
-                    Debug.WriteLine("");
+                        System.Diagnostics.Debug.WriteLine($"Channel {channel}: ");
+                        for (var i = 0; i < 256; i++)
+                            //System.Diagnostics.Debug.WriteLine($"{i}: {sampleHist[i]} - {map.Select((newColor, oldColor) => new { newColor, oldColor }).Where(p => p.newColor == i).Sum(p => sampleHist[p.oldColor])} - {referenceHist[i]}");
+                            System.Diagnostics.Debug.WriteIf(i != map[i], $"{i} -> {map[i]}, ");
+                        System.Diagnostics.Debug.WriteLine("");
 #endif
                         unsafe
                         {
@@ -64,17 +65,17 @@ namespace AutoOverlay
             return frame;
         }
 
-        private static byte[] GetTransitionMap(int[] sampleHist, int[] referenceHist)
+        private byte[] GetTransitionMap(int[] sampleHist, int[] referenceHist)
         {
             var map = new byte[256];
             for (var i = 0; i < map.Length; i++)
                 map[i] = (byte) i;
             var sumSample = GetSumHistogram(sampleHist);
             var sumReference = GetSumHistogram(referenceHist);
-            var minSample = sumSample.TakeWhile(p => p == 0).Count();
-            var maxSample = 255 - sumSample.Reverse().TakeWhile(p => p == 0).Count();
-            var minReference = sumReference.TakeWhile(p => p == 0).Count();
-            var maxReference = 255 - sumReference.Reverse().TakeWhile(p => p == 0).Count();
+            var minSample = sampleHist.TakeWhile(p => p == 0).Count();
+            var maxSample = 255 - sampleHist.Reverse().TakeWhile(p => p == 0).Count();
+            var minReference = referenceHist.TakeWhile(p => p == 0).Count();
+            var maxReference = 255 - referenceHist.Reverse().TakeWhile(p => p == 0).Count();
             for (int color = minSample, lastRef = minReference; color <= maxSample; color++)
             {
                 for (var refColor = lastRef; refColor <= maxReference; refColor++)
@@ -88,11 +89,14 @@ namespace AutoOverlay
                         break;
                     }
             }
-            var coef = (minReference + 0) / (double) (minSample + 1);
-            for (var color = 0; color < minSample; color++)
-                map[color] = (byte) Math.Round(color * coef);
-            for (var color = maxSample + 1; color <= maxSample; color++)
-                map[color] = (byte)Math.Round(color * coef);
+            var min = 0;// limitedRange ? 16 : 0;
+            var max = 255;//limitedRange ? 235 : 255;
+            var coef = (minReference - min) / (double) (minSample - min + 1);
+            for (var color = min; color < minSample; color++)
+                map[color] = (byte) Math.Max(min, Math.Round(color * coef));
+            coef = (max - maxReference) / (double)(max - maxSample + 1);
+            for (var color = maxSample + 1; color <= max; color++)
+                map[color] = (byte) Math.Min(max, Math.Round(color / coef));
             return map;
         }
 
