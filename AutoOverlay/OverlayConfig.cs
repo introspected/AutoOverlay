@@ -71,8 +71,8 @@ namespace AutoOverlay
             debug = args[21].AsBool(debug);
             if (Math.Abs(AspectRatio1 - AspectRatio2) >= double.Epsilon && FixedAspectRatio)
                 throw new AvisynthException("Aspect ratio must be fixed");
-            if (Math.Abs(AspectRatio1 - AspectRatio2) < double.Epsilon && !args[20].Defined())
-                FixedAspectRatio = true;
+            //if (Math.Abs(AspectRatio1 - AspectRatio2) < double.Epsilon && !args[20].Defined())
+            //    FixedAspectRatio = true;
         }
         
         protected override VideoFrame GetFrame(int n)
