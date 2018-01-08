@@ -42,7 +42,7 @@ namespace AutoOverlay
             rotateFunc = args[17].AsString(rotateFunc);
             debug = args[18].AsBool(debug);
         }
-        
+
         protected override VideoFrame GetFrame(int n)
         {
             OverlayInfo info;
@@ -51,8 +51,7 @@ namespace AutoOverlay
                     info = OverlayInfo.FromFrame(infoFrame);
             var hybrid = RenderFrame(info);
             if (debug)
-                return hybrid.Subtitle(info.ToString().Replace("\n", "\\n"), lsp: 0)[n];
-
+                hybrid = hybrid.Subtitle(info.ToString().Replace("\n", "\\n"), lsp: 0);
             var res = NewVideoFrame(StaticEnv);
             using (VideoFrame frame = hybrid[n])
             {
