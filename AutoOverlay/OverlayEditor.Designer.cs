@@ -931,7 +931,7 @@
             this.btnJoinNext.Name = "btnJoinNext";
             this.btnJoinNext.Size = new System.Drawing.Size(57, 22);
             this.btnJoinNext.Text = "Join next";
-            this.btnJoinNext.Click += new System.EventHandler(this.btnJoinTo_Click);
+            this.btnJoinNext.Click += new System.EventHandler(this.btnJoinNext_Click);
             // 
             // btnJoinPrev
             // 
