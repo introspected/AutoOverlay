@@ -163,8 +163,6 @@ namespace AutoOverlay
                 {
                     var maskOver = GetMask(GetOverMask);
                     var maskSrc = GetMask(GetSourceMask);
-                    if (maskSrc != null && maskOver != null)
-                        maskOver = maskOver.Overlay(maskSrc.Invoke(rotateFunc, -info.Angle / 100.0), -info.X, -info.Y, mode: "lighten", opacity:1);
                     if (overMask != null && maskOver != null)
                         maskOver = maskOver.Overlay(overMask, mode: "darken");
                     if (srcMaskClip != null && maskOver != null)
