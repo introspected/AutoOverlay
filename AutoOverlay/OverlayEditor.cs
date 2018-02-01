@@ -214,6 +214,7 @@ namespace AutoOverlay
                     last = Intervals.AddNew();
                 last.Frames.Add(info);
             }
+
             Text = Text + " " + Intervals.Count;
             Intervals.RaiseListChangedEvents = true;
             Interval = Intervals.FirstOrDefault(p => p.Contains(CurrentFrame));
@@ -368,6 +369,8 @@ namespace AutoOverlay
             if (item.Modified)
                 grid.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.LightYellow;
             else if (item.Diff > engine.MaxDiff)
+                grid.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.LightCoral;
+            else if (item.Frames.Any(p => p.Diff > engine.MaxDiff))
                 grid.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.LightPink;
         }
 
