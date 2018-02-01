@@ -6,7 +6,7 @@ using AvsFilterNet;
 [assembly: AvisynthFilterClass(typeof(DynamicOverlayRender),
     nameof(OverlayRender),
     "ccc[SourceMask]c[OverlayMask]c[LumaOnly]b[Width]i[Height]i[Gradient]i[Noise]i[DynamicNoise]b[Mode]i[Opacity]f[colorAdjust]i[matrix]s[Upsize]s[Downsize]s[Rotate]s[Debug]b",
-    MtMode.NICE_FILTER)]
+    MtMode.SERIALIZED)]
 namespace AutoOverlay
 {
     public class DynamicOverlayRender : OverlayRender
@@ -46,9 +46,9 @@ namespace AutoOverlay
         protected override VideoFrame GetFrame(int n)
         {
             OverlayInfo info;
-            lock (Child)
-                using (var infoFrame = Child.GetFrame(n, StaticEnv))
-                    info = OverlayInfo.FromFrame(infoFrame);
+            //lock (Child)
+            using (var infoFrame = Child.GetFrame(n, StaticEnv))
+                info = OverlayInfo.FromFrame(infoFrame);
             var hybrid = RenderFrame(info);
             if (debug)
                 hybrid = hybrid.Subtitle(info.ToString().Replace("\n", "\\n"), lsp: 0);
