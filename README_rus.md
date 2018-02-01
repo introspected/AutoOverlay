@@ -26,7 +26,7 @@
     OverlayConfig(float minOverlayArea, float minSourceArea, float aspectRatio1, float aspectRatio2, 
                   float angle1, float angle2, int minSampleArea, int requiredSampleArea, float maxSampleDifference, 
                   int subpixel, float scaleBase, int branches, float acceptableDiff, int correction,
-                  int minX, int maxX, int minY, int maxY, int minArea, int maxArea, bool fixedAspectRatio)
+                  int minX, int maxX, int minY, int maxY, int minArea, int maxArea, bool fixedAspectRatio, bool debug)
 Фильтр описывает конфигурацию поиска оптимальных параметров наложения: устанавливает границы значений и настройки алгоритма поиска. Фильтр на выходе дает служебный клип, состоящий всего из одного фрейма, в котором закодированы переданные параметры, которые могут быть считаны другим фильтром. 
 
 #### Параметры
@@ -44,12 +44,13 @@
 - **correction** (default 1) - величина коррекции параметров наложении между шагами масштабирования. Чем выше значение - тем больше тестируется различных вариантов наложения. 
 - **minX**, **maxX**, **minY**, **maxY** - допустимый диапазон координат наложения, по умолчанию не определены.
 - **minArea**, **maxArea** - минимальная и максимальная площадь накладываемого изображения, по умолчанию не определены.
-- **fixedAspectRatio** - режим точного соблюдения соотношения сторон. Включается автоматически, если *aspectRatio1* и *aspectRatio2* равны.
+- **fixedAspectRatio** - режим точного соблюдения соотношения сторон. Включается автоматически, если *aspectRatio1* и *aspectRatio2* равны. 
+- **debug** (default false) - вывод информации о параметрах наложения текущего фрейма, замедляет работу.
 
 ### OverlayEngine
-    OverlayEngine(clip, clip, string statFile, int backwardFrames, int forwardFrames, 
-                    clip sourceMask, clip overlayMask, float maxDiff, float maxDiffIncrease, float maxDeviation, 
-                    bool stabilize, clip configs, string downsize, string upsize, string rotate, bool editor)
+    OverlayEngine(clip, clip, string statFile, int backwardFrames, int forwardFrames, clip sourceMask, 
+                  clip overlayMask, float maxDiff, float maxDiffIncrease, float maxDeviation, bool stabilize,
+                  clip configs, string downsize, string upsize, string rotate, bool editor, string mode, bool debug)
 Фильтр принимает на вход два синхронизированных по времени клипа и находит оптимальные параметры наложения, то есть минимизирует СКО между клипами в области пересечения. Эта информация записывается в выходной кадр и может быть использована другими фильтрами. Статистика может быть записана в файл для повторного использования, экономии времени и правок вручную с помощью встроенного редактора.
 
 #### Параметры
@@ -64,8 +65,14 @@
 - **stabilize** (default true) - попытка стабилизации параметров наложения.
 - **configs** (default конфигурация по умолчанию) - список конфигураций наложения в виде клипа. Задается следующим образом: `configs=OverlayConfig(subpixel=1) + OverlayConfig(angle1=-1, angle2=1)`. В этом примере, если во время тестирования первой конфигурации получен приемлемое СКО, вторая, более тяжелая с вращением изображения не выполняется. 
 - **downsize** и **upsize** (default *BilinearResize*) - функции для уменьшения и увеличения размера накладываемого изображения.
-- **rotate** (default *BilinearRotate*) - функция вращения накладываемого изображения.
-- **editor** (default false). Если true, отображается окно визуального редактора параметров наложения по всей накопленной статистике.
+- **rotate** (default *BilinearRotate*) - функция вращения накладываемого изображения. 
+- **editor** (default false). Если true, отображается окно визуального редактора параметров наложения по всей накопленной статистике. 
+- **mode** (default "default") - алгоритм работы движка:  
+DEFAULT - стандартное накопление статистики  
+UPDATE - форсировать обновление значения diff  
+ERASE - стирать статистику  
+READONLY - использовать только имеющиуюся статистику 
+- **debug** (default false) - вывод значений параметров, замедляет работу.
 
 #### Прицнип работы
 Движок находит оптимальное пересечение двух кадров. Параметры совмещения описываются следующими свойствами: координаты верхнего угла накладываемого изображения (x,y), угол поворота (angle), ширина и высота изображения (width и height), величина обрезки изображения (crop) для субпиксельной точности (с каждой из четырех сторон изображение может быть обрезано максимум на пиксель в диапазоне вещественных чисел), СКО (diff).  
