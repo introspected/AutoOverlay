@@ -30,7 +30,7 @@ namespace AutoOverlay
         public int Subpixel { get; set; } = 0;
         public double ScaleBase { get; set; } = 1.5;
         public int Branches { get; set; } = 1;
-        public double BranchCorrelation { get; set; } = 0.5;
+        public double BranchCorrelation { get; set; } = 0.5; //TODO add to filter params
 
         public double AcceptableDiff { get; set; } = 5;
         public int Correction { get; set; } = 1;

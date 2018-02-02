@@ -31,7 +31,7 @@ namespace AutoOverlay
         private int forwardFrameCount = 3;
         public double MaxDiff { get; private set; } = 5;
         private double maxDiffIncrease = 1;
-        private double maxDeviation = 1;
+        private double maxDeviation = 0.5;
         private bool stabilize = true;
         private string downsizeFunc = "BilinearResize";
         private string upsizeFunc = "BilinearResize";
