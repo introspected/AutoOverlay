@@ -1,94 +1,103 @@
 # AutoOverlay AviSynth plugin
 
-### Требования
-- AviSynth 2.6 и выше, AviSynth+, рекомендуется последняя версия x64: https://github.com/pinterf/AviSynthPlus/releases
-- AvsFilterNet plugin https://github.com/mysteryx93/AvsFilterNet/ (включен в сборку, предыдущие версии работают некорректно)
-- .NET framework 4.0 и выше
+### Requirements
+- AviSynth 2.6 or higher, AviSynth+. The latest x64 build is recommended: https://github.com/pinterf/AviSynthPlus/releases
+- AvsFilterNet plugin https://github.com/mysteryx93/AvsFilterNet/ (included, previous versions do not work correctly)
+- .NET framework 4.0 or higher
 
-### Установка
-- Скопировать x86 и/или x64 версии AvsFilterNet в папку с плагинами.
-- Скопировать AutoOverlay_netautoload.dll в папку с плагинами, один и тот же файл используется как для x86, так и x64.
+### Installation
+- Copy x86 and/or x64 versions of AvsFilterNet to the plugins folder.
+- Copy AutoOverlay_netautoload.dll to the plugin folder, the same file used for both x86 and x64.
 
-### Описание
-Плагин предназначен для оптимального наложения одного видеоклипа на другой в автоматическом режиме.  
-Сопоставление осуществляется путем тестирования различных координат наложения, разрешений, соотношений сторон и углов вращения клипа с целью найти наилучшую комбинацию этих параметров. Функция сравнения областей двух кадров - среднеквадратическое отклонение (СКО, RMSE). Результат выполнения функции обозначается как diff (т.к. тестировались и другие функции).  
-Сопоставление разбивается на несколько шагов с помощью масштабирования и определения границ параметров наложения, чтобы сократить время обработки. Если на определенном шаге достигнута требуемая точность, остальные шаги не выполняются.  
-После сопоставления кадров плагин позволяет адаптировать и наложить их друг на друга различными способами, получив результирующее видео, собранное из нескольких источников.  
-Плагин содержит несколько фильтров, которые взаимодействуют друг с другом, чтобы разбить работу на несколько этапов.
+### Description
+The plugin is designed for auto-aligned optimal overlay of one video clip onto another.  
+The auto-align within OverlayEngine is performed by testing different coordinates (X and Y of the top left corner), resolutions, aspect ratio and rotation angles of the overlay frame in order to find the best combination of these parameters. The function of comparing the areas of two frames is the root-mean-square error (RMSE) on which PSNR is based - but is inversely proportional. The result of this function within the plugin is called simply DIFF since during development other functions were tested, too. The aim of auto-align is to minimize diff value.  
+To increase performance, auto-align is divided into several stages of scaling and tests of different OverlayConfigs  which particularly include ranges of acceptable align values. For every OverlayConfig on the first stage all possible combinations are tested in low resolution. On the next, a comparison based on the best align settings from the previous stage. Finally, if the required accuracy is achieved with current OverlayConfig, the remaining are not tested.  
+After auto-align it is possible to overlay one frame onto another in different ways with configurable OverlayRender.
+### Load plugin in script
+    LoadPlugin("%plugin folder%\AvsFilterNet.dll")
+    LoadNetPlugin("%plugin folder %\AutoOverlay_netautoload.dll")
+AviSynth+ supports plugin auto loading, if .NET plugin filename includes suffix _netautoload. So it includes by default. Check the proper filename in LoadNetPlugin clause.
 
-### Подключение плагинов
-    LoadPlugin("%папка с плагинами%\AvsFilterNet.dll")
-    LoadNetPlugin("%папка с плагинами%\AutoOverlay.dll")
-В AviSynth+ плагины загружаются автоматически.
-
-## Фильтры
+## Filters
 ### OverlayConfig
     OverlayConfig(float minOverlayArea, float minSourceArea, float aspectRatio1, float aspectRatio2, 
                   float angle1, float angle2, int minSampleArea, int requiredSampleArea, float maxSampleDifference, 
                   int subpixel, float scaleBase, int branches, float acceptableDiff, int correction,
-                  int minX, int maxX, int minY, int maxY, int minArea, int maxArea, bool fixedAspectRatio)
-Фильтр описывает конфигурацию поиска оптимальных параметров наложения: устанавливает границы значений и настройки алгоритма поиска. Фильтр на выходе дает служебный клип, состоящий всего из одного фрейма, в котором закодированы переданные параметры, которые могут быть считаны другим фильтром. 
+                  int minX, int maxX, int minY, int maxY, int minArea, int maxArea, bool fixedAspectRatio, bool debug)
+This filter describes configuration for OverlayEngine: how to search optimal align settings. It defines the bounds of align values such as coordinates of the top left corner of overlaid image relative source image, width and height of scaled overlaid image and its rotation angle. Configuration contains OverlayEngine settings for auto-align process as well.  
+The filter output is one frame clip that contains given arguments encoded to the image. It is the hack to inject these values to OverlayEngine as independent entity.  
+It is possible to add some clips to config chain with regular splice operator: OverlayConfig(…) + OverlayConfig(…). OverlayEngine then will test each config in given order. As soon as acceptable diff value is reached, it will be returned as best align and other configs will not be processed.
 
-#### Параметры
-- **minOverlayArea** - минимальная площадь накладываемого кадра в пересечении в процентах. По умолчанию рассчитывается таким образом, чтобы кадр основного клипа мог быть полностью вписан в накладываемый (пансканирование), но не более того.
-- **minSourceArea** - минимальная площадь основного кадра в пересечении в процентах. По умолчанию рассчитывается таким образом, чтобы кадр наклдываемого клипа мог быть полностью вписан в основной (пансканирование), но не более того.
-- **aspectRatio1** и **aspectRatio2** - диапазон допустимых соотношений сторон наклдываемого изображения. По умолчанию каждый из параметров равен соотношения сторон накладываемого клипа в оригинале. Могут быть заданы в любом порядке: `aspectRatio1=2.35, aspectRatio2=2.45` - то же самое, что и `aspectRatio1=2.45, aspectRatio2=2.35`.
-- **angle1** и **angle2** (default 0) - диапазон угла вращения наклдываемого изображения. Могут быть заданы в любом порядке. Отрицательные значения - поворот по часовой стрелке, положительные - против.
-- **minSampleArea** (default 1000) - минимальная площадь в пикселях уменьшенного кадра основного клипа во время тестирования. Чем меньше, тем быстрее, но и выше риск получить некорректный результат. Рекомендуемый диапазон: 500-3000.
-- **requiredSampleArea** (default 1000) - максимально допустимая площадь в пикселях уменьшенного кадра основного клипа во время первой итерации тестирования. Чем меньше, тем быстрее, но и выше риск получить некорректный результат. Рекомендуемый диапазон: 1000-5000.
-- **maxSampleDifference** (default 5) - максимально допустимое СКО между сэмплами на соседних итерациях масштабирования. Исходя из этого параметра расчитывается начальная площадь сэмпла в диапазоне *minSampleArea-requiredSampleArea*.
-- **subpixel** (default 0) - субпиксельная точность наложения. 0 - наложение с точностью до пикселя, 1 - до полупикселя, 2 - до четверти и так далее. Рекомендуется значение 0, если один клип сильно уступает в качестве другому, 1-3, если клипы примерно одного качества и разрешение результирующего клипа не будет уменьшено.
-- **scaleBase** (default 1.5) - основание для расчета коэффициента уменьшения изображения по формуле `coef=scaleBase^(1 - (maxStep - currentStep))`.
-- **branches** - количество промежуточных "веток" тестирования при переходе от одного шага к другому. Рекомендуется 1-10. Чем выше - тем дольше.
-- **acceptableDiff** (default 5) - приемлемое СКО, после получения которого последующие OverlayConfig не выполняются.
-- **correction** (default 1) - величина коррекции параметров наложении между шагами масштабирования. Чем выше значение - тем больше тестируется различных вариантов наложения. 
-- **minX**, **maxX**, **minY**, **maxY** - допустимый диапазон координат наложения, по умолчанию не определены.
-- **minArea**, **maxArea** - минимальная и максимальная площадь накладываемого изображения, по умолчанию не определены.
-- **fixedAspectRatio** - режим точного соблюдения соотношения сторон. Включается автоматически, если *aspectRatio1* и *aspectRatio2* равны.
+#### Parameters
+- **minOverlayArea** - minimum intersection part of overlay image in percent. By default: max value if overlay image will be completely contain source image (pan&scan). For example, if source clip is 1920x1080 and overlaid one is 1920x800 then value will be 800/1080 = 74%.
+- **minSourceArea** - minimum intersection part of source image in percent. By default: max value if source image will be completely contain overlay image (pan&scan). For example, if source clip is 1440x1080 and overlaid one is 1920x1080 then value will be 1440/1920 = 75%.
+- **aspectRatio1** and **aspectRatio2** - range of acceptable aspect ratio of overlaid image. By default – overlay clip aspect ratio. Can be specified in any order: `aspectRatio1=2.35, aspectRatio2=2.45` is the same as `aspectRatio1=2.45, aspectRatio2=2.35`.
+- **angle1** и **angle2** (default 0) - range of acceptable rotation angle if overlaid image. Can be specified in any order. Negative values – clockwise rotation, positive – counter.
+- **minSampleArea** (default 1000) – minimum area in pixels of downsized source clip at first scale stage. The smaller, the faster, but also the greater risk of getting an incorrect result. Recommended range: 500-3000. 
+- **requiredSampleArea** (default 1000) - maximum area in pixels of downscaled source clip at first scale stage. The smaller, the faster, but also the greater risk of getting an incorrect result. Recommended range: 1000-5000. 
+- **maxSampleDifference** (default 5) – max allowed DIFF between downscaled source clip at previous and current scale iteration. If it is too high then previous iteration will not be processed.  
+- **subpixel** (default 0) – subpixel align accuracy. 0 – one pixel accuracy, 1 – half pixel, 2 – quarter and so on. Zero is recommended if one clip is much smaller then another. 1-3 if both clips have about the same resolution. 
+- **scaleBase** (default 1.5) – base to calculate downscale coefficient by formula `coef=scaleBase^(1 - (maxStep - currentStep))`.
+- **branches** (default 1) - how many best align params from previous scale stage will be analyzed at the next one.  1-10 is recommended. The higher - the longer.
+- **acceptableDiff** (default 5) – acceptable DIFF value. If it will be achieved with current OverlayConfig the remaining configs in the chain will not be processed.
+- **correction** (default 1) – the value of correction the best align params between scale stages. The higher, then more different align params are tested. 
+- **minX**, **maxX**, **minY**, **maxY** - ranges of top left corner coordinates, unlimited by default.
+- **minArea**, **maxArea** - area range of overlaid image in pixels, unlimited by default.
+- **fixedAspectRatio** (default false) - maximum accurate aspect ratio. May be true only if aspectRatio1=aspectRatio2.
+- **debug** (default false) – output given arguments, slower.
 
 ### OverlayEngine
-    OverlayEngine(clip, clip, string statFile, int backwardFrames, int forwardFrames, 
-                    clip sourceMask, clip overlayMask, float maxDiff, float maxDiffIncrease, float maxDeviation, 
-                    bool stabilize, clip configs, string downsize, string upsize, string rotate, bool editor)
-Фильтр принимает на вход два синхронизированных по времени клипа и находит оптимальные параметры наложения, то есть минимизирует СКО между клипами в области пересечения. Эта информация записывается в выходной кадр и может быть использована другими фильтрами. Статистика может быть записана в файл для повторного использования, экономии времени и правок вручную с помощью встроенного редактора.
+    OverlayEngine(clip, clip, string statFile, int backwardFrames, int forwardFrames, clip sourceMask, 
+                  clip overlayMask, float maxDiff, float maxDiffIncrease, float maxDeviation, bool stabilize,
+                  clip configs, string downsize, string upsize, string rotate, bool editor, string mode, bool debug)
+Filter takes two clips: source and overlay. It performs auto-align by resizing, rotation and shifting an overlay clip to find the best diff value. Best align settings are encoded into output frame so it could be read by another filter. The sequence of these align settings frame-by-frame (statistics) could be written to in-memory cache or file for reuse and manual editing via built-in visual editor. 
+#### Parameters
+- **source** - first, base clip.
+- **overlay** - second, overlaid clip. Both clips must be in the same color space without chroma subsampling. Y8, YV24 and RGB24 are supported.
+- **statFile** (default empty) – path to the file with current align values. If empty then in-memory cache is used. Recommended use-case: to test different OverlayConfigs use in-memory cache. After that set statFile and run analysis pass.
+- **backwardFrames** and **forwardFrames** (default 3) – count of previous and forward frames for searching align params of current frame. 
+- **sourceMask**, **overlayMask** (default empty) – mask clips for source and overlaid clips. If mask was specified then pixels that correspond to zero values in mask will be excluded from comparison function. In RGB color space all channels are analyzed independent. In YUV only luma channel is analyzed. Masks and clips should be in the same type color space (YUV or RGB24). Note that in planar color space masks should be in full range (`ColorYUV(levels="TV->PC")`). 
+- **maxDiff** (default 5) – diff value below which auto-align is marked as correct.
+- **maxDiffIncrease** (default 1) – maximum allowed diff increasing in the frame sequence.
+- **maxDeviation** (default 0.5) – max allowed rest area of clip in percent subtracting intersection to detect scene change.
+- **stabilize** (default true) – attempt to stabilize align values at the beginning of scene when there is no enough backward frames including to current scene.
+- **configs** (default OverlayConfig with default values) – configuration list in the form of clip. Example: `configs=OverlayConfig(subpixel=1, acceptableDiff=10) + OverlayConfig(angle1=-1, angle2=1)`. If during analyses of first configuration it founds align values with diff below 10 then second one with high ranges and low performance will be skipped.
+- **downsize** and **upsize** (default *BilinearResize*) – functions that used for downsizing and upsizing of overlaid clip during auto-align.
+- **rotate** (default *BilinearRotate*) – rotation function. Currently built-in one is used which based on AForge.NET.
+- **editor** (default false). If true then visual editor form will be open at the script loading. 
+- **mode** (default "default") – engine mode:
+DEFAULT – default mode  
+UPDATE – as default but with forced diff update   
+ERASE – erase statistics  
+READONLY – use only existing align statistics 
+- **debug** (default false) - output align values, slower.
 
-#### Параметры
-- **source** - первый, основной клип.
-- **overlay** - второй клип, накладываемый на первый. Оба клипа должны пыть либо в планарном, либо в RGB24 цветовом пространстве.
-- **statFile** (default empty) - путь к файлу со статистикой. Если путь не указан, статистика хранится в оперативной памяти в пределах одного сеанса, рекомендуется для тестирования различных конфигураций наложения. После подбора оптимальной конфигурации рекомендуется указать файл со статистикой и прогнать analysis pass.
-- **backwardFrames** и **forwardFrames** (default 3) - количество предыдущих и последующих кадров для анализа. 
-- **sourceMask**, **overlayMask** (default empty) - маски основного и накладываемого клипа. Пиксели, имеющие значение 0 в маске исключаются из анализа в соответствующих изображениях. В RGB каналы анализируются независимо. В YUV анализируется только яркость. Y канал маски должен быть в полном диапазоне (`ColorYUV(levels="TV->PC")`). 
-- **maxDiff** (default 5) - максимально допустимое СКО.
-- **maxDiffIncrease** (default 1) - максимально допустимое отклонение СКО в пределах выборки.
-- **maxDeviation** (default 1) - максимально допустимое различие между областями наложения, в процентах.
-- **stabilize** (default true) - попытка стабилизации параметров наложения.
-- **configs** (default конфигурация по умолчанию) - список конфигураций наложения в виде клипа. Задается следующим образом: `configs=OverlayConfig(subpixel=1) + OverlayConfig(angle1=-1, angle2=1)`. В этом примере, если во время тестирования первой конфигурации получен приемлемое СКО, вторая, более тяжелая с вращением изображения не выполняется. 
-- **downsize** и **upsize** (default *BilinearResize*) - функции для уменьшения и увеличения размера накладываемого изображения.
-- **rotate** (default *BilinearRotate*) - функция вращения накладываемого изображения.
-- **editor** (default false). Если true, отображается окно визуального редактора параметров наложения по всей накопленной статистике.
+#### How it works
+The engine works out optimal align values: coordinates of overlaid clip’s top left corner (x=0,y=0 is the left top corner of source clip), rotation angle in degrees, overlaid width and height, floating-point crop values from 0 to 1 for subpixel accuracy (left, top, right, bottom) and DIFF value.  
+*OverlayConfig* chain provides ranges of acceptable align values. The engine runs each config one-by-one while align values with acceptable diff would not be found. Auto-align process for each configuration includes multiple scaling stages. At the first stage all possible combinations of align values are tested in the lowest resolution. The count of best align value sets passed to the next stage is given by `OverlayConfig.branches` parameter. At the next stages best sets from previous are corrected. Note that, simplified, one pixel in low resolution includes four from high. *OverlayConfig* contains `correction` parameter to set correction limit for all directions and sizes in pixels.  
+Image resizing is performed by functions from *downsize* and *upsize* parameters. First one is commonly used at the intermediate scale stages, last one at the final. So it’s recommended to use something better than BilinearResize at the end. The functions must have signature as follow: `Resize(clip clip, int target_width, int target_height, float src_left, float src_top, float src_width, float src_height)`. Additional parameters are allowed, that is, the signature corresponds to standard resize functions. It is recommended to use the ResampleMT plugin, which provides the same functions but internally multithreaded.  
+Besides auto-align of given frame the engine analyses sequence of neighboring frames is specified by *backwardFrames* and *forwardFrames* parameters according to *maxDiff, maxDiffIncrease, maxDeviation, stabilize* params as described below:  
+- Request align values of current frame.
+- Return data from statFile or in-memory cache if this frame was auto-aligned already.
+- If previous frames in quantity of *backwardFrames* are already aligned with the same values and their DIFF don’t exceed *maxDiff* value, then the same align values will be tested for the current frame. 
+- If maximum DIFF is increasing within sequence is lower than *maxDiffIncrease*, then the engine analyzes next frames in quantity of *forwardFrames* otherwise current frame will be marked as independent from previous – that means scene change.
+- If current frame was included to the sequence with previous frames then the same align values will be tested on forward frames if *forwardFrames* is greater than zero. If all next frames are good at the same align then current frame will be included to the sequence. 
+- If some of next frames exceed *maxDiff* value or difference between next frame diff and average diff is higher than *maxDiffIncrease* then the engine will work out optimal auto-align values for next frame. If new align values significantly differ from previous then we have scene change otherwise there is pan&scan episode and each frame should be processed independently. The parameter that used for this decision is *maxDeviation*.
+- If current frame is marked as independent after previous operations and *OverlayEngine.stablize=true* then engine tries to find equal align params for the next frames too to start new scene.
+- If *backwardFrames* is equal to zero then each frame is independent. This scenario has very low performance and may cause image shaking. Use this only if you have two different original master copies from which the sources were made. 
 
-#### Прицнип работы
-Движок находит оптимальное пересечение двух кадров. Параметры совмещения описываются следующими свойствами: координаты верхнего угла накладываемого изображения (x,y), угол поворота (angle), ширина и высота изображения (width и height), величина обрезки изображения (crop) для субпиксельной точности (с каждой из четырех сторон изображение может быть обрезано максимум на пиксель в диапазоне вещественных чисел), СКО (diff).  
-
-Параметры поиска задаются с помощью цепочки конфигураций *OverlayConfig* в параметре *configs*. Движок по очереди прогоняет все конфигурации, пока они не закончатся или не будет получено приемлемое значение СКО, заданное в *OverlayConfig.AcceptableDiff*. Тестирование каждой конфигурации также состоит из нескольких шагов масштабирования. На первом шаге тестируются все возможные комбинации наложения в максимально низком разрешении. На последующих шагах тестируются уточненные параметры.  
-Ресайз изображений осуществляется с помощью функций, переданных в параметрах *downsize* и *upsize*. Первая в основном используется на начальных стадиях, вторая на последних, поэтому ее можно явно переопределить на более сложную, например *BicubicResize*. Сигнатура функций должны иметь следующую сигнатуру: `Resize(clip clip, int target_width, int target_height, float src_left, float src_top, float src_width, float src_height)`. Допускаются дополнительные параметры, то есть сигнатура соответствует стандартным функциям ресайза. Рекомендуется использовать плагин ResampleMT, который предоставляет те же самые функции, работающие внутри в несколько потоков.  
-
-Помимо поиска оптимального наложения единичного кадра, движок анализирует последовательность соседних кадров. За это отвечают параметры *backwardFrames, forwardFrames, maxDiff, maxDiffIncrease, maxDeviation, stabilize*.  
-Когда у движка запрашивают параметры наложения определенного кадра, происходит следующий порядок действий:
-- Возврат сохраненных данных, если ранее этот кадр уже анализировался.  
-- Если предыдущие кадры в количестве *backwardFrames* проанализированы, параметры наложения совпадают и их СКО не превышает *maxDiff*, такие же параметры тестируются для текущего кадра. Если максимальное отклонение СКО от среднего по выборке не превышает *maxDiffIncrease*, происходит анализ последующих фреймов, иначе текущий кадр помечается как независимый от предыдущих.  
-- Далее последующие кадры тестируются с теми же параметрами наложения, если *forwardFrames* больше нуля и предыдущий кадр включается в серию предыдущих. Варианты следующие: последующие кадры также могут быть потенциально включены в эпизод на основе анализа СКО, тогда к текущему кадру однозначно применяются текущие параметры наложения. Если последующие кадры не могут быть включены в текущий эпизод, анализируется насколько близка область их оптимального наложения к текущей. Если области пересекаются на 100-*maxDeviation* процентов или более, текущий кадр рассматривается как независимый на участке пансканирования. Если области пересечения значительно не совпадают, значит последующие кадры относятся к другому эпизоду и текущий кадр зависит только от предыдущих.  
-- Если текущий кадр после предыдущих действий рассматривается как независимый, то делается попытка стабилизировать параметры наложения соседних кадров, если включен параметр *stablize*.  
-- Если параметр *backwardFrames* равен нулю, каждый кадр рассматривается как независимый, что резко снижает производительность и может приводить к "тряске" изображения, но обеспечивает максимальную точность отдельно взятого кадра. Рекомендуется использовать только в случае, если оба входных клипа не стабилизированы относительно друг друга.  
-
-##### Визуальный редактор
-Запускается, если *OverlayEngine.editor*=true.  
-Слева превью кадра. Внизу трекбар по количеству кадров и поле ввода текущего кадра. Справа таблица, отображающиая кадры с одинаковыми параметрами наложения, объединенные в эпизоды. Между эпизодами можно переключаться. Под гридом панель управления.  
-Overlay settings - параметры наложения текущего эпизода. Обрезка (crop) в тысячных пикселя в диапазоне от 0 до 1000.  
-Кнопка AutoOverlay frame - повторный прогон AutoOverlay для текущего кадра, характеристики наложения распространяются на весь эпизод.  
-Кнопка AutoOverlay scene - повторный прогон AutoOverlay для всех кадров, составляющих эпизод, в результате чего он может быть разбит на несколько.  
-Измененные и несохраненные эпизоды подсвечиваются желтым цветом в гриде. Кнопка save - сохранение изменений. Reset - сброс изменений и повторная загрузка данных. Reload - перезагрузка характеристик для текущего кадра, распространяющиеся на весь эпизод.  
-Separate - обособление кадра. Join prev - присоединить кадры предыдущего эпизода. Join next - присоединить кадры слудующего эпизода. Join to - присоединить кадры до введенного включительно.  
+##### Visual editor
+Displayed when *OverlayEngine.editor*=true. It is useful after analysis pass when statFile is specified to check all scenes and manually correct incorrect aligned frames.  
+Preview from the left side. Below there is trackbar by total frame count and current frame input field. Grid with equal aligned frame sequences on the right. It is possible to move between scenes by row selection. Below grid there is a control panel.  
+*Overlay settings* contains controls to change align values of current scene. *Crop* fields in pro mil px from 0 to 1000.  
+Below there is *AutoOverlay* section.  
+*Single frame* button performs auto-align based on the current frame. The result is applied to the full scene. *Separated frame* button performs auto-align based on the current frame. If new align values is differ from the scene then current frame is separated.  *Scene* button performs auto-align for each frame in the scene independently.  
+On the right there are controls to process pan&scan scenes. Before using it join pan&scan frame sequence into one scene (one row in grid) and press *Single frame* for the first frame in the sequence. After that set maximum *distance* in pixels of shifting and resizing limit in pro mil for each next frame according to previous one. The click to *Pan&scan* button to process the whole scene. The progress will be displayed at the form caption.  
+Below there is *Display settings*. It includes the same settings as OverlayRender filter: output resolution, overlay mode, gradient and noise length, opacity in percent, *preview* and *display info* checkboxes. If preview is disabled then source clip is displayed.  
+At the bottom of control panel there are button panel.  
+The scenes that were changed by user are highlighted with yellow color in grid. *Save* button will apply changes to statFile. *Reset* will reload all data from file. *Reload* will reload data only for current frame and apply it to while scene.  
+*Separate* will exclude the current frame from scene. *Join prev* will join previous scene to current and overwrite align values. *Join next* will join next scene to current and overwrite align values. *Join to* will join current scene to specified frame and overwrite align values.  
 
 **Hotkeys**:
 * Ctrl + S - save
@@ -103,36 +112,36 @@ Separate - обособление кадра. Join prev - присоединит
     OverlayRender(clip, clip, clip, clip sourceMask, clip overlayMask, bool lumaOnly, int width, int height, 
                   int gradient, int noise, bool dynamicNoise, bool mode, float opacity, int colorAdjust, 
                   string matrix, string upsize, string downsize, string rotate, bool debug)
-Фильтр осуществляет рендеринг результата совмещения двух клипов с определенными настройками.
+This filter preforms rendering of the result clip using align values from the engine. 
 
-#### Параметры
-- **engine** - клип типа *OverlayEngine*, который предоставляет параметры наложения.
-- **source** - первый, основной клип.
-- **overlay** - второй клип, накладываемый на первый. Оба клипа должны пыть либо в планарном цветовом пространстве без chroma subsampling, либо в RGB24.
-- **sourceMask**, **overlayMask** (default empty) - маски основного и накладываемого клипа. В отличие от OverlayEngine смысл этих масок такой же, как в обычном фильтре *Overlay*. Маски регулируют интенсивность наложения клипов относительно друга друга.
-- **lumaOnly** (default false) - накладывается только канал яркости YUV при *mode*=1.
-- **width** и **height** - ширина и высота выходного изображения. По умолчанию соответствует основному клипу.
-- **gradient** (default 0) - длина прозрачного градинета в пикселях по краям накладываемой области. Делает переход между изображениями более плавным.
-- **noise** (default 0) - длина градинета шума в пикселях по краям накладываемой области. Делает переход между изображениями более плавным.
-- **dynamicNoise** (default true) - динамический шум по краям изображения от кадра к кадру, если *noise* > 0.
-- **mode** (default 1) - способ совмещения изображений:  
-1 - обрезка по краям основного изображения.  
-2 - совмещение обоих изображений с обрезкой по краям выходного клипа.  
-3 - совмещение обоих изображений без обрезки.  
-4 - как 3, только с заполнением пустых углов по типу ambilight.  
-5 - как 3, только с заполнением всего пустого пространства по типу ambilight.  
-6 - маска режима 3. Используется для совмещения результата с еще одним клипом.  
-7 - как в режиме 1, только выводится разница между изображениями (удобно для тестирования).  
-- **opacity** (default 1) - степень непрозрачности накладываемого изображения от 0 до 1.
-- **colorAdjust** (default 0) *экспериментально* - способ цветокоррекции:  
-0 - отсутствует  
-1 - накладываемый клип приводится к основному  
-2 - основной клип приводится к накладываемому  
-Цветокоррекция осуществляется с помощью histogram matching области пересечения. Для YUV изображений корректируется только яркость.
-- **matrix** (default empty). Если параметр задан, YUV изображение конвертируется в RGB по указанной матрице для цветокоррекции.
-- **downsize** и **upsize** (default *BilinearResize*) - функции для уменьшения и увеличения размера изображений.
-- **rotate** (default *BilinearRotate*) - функция вращения накладываемого изображения.
-- **debug** - вывод параметров наложения.
+#### Parameters
+- **engine** - *OverlayEngine* clip.
+- **source** - first, base clip.
+- **overlay** - second, overlaid clip. Both clips must be in the same color space without chroma subsampling. Y8, YV24 and RGB24 are supported.
+- **sourceMask**, **overlayMask** (default empty) - mask clips for source and overlaid clips. Unlike masks in overlay engine in this filter they work as avisynth built-in overlay filter masks. If both masks are specified then they are joined to one according align values. The purpose of the masks is maximum hiding of logos and other unwanted parts of the clips at transparent or gradient parts, which could be specified by *gradient* and *noise* parameters. 
+- **lumaOnly** (default false) – overlay only luma channel when *mode*=1.
+- **width** и **height** - output width and height. By default are taken from source clip.
+- **gradient** (default 0) – length of gradient at the overlay mask to make borders between images smoother. Useful when clips are scientifically differ in colors or align is not very good.
+- **noise** (default 0) - length of “noise gradient” at the overlay mask to make borders between images smoother. Useful when clips are in the same color and align is very good.
+- **dynamicNoise** (default true) – use dynamic noise gradient if *noise* > 0.
+- **mode** (default 1) – overlay and cropping mode:  
+1 - crop around the edges of the source image.  
+2 - combination of both images with cropping to the all four edges of the output clip with “ambilight” at the corners.  
+3 - combination of both images without any cropping.  
+4 - as 3 but with “ambilight” at the corners.  
+5 - as 3 but with “ambilight” at all free space.  
+6 – as 3 but with pure white clips. Useful to combine the result clip with another one.  
+7 - as 1 but clips overlaid in difference mode. Useful to check align.
+- **opacity** (default 1) – opacity of overlaid image from 0 to 1.
+- **colorAdjust** (default 0) *unstable* - color adjustment mode:  
+0 - disabled  
+1 – overlaid clip will be adjusted to source  
+2 - source clip will be adjusted to overlaid  
+Color adjustment performs by histogram matching in the intersection area. For the YUV images adjusts only luma channel. For the RGB images adjusts all 3 channels independently.
+- **matrix** (default empty). If specified YUV image converts to RGB with given matrix for color adjustment. 
+- **downsize** и **upsize** (default *BilinearResize*) - downsize and upsize functions. It’s recommended to use functions with high quality interpolation. 
+- **rotate** (default *BilinearRotate*) – rotation function.
+- **debug** -  output align settings to the top left corner.
 
 ### OverlayCompare
     OverlayCompare(clip, clip, clip, string sourceText, string overlayText, int sourceColor, int overlayColor,
@@ -140,16 +149,24 @@ Separate - обособление кадра. Join prev - присоединит
 
 ### ColorRangeMask
     ColorRangeMask(clip, int low, int high)
-Вспомогательный фильтр, создает маску, включая в нее пиксели в диапазоне от low до high по входному клипу.
 
 tbd
 
-## Пример использования
+## Examples
+#### Simple script 
     OM=AviSource("c:\test\OpenMatte.avs") # YV12 clip
     WS=AviSource("c:\test\Widescreen.avs") # YV12 clip
-    config=OverlayConfig(subpixel=2) + OverlayConfig(angle1=-0.5, angle2=0.5) # rotate only if needed
-    OverlayEngine(OM.ConvertToY8(), WS.ConvertToY8(), configs=config) # ConvertToY8() for better perfomance
-    # return last # uncomment for analysis pass
+    OverlayEngine(OM.ConvertToY8(), WS.ConvertToY8(), configs=OverlayConfig(subpixel=2)) 
+    OverlayRender(OM.ConvertToYV24(), WS.ConvertToYV24(), debug=true)
+    ConvertToYV12()
+#### Analysis pass without render. Aspect ratio range was specified. Set editor=true after analysis pass.
+    OM=AviSource("c:\test\OpenMatte.avs") # YV12 clip
+    WS=AviSource("c:\test\Widescreen.avs") # YV12 clip
+    config=OverlayConfig(aspectRatio1=2.3, aspectRatio2=2.5)
+    OverlayEngine(OM.ConvertToY8(), WS.ConvertToY8(), configs=config, statFile=”c:\test\Overlay.stat”, editor=false)
+#### Render after analysis pass
+    OM=AviSource("c:\test\OpenMatte.avs") # YV12 clip
+    WS=AviSource("c:\test\Widescreen.avs") # YV12 clip
+    OverlayEngine(OM.ConvertToY8(), WS.ConvertToY8(), statFile=”c:\test\Overlay.stat”)
     OverlayRender(OM.ConvertToYV24(), WS.ConvertToYV24(), debug=true, noise=50, upsize="Spline64Resize")
-    ConvertToYV12() # from YV24
-    # Prefetch(4) uncomment after analysis pass
+    ConvertToYV12()
