@@ -140,8 +140,6 @@ namespace AutoOverlay
                 case OverlayMode.Fit:
                 case OverlayMode.Difference:
                 {
-                    if (opacity < double.Epsilon)
-                        return src;
                     var mode = lumaOnly ? "luma" : "blend";
                     if (overlayMode == OverlayMode.Difference)
                         mode = "difference";
@@ -152,7 +150,7 @@ namespace AutoOverlay
                         mask = mask.Overlay(Rotate(srcMaskClip.Dynamic().Invert(), true), -info.X, -info.Y, mode: "lighten");
                     if (mask == null && info.Angle != 0)
                         mask = ((Clip)GetBlankClip(over, true)).Dynamic();
-                    var hybrid = src.Overlay(Rotate(over, false), info.X, info.Y, mask: Rotate(mask, false), opacity: opacity, mode: mode);
+                    var hybrid = opacity < double.Epsilon ? src : src.Overlay(Rotate(over, false), info.X, info.Y, mask: Rotate(mask, false), opacity: opacity, mode: mode);
                     if (GetVideoInfo().width == srcSize.Width && GetVideoInfo().height == srcSize.Height)
                         return hybrid;
                     return hybrid.Invoke(downsizeFunc, GetVideoInfo().width, GetVideoInfo().height);
