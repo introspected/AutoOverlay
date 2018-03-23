@@ -122,14 +122,14 @@ This filter preforms rendering of the result clip using align values from the en
 - **lumaOnly** (default false) – overlay only luma channel when *mode*=1.
 - **width** и **height** - output width and height. By default are taken from source clip.
 - **gradient** (default 0) – length of gradient at the overlay mask to make borders between images smoother. Useful when clips are scientifically differ in colors or align is not very good.
-- **noise** (default 0) - length of “noise gradient” at the overlay mask to make borders between images smoother. Useful when clips are in the same color and align is very good.
+- **noise** (default 0) - length of "noise gradient" at the overlay mask to make borders between images smoother. Useful when clips are in the same color and align is very good.
 - **dynamicNoise** (default true) – use dynamic noise gradient if *noise* > 0.
 - **mode** (default 1) – overlay and cropping mode:  
 1 - crop around the edges of the source image.  
-2 - combination of both images with cropping to the all four edges of the output clip with “ambilight” at the corners.  
+2 - combination of both images with cropping to the all four edges of the output clip with "ambilight" at the corners.  
 3 - combination of both images without any cropping.  
-4 - as 3 but with “ambilight” at the corners.  
-5 - as 3 but with “ambilight” at all free space.  
+4 - as 3 but with "ambilight" at the corners.  
+5 - as 3 but with "ambilight" at all free space.  
 6 – as 3 but with pure white clips. Useful to combine the result clip with another one.  
 7 - as 1 but clips overlaid in difference mode. Useful to check align.
 - **opacity** (default 1) – opacity of overlaid image from 0 to 1.
@@ -163,10 +163,10 @@ tbd
     OM=AviSource("c:\test\OpenMatte.avs") # YV12 clip
     WS=AviSource("c:\test\Widescreen.avs") # YV12 clip
     config=OverlayConfig(aspectRatio1=2.3, aspectRatio2=2.5)
-    OverlayEngine(OM.ConvertToY8(), WS.ConvertToY8(), configs=config, statFile=”c:\test\Overlay.stat”, editor=false)
+    OverlayEngine(OM.ConvertToY8(), WS.ConvertToY8(), configs=config, statFile="c:\test\Overlay.stat", editor=false)
 #### Render after analysis pass
     OM=AviSource("c:\test\OpenMatte.avs") # YV12 clip
     WS=AviSource("c:\test\Widescreen.avs") # YV12 clip
-    OverlayEngine(OM.ConvertToY8(), WS.ConvertToY8(), statFile=”c:\test\Overlay.stat”)
+    OverlayEngine(OM.ConvertToY8(), WS.ConvertToY8(), statFile="c:\test\Overlay.stat")
     OverlayRender(OM.ConvertToYV24(), WS.ConvertToYV24(), debug=true, noise=50, upsize="Spline64Resize")
     ConvertToYV12()
