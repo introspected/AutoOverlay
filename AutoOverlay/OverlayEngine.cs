@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -27,7 +28,7 @@ namespace AutoOverlay
         public ExtraVideoInfo OverInfo { get; private set; }
         public ExtraVideoInfo srcMaskInfo, overMaskInfo;
         private string statFile;
-        private int backwardFrameCount = 3;
+        public int BackwardFrameCount { get; private set; } = 3;
         private int forwardFrameCount = 3;
         public double MaxDiff { get; private set; } = 5;
         private double maxDiffIncrease = 1;
@@ -39,12 +40,21 @@ namespace AutoOverlay
         private OverlayEngineMode mode = OverlayEngineMode.DEFAULT;
         public IOverlayStat OverlayStat { get; private set; }
 
+        private double correctionDistance = 0;
+        private int correctionSteps = 2;
+
         private readonly ConcurrentDictionary<Tuple<OverlayInfo, int>, OverlayInfo> repeatCache = new ConcurrentDictionary<Tuple<OverlayInfo, int>, OverlayInfo>();
         private readonly ConcurrentDictionary<int, OverlayInfo> overlayCache = new ConcurrentDictionary<int, OverlayInfo>();
 
         public event EventHandler<FrameEventArgs> CurrentFrameChanged;
 
         private static OverlayEditor form;
+
+#if DEBUG
+        Stopwatch totalWatch = new Stopwatch();
+        Stopwatch diffWatch = new Stopwatch();
+        Stopwatch extraWatch = new Stopwatch();
+#endif
 
         protected override void Initialize(AVSValue args)
         {
@@ -57,7 +67,7 @@ namespace AutoOverlay
             if ((SrcInfo.ColorSpace ^ OverInfo.ColorSpace).HasFlag(ColorSpaces.CS_PLANAR))
                 throw new AvisynthException();
             statFile = args[2].AsString();
-            backwardFrameCount = args[3].AsInt(backwardFrameCount);
+            BackwardFrameCount = args[3].AsInt(BackwardFrameCount);
             forwardFrameCount = args[4].AsInt(forwardFrameCount);
             SrcMaskClip = args[5].IsClip() ? args[5].AsClip() : null;
             OverMaskClip = args[6].IsClip() ? args[6].AsClip() : null;
@@ -75,11 +85,13 @@ namespace AutoOverlay
             SetVideoInfo(ref vi);
 
             OverlayStat = new FileOverlayStat(statFile);
-            var cacheSize = Math.Max(forwardFrameCount, backwardFrameCount) + 1;
-            SrcClip.SetCacheHints(CacheType.CACHE_RANGE, cacheSize);
-            OverClip.SetCacheHints(CacheType.CACHE_RANGE, cacheSize);
-            SrcMaskClip?.SetCacheHints(CacheType.CACHE_RANGE, cacheSize);
-            OverMaskClip?.SetCacheHints(CacheType.CACHE_RANGE, cacheSize);
+            var cacheSize = forwardFrameCount + BackwardFrameCount + 1;
+            var cacheKey = StaticEnv.GetEnv2() == null ? CacheType.CACHE_25_ALL : CacheType.CACHE_GENERIC;
+            SrcClip.SetCacheHints(cacheKey, cacheSize);
+            OverClip.SetCacheHints(cacheKey, cacheSize);
+            SrcMaskClip?.SetCacheHints(cacheKey, cacheSize);
+            OverMaskClip?.SetCacheHints(cacheKey, cacheSize);
+
             if (!Enum.TryParse(args[16].AsString(mode.ToString()).ToUpper(), out mode))
                 throw new AvisynthException();
             debug = args[17].AsBool(debug);
@@ -177,16 +189,16 @@ namespace AutoOverlay
             log = new StringBuilder();
             log.AppendLine($"Frame: {n}");
 
-            if (backwardFrameCount == 0 || n < backwardFrameCount) goto simple;
+            if (BackwardFrameCount == 0 || n < BackwardFrameCount) goto simple;
             var prevInfo = n > 0 ? OverlayStat[n - 1] : null;
             var prevFrames = Enumerable.Range(0, n)
                 .Reverse().Select(p => OverlayStat[p])
-                .TakeWhile(p => p != null && p.FrameNumber >= n - backwardFrameCount && p.Diff <= MaxDiff && p.Equals(prevInfo)).ToArray();
-            var prevFramesCount = Math.Min(prevFrames.Length, backwardFrameCount);
+                .TakeWhile(p => p != null && p.FrameNumber >= n - BackwardFrameCount && p.Diff <= MaxDiff && p.Equals(prevInfo)).ToArray();
+            var prevFramesCount = Math.Min(prevFrames.Length, BackwardFrameCount);
 
             log.AppendLine($"Prev frames: {prevFramesCount}");
 
-            if (prevFramesCount == backwardFrameCount)
+            if (prevFramesCount == BackwardFrameCount)
             {
                 log.AppendLine($"Analyze prev frames info:\n{prevFrames.First()}");
 
@@ -252,10 +264,10 @@ namespace AutoOverlay
                 if (info.Diff > MaxDiff)
                     goto simple;
                 prevFrames = prevFrames.TakeWhile(p => p.Equals(info)).ToArray();
-                prevFramesCount = Math.Min(prevFrames.Length, backwardFrameCount);
+                prevFramesCount = Math.Min(prevFrames.Length, BackwardFrameCount);
                 var stabilizeFrames = new List<OverlayInfo> { info };
                 for (var nextFrame = n + 1;
-                    nextFrame < n + backwardFrameCount - prevFramesCount &&
+                    nextFrame < n + BackwardFrameCount - prevFramesCount &&
                     nextFrame < GetVideoInfo().num_frames;
                     nextFrame++)
                 {
@@ -277,7 +289,7 @@ namespace AutoOverlay
                         .Info;
 
                     stabilizeFrames.Clear();
-                    for (var frame = n; frame < n + backwardFrameCount - prevFramesCount && frame < GetVideoInfo().num_frames; frame++)
+                    for (var frame = n; frame < n + BackwardFrameCount - prevFramesCount && frame < GetVideoInfo().num_frames; frame++)
                     {
                         var stabInfo = Repeat(averageInfo, frame);
                         stabilizeFrames.Add(stabInfo);
@@ -286,8 +298,8 @@ namespace AutoOverlay
                     }
                     info.CopyFrom(averageInfo);
                 }
-                for (var nextFrame = n + backwardFrameCount - prevFramesCount;
-                    nextFrame < n + backwardFrameCount - prevFramesCount + forwardFrameCount &&
+                for (var nextFrame = n + BackwardFrameCount - prevFramesCount;
+                    nextFrame < n + BackwardFrameCount - prevFramesCount + forwardFrameCount &&
                     nextFrame < GetVideoInfo().num_frames;
                     nextFrame++)
                 {
@@ -318,7 +330,7 @@ namespace AutoOverlay
                     }
                 }
                 for (var frame = n;
-                    frame <= n + backwardFrameCount - prevFramesCount &&
+                    frame <= n + BackwardFrameCount - prevFramesCount &&
                     frame < GetVideoInfo().num_frames;
                     frame++)
                     if (frame == n || OverlayStat[frame] == null)
@@ -350,11 +362,12 @@ namespace AutoOverlay
         public OverlayInfo AutoOverlayImpl(int n, IEnumerable<OverlayConfig> configs = null)
         {
 #if DEBUG
-            var total = new Stopwatch();
-            var extraWatch = new Stopwatch();
-            total.Start();
+            extraWatch.Reset();
+            diffWatch.Reset();
+            totalWatch.Restart();
 #endif
             configs = configs ?? LoadConfigs();
+            var prevInfo = OverlayInfo.EMPTY;
             using (new VideoFrameCollector())
             using (new DynamicEnviroment(StaticEnv))
                 foreach (var _config in configs)
@@ -546,6 +559,9 @@ namespace AutoOverlay
                         results.Clear();
                     }
                     var res = bestAr[0];
+                    if (prevInfo.Diff < res.Diff)
+                        res = prevInfo;
+                    else prevInfo = res;
                     if (res.Diff <= config.AcceptableDiff || config == configs.Last())
                     { 
 
@@ -665,8 +681,11 @@ namespace AutoOverlay
                             res = subResults.Min;
 #if DEBUG
                         extraWatch.Stop();
-                        total.Stop();
-                        System.Diagnostics.Debug.WriteLine($"{total.ElapsedMilliseconds} (extra {extraWatch.ElapsedMilliseconds}) ms. Step count: {stepCount}");
+                        totalWatch.Stop();
+                        Debug.WriteLine(
+                            $"Total: {totalWatch.ElapsedMilliseconds} ms. " +
+                            $"Subpixel: {extraWatch.ElapsedMilliseconds} ms. " +
+                            $"Diff: {diffWatch.ElapsedMilliseconds} ms. Step count: {stepCount}");
 #endif
                         res.FrameNumber = n;
                         return res;
@@ -770,10 +789,16 @@ namespace AutoOverlay
                                         .Select((p, i) => new {p.Diff, i})
                                         .FirstOrDefault(p => p.i == branches - 1)
                                         ?.Diff ?? double.MaxValue;
+#if DEBUG
+                    diffWatch.Start();
+#endif
                     var stat = FindBestIntersect(
                         task.src, task.srcMask, task.srcSize,
                         task.over, task.overMask, task.overSize,
                         searchArea, minIntersectArea, minOverlayArea);
+#if DEBUG
+                    diffWatch.Stop();
+#endif
                     stat.Angle = task.testGroup.Key.Angle;
                     stat.Width = task.testGroup.Key.Width;
                     stat.Height = task.testGroup.Key.Height;
@@ -826,42 +851,21 @@ namespace AutoOverlay
                     double sampleArea = sampleWidth * sampleHeight;
                     if (sampleArea < minIntersectArea || (sampleArea/(overSize.Width*overSize.Height) < (minOverlayArea/100.0)))
                         return;
-                    var rowSize = sampleWidth * pixelSize;
                     var srcRow = srcOffset + Math.Max(0, testPoint.X) * pixelSize;
                     var overRow = overOffset + Math.Max(0, -testPoint.X) * pixelSize;
                     var srcMaskRow = srcMaskOffset + Math.Max(0, testPoint.X) * pixelSize;
                     var overMaskRow = overMaskOffset + Math.Max(0, -testPoint.X) * pixelSize;
-
-                    long diff = 0;
-
-                    for (var y = 0;
-                        y < sampleHeight;
-                        y++,
-                        srcRow += srcStride, overRow += overStride,
-                        srcMaskRow += srcMaskStride, overMaskRow += overMaskStride)
-                    {
-                        if (noMask)
-                        {
-                            for (var x = 0; x < rowSize; x++)
-                            {
-                                var val = srcRow[x] - overRow[x];
-                                diff += val * val;
-                            }
-                        }
-                        else
-                        {
-                            for (var x = 0; x < rowSize; x++)
-                            {
-                                if (noMask || (srcMask == null || srcMaskRow[x] > 0) &&
-                                    (overMask == null || overMaskRow[x] > 0))
-                                {
-                                    var val = srcRow[x] - overRow[x];
-                                    diff += val * val;
-                                }
-                            }
-                        }
-                    }
-                    var rmse = Math.Sqrt(diff / (double)(sampleWidth * sampleHeight * pixelSize));
+                    var rmse =
+                        noMask
+                            ? Math.Sqrt(NativeUtils.SquaredDifferenceSum(
+                                srcRow, srcStride, overRow, overStride,
+                                sampleWidth*pixelSize, sampleHeight))
+                            : Math.Sqrt(NativeUtils.SquaredDifferenceSumMasked(
+                                srcRow, srcStride,
+                                srcMask == null ? (byte*)IntPtr.Zero : srcMaskRow, srcMaskStride,
+                                overRow, overStride,
+                                overMask == null ? (byte*)IntPtr.Zero : overMaskRow, overMaskStride,
+                                sampleWidth*pixelSize, sampleHeight));
                     lock (best)
                         if (rmse < best.Diff)
                         {

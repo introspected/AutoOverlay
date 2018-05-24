@@ -37,11 +37,11 @@ namespace AutoOverlay
             vi.width = width;
             vi.height = height;
             vi.pixel_type = Child?.GetVideoInfo().pixel_type ?? ColorSpaces.CS_BGR24;
-            vi.num_frames = Child?.GetVideoInfo().num_frames ?? int.MaxValue;
+            vi.num_frames = Child?.GetVideoInfo().num_frames ?? 1000;
             vi.fps_numerator = Child?.GetVideoInfo().fps_numerator ?? 25;
             vi.fps_denominator = Child?.GetVideoInfo().fps_denominator ?? 1;
             SetVideoInfo(ref vi);
-            realPlanar = OverlayUtils.IsRealPlanar(Child); //Y8 is interleaved
+            realPlanar = Child == null || OverlayUtils.IsRealPlanar(Child); //Y8 is interleaved
             rgb = GetVideoInfo().IsRGB();
         }
 

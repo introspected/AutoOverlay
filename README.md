@@ -137,11 +137,24 @@ This filter preforms rendering of the result clip using align values from the en
 0 - disabled  
 1 – overlaid clip will be adjusted to source  
 2 - source clip will be adjusted to overlaid  
+3 - intermediate clip
 Color adjustment performs by histogram matching in the intersection area. For the YUV images adjusts only luma channel. For the RGB images adjusts all 3 channels independently.
 - **matrix** (default empty). If specified YUV image converts to RGB with given matrix for color adjustment. 
 - **downsize** и **upsize** (default *BilinearResize*) - downsize and upsize functions. It’s recommended to use functions with high quality interpolation. 
 - **rotate** (default *BilinearRotate*) – rotation function.
 - **debug** -  output align settings to the top left corner.
+
+### ColorAdjust
+    ColorAdjust(clip, clip, clip, clip sampleMask, clip referenceMask, bool limitedRange, string planes, float limit)
+Color matching. All clips must be in the same color space. This filter is used inside OverlayRender but it is also useful as standalone. 
+- **clip** - clip for color adjustment
+- **sample** - the sample clip (usually the first clip or cropped) 
+- **reference** - reference clip (usually the same time and area from different master)
+- **sampleMask** (default empty) - mask clip to exclude some parts from sample
+- **referenceMask** (default empty) - mask clip to exclude some parts from reference
+- **limitedRange** (default true) - TV or PC range for YUV clips
+- **planes** (default yuv) - planes to process for YUV clips. Any combination of y,u,v supported.
+- **limit** (default 0.95) - some magic value, will be described later.
 
 ### OverlayCompare
     OverlayCompare(clip, clip, clip, string sourceText, string overlayText, int sourceColor, int overlayColor,

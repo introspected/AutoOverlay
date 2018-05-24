@@ -16,7 +16,7 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
+    <Optimize>true</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
@@ -88,6 +88,10 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\AutoOverlayNative\AutoOverlayNative.vcxproj">
+      <Project>{901c78ba-c997-418d-90cc-3d5ee93ee220}</Project>
+      <Name>AutoOverlayNative</Name>
+    </ProjectReference>
     <ProjectReference Include="..\AvsFilterNet\AvsFilterNet\AvsFilterNet.vcxproj">
       <Project>{6679c5bf-bd2a-454f-9a97-719a00cd5be0}</Project>
       <Name>AvsFilterNet</Name>

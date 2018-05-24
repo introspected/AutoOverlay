@@ -227,11 +227,6 @@ namespace AutoOverlay
         private void OverlayEditorForm_Load(object sender, EventArgs e)
         {
             LoadStat();
-            //cbMode.SelectedItem = Renderer.Mode;
-            //cbColorMode.SelectedItem = Renderer.ColorMode;
-            //nudOpacity.Value = (int)Renderer.Opacity;
-            //nudGradientSize.Value = Renderer.GradientSize;
-            //chbDebug.Checked = Renderer.Debug;
             grid.DataSource = Intervals;
             grid.BindingContext[Intervals].CurrentChanged += UpdateInterval;
         }
@@ -723,6 +718,102 @@ namespace AutoOverlay
             }
             RenderImpl();
             Cursor.Current = Cursors.Default;
+        }
+
+        private void btnPanScanFull_Click(object sender, EventArgs e)
+        {
+            if (MessageBox.Show("Are you sure?", "Warning", MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation) ==
+                DialogResult.No) return;
+            if (Interval == null) return;
+            Cursor.Current = Cursors.WaitCursor;
+            Intervals.RaiseListChangedEvents = false;
+            CheckChanges(Interval);
+            var text = Text;
+            var intervals = Intervals.Where(p => p.Length >= engine.BackwardFrameCount).ToArray();
+            var length = intervals.Sum(p => p.Length);
+            var total = 0;
+            foreach (var interval in intervals)
+            {
+                var lastInterval = interval;
+                
+                for (int frame = interval.First, last = interval.Last; frame <= last; frame++)
+                {
+                    Text = $"{text}: {++total}/{length} {(total*100.0)/length:F2}%";
+                    Application.DoEvents();
+                    using (new DynamicEnviroment(env))
+                    using (new VideoFrameCollector())
+                    {
+                        var configs = engine.LoadConfigs();
+                        foreach (var config in configs)
+                        {
+                            var delta = (int) nudDistance.Value;
+                            config.MinX = Math.Max(config.MinX, lastInterval.X - delta);
+                            config.MaxX = Math.Min(config.MaxX, lastInterval.X + delta);
+                            config.MinY = Math.Max(config.MinY, lastInterval.Y - delta);
+                            config.MaxY = Math.Min(config.MaxY, lastInterval.Y + delta);
+                            config.Angle1 = config.Angle2 = lastInterval.Angle / 100.0; //TODO fix
+                            var rect = lastInterval.GetRectangle(engine.OverInfo.Size);
+                            var ar = rect.Width / rect.Height;
+                            if (!config.FixedAspectRatio) //TODO fix
+                            {
+                                config.AspectRatio1 = ar * 0.999;
+                                config.AspectRatio2 = ar * 1.001;
+                            }
+
+                            var scale = (double) nudScale.Value / 1000;
+                            config.MinArea = Math.Max(config.MinArea, (int) (lastInterval.Area * (1 - scale)));
+                            config.MaxArea = Math.Min(config.MaxArea,
+                                (int) Math.Round(lastInterval.Area * (1 + scale)));
+                        }
+
+                        var info = engine.AutoOverlayImpl(frame, configs);
+                        info.FrameNumber = frame;
+                        if (frame == CurrentFrame)
+                            UpdateControls(info);
+                        if (!info.Equals(lastInterval))
+                        {
+                            var newInterval = new FrameInterval
+                            {
+                                Frames = {info},
+                                Modified = true
+                            };
+                            lastInterval.Modified = true;
+                            newInterval.Frames.AddRange(lastInterval.Frames.Where(p => p.FrameNumber > frame)
+                                .OrderBy(p => p.FrameNumber));
+                            lastInterval.Frames.RemoveAll(p => p.FrameNumber >= frame);
+                            var newIndex = Intervals.IndexOf(lastInterval) + 1;
+                            Intervals.Insert(newIndex, newInterval);
+                            if (lastInterval.Frames.Count == 0)
+                                Intervals.Remove(lastInterval);
+                            lastInterval = newInterval;
+                        }
+                        else
+                        {
+                            var oldInfo = lastInterval.Frames.First(p => p.FrameNumber == frame);
+                            oldInfo.CopyFrom(info);
+                            oldInfo.Diff = info.Diff;
+                        }
+                    }
+                }
+            }
+
+            Text = text;
+            Interval = Intervals.First(p => p.Contains(CurrentFrame));
+            Intervals.RaiseListChangedEvents = true;
+            Intervals.ResetBindings();
+            RenderImpl();
+            Cursor.Current = Cursors.Default;
+        }
+
+        private void btnDelete_Click(object sender, EventArgs e)
+        {
+            if (Interval == null || MessageBox.Show(
+                    "Selected frames will be deleted. Continue?", "Warning",
+                    MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation) == DialogResult.No) return;
+            for (var frame = Interval.First; frame <= Interval.Last; frame++)
+                engine.OverlayStat[frame] = null;
+            Intervals.Remove(Interval);
+            grid.Refresh();
         }
     }
 }

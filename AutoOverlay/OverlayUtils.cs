@@ -64,14 +64,28 @@ namespace AutoOverlay
 
         public static bool IsRealPlanar(Clip clip)
         {
-            return clip.GetVideoInfo().pixel_type.HasFlag(ColorSpaces.CS_PLANAR) &&
-                   !clip.GetVideoInfo().pixel_type.HasFlag(ColorSpaces.CS_INTERLEAVED); //Y8 is interleaved
+            var colorInfo = clip.GetVideoInfo().pixel_type;
+            return colorInfo.HasFlag(ColorSpaces.CS_PLANAR) && !colorInfo.HasFlag(ColorSpaces.CS_INTERLEAVED); //Y8 is interleaved
         }
 
         public static void ResetChroma(VideoFrame frame)
         {
             MemSet(frame.GetWritePtr(YUVPlanes.PLANAR_U), 128, frame.GetHeight(YUVPlanes.PLANAR_U) * frame.GetPitch(YUVPlanes.PLANAR_U));
             MemSet(frame.GetWritePtr(YUVPlanes.PLANAR_V), 128, frame.GetHeight(YUVPlanes.PLANAR_V) * frame.GetPitch(YUVPlanes.PLANAR_V));
+        }
+
+        public static void CopyPlane(VideoFrame from, VideoFrame to, YUVPlanes plane = default(YUVPlanes))
+        {
+            if (from.GetPitch(plane) == to.GetPitch(plane))
+                CopyMemory(to.GetWritePtr(plane), from.GetReadPtr(plane),
+                    from.GetHeight(plane) * from.GetRowSize(plane));
+            else
+            {
+                var src = from.GetReadPtr();
+                var dest = to.GetWritePtr();
+                for (var y = 0; y < from.GetHeight(plane); y++, src += from.GetPitch(plane), dest+=to.GetPitch(plane))
+                    CopyMemory(dest, src, from.GetRowSize(plane));
+            }
         }
 
         public static double StdDev(VideoFrame frame)
@@ -106,6 +120,17 @@ namespace AutoOverlay
                 control.Invoke(action, new object[] { control });
             else
                 action(control);
+        }
+
+        public static int GetWidthSubsample(ColorSpaces colorSpace)
+        {
+            return colorSpace.HasFlag(ColorSpaces.CS_Sub_Width_4) ? 4 :
+                colorSpace.HasFlag(ColorSpaces.CS_Sub_Width_2) ? 2 : 1;
+        }
+        public static int GetHeightSubsample(ColorSpaces colorSpace)
+        {
+            return colorSpace.HasFlag(ColorSpaces.CS_Sub_Height_4) ? 4 :
+                colorSpace.HasFlag(ColorSpaces.CS_Sub_Height_2) ? 2 : 1;
         }
     }
 }

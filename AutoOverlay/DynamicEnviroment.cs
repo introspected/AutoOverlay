@@ -100,7 +100,6 @@ namespace AutoOverlay
                 i < binder.CallInfo.ArgumentNames.Count; i++)
                 argNames[lag + i] = binder.CallInfo.ArgumentNames[i];
             argNames = argNames.Where((p, i) => args[i] != null).ToArray();
-
             var tuple = Env.cache.GetOrAdd(new Key(function, args, argNames),
                 key =>
                 {
@@ -108,6 +107,7 @@ namespace AutoOverlay
                     var avsArgs = new AVSValue(avsArgList);
                     var res = ((ScriptEnvironment) Env).Invoke(function, avsArgs, argNames);
                     var clip = res.AsClip();
+                    clip?.SetCacheHints(CacheType.CACHE_25_ALL, 1);
                     return new Tuple<AVSValue, Clip>(res, clip);
                 });
 

@@ -34,7 +34,7 @@ namespace AutoOverlay
                     info.Width > overClip.GetVideoInfo().width ? upsizeFunc : downsizeFunc,
                     info.Width, info.Height, crop.Left, crop.Top, -crop.Right, -crop.Bottom);
             }
-            var overMask = overMaskClip?.Dynamic().BilinearResize(info.Width, info.Height);
+            var overMask = overMaskClip?.Dynamic().BicubicResize(info.Width, info.Height);
 
             var mergedWidth = srcSize.Width + Math.Max(-info.X, 0) + Math.Max(info.Width + info.X - srcSize.Width, 0);
             var mergedHeight = srcSize.Height + Math.Max(-info.Y, 0) + Math.Max(info.Height + info.Y - srcSize.Height, 0);
@@ -57,7 +57,9 @@ namespace AutoOverlay
                 var overTest = over.Crop(Math.Max(0, -info.X), Math.Max(0, -info.Y),
                     -Math.Max(0, -(srcSize.Width - info.X - info.Width)),
                     -Math.Max(0, -(srcSize.Height - info.Y - info.Height)));
-                var maskTest = srcMaskClip?.Dynamic();
+                var maskTest = srcMaskClip?.Dynamic().Crop(Math.Max(0, info.X), Math.Max(0, info.Y),
+                    -Math.Max(0, srcSize.Width - info.X - info.Width),
+                    -Math.Max(0, srcSize.Height - info.Y - info.Height)); ;
                 if (overMask != null)
                     maskTest = (maskTest ?? GetBlankClip(srcClip, true).Dynamic())
                         .Overlay(overMask, info.X, info.Y, mode: "darken")
@@ -73,7 +75,7 @@ namespace AutoOverlay
                 }
                 var sample = colorAdjust == ColorAdjustMode.AsOverlay ? srcTest : overTest;
                 var reference = colorAdjust == ColorAdjustMode.AsOverlay ? overTest : srcTest;
-                var adjusted = clip2Adjust.ColorAdjust(sample, reference, maskTest);
+                var adjusted = clip2Adjust.ColorAdjust(sample, reference, maskTest, maskTest, planes: lumaOnly ? "y" : "yuv");
                 if (!GetVideoInfo().IsRGB() && !string.IsNullOrEmpty(matrix))
                     adjusted = adjusted.ConvertToYV24(matrix: matrix);
                 if (colorAdjust == ColorAdjustMode.AsOverlay)
@@ -89,11 +91,8 @@ namespace AutoOverlay
                 var overTest = over.Crop(Math.Max(0, -info.X), Math.Max(0, -info.Y),
                     -Math.Max(0, -(srcSize.Width - info.X - info.Width)),
                     -Math.Max(0, -(srcSize.Height - info.Y - info.Height)));
-                src = src.ConvertToRgb24().ColorAdjust(srcTest.ConvertToRgb24(), overTest.ConvertToRgb24()).ConvertToYV24();
-                srcTest = src.Crop(Math.Max(0, info.X), Math.Max(0, info.Y),
-                    -Math.Max(0, srcSize.Width - info.X - info.Width),
-                    -Math.Max(0, srcSize.Height - info.Y - info.Height));
-                over = over.ConvertToRgb24().ColorAdjust(overTest.ConvertToRgb24(), srcTest.ConvertToRgb24()).ConvertToYV24();
+                src = src.ColorAdjust(srcTest, overTest).Merge(src, weight: 0.5);
+                over = over.Merge(over.ColorAdjust(overTest, srcTest), weight: 0.501);
             }
 
             dynamic GetOverMask(int length, bool gradientMask, bool noiseMask)
@@ -164,7 +163,7 @@ namespace AutoOverlay
                     if (srcMaskClip != null && maskOver != null)
                         maskOver = maskOver.Overlay(srcMaskClip.Dynamic().Invert().Invoke(rotateFunc, -info.Angle / 100.0), -info.X, -info.Y, mode: "lighten");
                     dynamic hybrid = src.BlankClip(width: mergedWidth, height: mergedHeight);
-                    if (opacity - 1 < double.Epsilon)
+                    if (opacity - 1 <= -double.Epsilon)
                         hybrid = hybrid.Overlay(src, Math.Max(0, -info.X), Math.Max(0, -info.Y));
                     else maskSrc = null;
                     if (maskOver != null || opacity - 1 < double.Epsilon)
@@ -186,11 +185,15 @@ namespace AutoOverlay
                         maskOver = maskOver.Overlay(overMask, mode: "darken");
                     if (srcMaskClip != null && maskOver != null)
                         maskOver = maskOver.Overlay(srcMaskClip.Dynamic().Invert().Invoke(rotateFunc, -info.Angle / 100.0), -info.X, -info.Y, mode: "lighten");
-                    var background = src.BilinearResize(mergedWidth/3, mergedHeight/3).Overlay(over.BilinearResize(mergedWidth / 3, mergedHeight / 3), opacity:0.5); //TODO !!!!!!!!!!
+                    var background = src.BilinearResize(mergedWidth / 3, mergedHeight / 3).Overlay(over.BilinearResize(mergedWidth / 3, mergedHeight / 3),
+                        opacity: 0.5, mask: overMask?.BilinearResize(mergedWidth / 3, mergedHeight / 3)); //TODO !!!!!!!!!!
                     for (var i = 0; i < 15; i++)
                         background = background.Blur(1.5);
                     background = background.GaussResize(mergedWidth, mergedHeight, p: 3);
-                    if (opacity - 1 < double.Epsilon)
+                    //var background = src.BlankClip(width: mergedWidth, height: mergedHeight)
+                    //        .Overlay(src, Math.Max(0, -info.X), Math.Max(0, -info.Y))
+                    //        .Overlay(over.Invoke(rotateFunc, info.Angle / 100.0), Math.Max(0, info.X), Math.Max(0, info.Y));
+                    if (opacity - 1 <= -double.Epsilon)
                         background = background.Overlay(over.Invoke(rotateFunc, info.Angle / 100.0), Math.Max(0, info.X), Math.Max(0, info.Y), mask: maskOver?.Invoke(rotateFunc, info.Angle / 100.0));
                     var hybrid = background.Overlay(src, Math.Max(0, -info.X), Math.Max(0, -info.Y), mask: maskSrc)
                         .Overlay(over.Invoke(rotateFunc, info.Angle / 100.0), Math.Max(0, info.X), Math.Max(0, info.Y), mask: maskOver?.Invoke(rotateFunc, info.Angle / 100.0), opacity:opacity)
@@ -242,6 +245,8 @@ namespace AutoOverlay
                 case OverlayMode.Mask:
                 {
                     src = GetBlankClip((Clip) src, true).Dynamic();
+                    if (srcMaskClip != null)
+                        src = src.Overlay(srcMaskClip, mode: "darken");
                     over = GetBlankClip((Clip) over, true).Dynamic();
                     return src.BlankClip(width: mergedWidth, height: mergedHeight)
                         .Overlay(src, Math.Max(0, -info.X), Math.Max(0, -info.Y))
