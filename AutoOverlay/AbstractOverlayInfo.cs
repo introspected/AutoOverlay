@@ -53,10 +53,15 @@ namespace AutoOverlay
 
         public void SetCrop(RectangleF crop)
         {
-            CropLeft = (int) Math.Round(crop.Left * CROP_VALUE_COUNT_R);
-            CropTop = (int) Math.Round(crop.Top * CROP_VALUE_COUNT_R);
-            CropRight = (int) Math.Round(crop.Right * CROP_VALUE_COUNT_R);
-            CropBottom = (int) Math.Round(crop.Bottom * CROP_VALUE_COUNT_R);
+            CropLeft = IntCrop(crop.Left);
+            CropTop = IntCrop(crop.Top);
+            CropRight = IntCrop(crop.Right);
+            CropBottom = IntCrop(crop.Bottom);
+        }
+
+        public static int IntCrop(float crop)
+        {
+            return (int) Math.Round(crop * CROP_VALUE_COUNT_R);
         }
 
         public bool Equals(AbstractOverlayInfo other)
