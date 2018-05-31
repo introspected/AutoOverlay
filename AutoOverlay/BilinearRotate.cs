@@ -57,110 +57,33 @@ namespace AutoOverlay
             if (noRotate)
                 return base.GetFrame(n, env);
             var res = NewVideoFrame(env);
-            var frame = Child.GetFrame(n, env);
-            var vi = Child.GetVideoInfo();
-            Parallel.ForEach(planes, plane =>
+            using (var frame = Child.GetFrame(n, env))
             {
-                var zero = plane == YUVPlanes.PLANAR_U || plane == YUVPlanes.PLANAR_V ? 128 : 0;
-                OverlayUtils.MemSet(res.GetWritePtr(plane), zero, res.GetPitch(plane) * res.GetHeight(plane));
-
-                // get source image size
-                var height = frame.GetHeight(plane);
-                var width = vi.width / (vi.height / height);
-                var oldXradius = (width - 1) / 2.0;
-                var oldYradius = (height - 1) / 2.0;
-                var pixelSize = frame.GetRowSize(plane) / width;
-
-                // get destination image size
-                var newWidth = GetVideoInfo().width;
-                var newHeight = GetVideoInfo().height;
-                var newXradius = (newWidth - 1) / 2.0;
-                var newYradius = (newHeight - 1) / 2.0;
-
-                // angle's sine and cosine
-                var angleRad = -angle * Math.PI / 180;
-                var angleCos = Cos(angleRad);
-                var angleSin = Sin(angleRad);
-
-                var ymax = height - 1;
-                var xmax = width - 1;
-
-                var srcStride = frame.GetPitch(plane);
-                var dstOffset = res.GetPitch(plane) - res.GetRowSize(plane);
-
-                unsafe
+                var vi = Child.GetVideoInfo();
+                Parallel.ForEach(planes, plane =>
                 {
-                    var src = (byte*) frame.GetReadPtr(plane);
-                    var dst = (byte*) res.GetWritePtr(plane);
+                    var zero = plane == YUVPlanes.PLANAR_U || plane == YUVPlanes.PLANAR_V ? 128 : 0;
+                    OverlayUtils.MemSet(res.GetWritePtr(plane), zero, res.GetPitch(plane) * res.GetHeight(plane));
 
-                    var cy = -newYradius;
-                    for (int y = 0; y < newHeight; y++, cy++)
-                    {
-                        // do some pre-calculations of source points' coordinates
-                        // (calculate the part which depends on y-loop, but does not
-                        // depend on x-loop)
-                        var tx = angleSin * cy + oldXradius;
-                        var ty = angleCos * cy + oldYradius;
+                    // get source image size
+                    var height = frame.GetHeight(plane);
+                    var width = vi.width / (vi.height / height);
+                    var pixelSize = frame.GetRowSize(plane) / width;
 
-                        var cx = -newXradius;
-                        for (int x = 0; x < newWidth; x++, dst += pixelSize, cx++)
-                        {
-                            // coordinates of source point
-                            var ox = tx + angleCos * cx;
-                            var oy = ty - angleSin * cx;
+                    NativeUtils.BilinearRotate(
+                        frame.GetReadPtr(plane), frame.GetRowSize(plane) / pixelSize, frame.GetHeight(plane),
+                        frame.GetPitch(plane),
+                        res.GetWritePtr(plane), res.GetRowSize(plane) / pixelSize, res.GetHeight(plane),
+                        res.GetPitch(plane),
+                        angle, pixelSize);
+                });
+            }
 
-                            // top-left coordinate
-                            var ox1 = (int) ox;
-                            var oy1 = (int) oy;
-
-                            // validate source pixel's coordinates
-                            if (ox1 >= 0 && oy1 >= 0 && ox1 < width && oy1 < height)
-                            {
-                                // bottom-right coordinate
-                                var ox2 = ox1 == xmax ? ox1 : ox1 + 1;
-                                var oy2 = oy1 == ymax ? oy1 : oy1 + 1;
-
-                                var dx1 = ox - ox1;
-                                if (dx1 < 0)
-                                    dx1 = 0;
-                                var dx2 = 1.0f - dx1;
-
-                                var dy1 = oy - oy1;
-                                if (dy1 < 0)
-                                    dy1 = 0;
-                                var dy2 = 1.0f - dy1;
-
-                                // get four points
-                                byte* p1, p2;
-                                p1 = p2 = src + oy1 * srcStride;
-                                p1 += ox1 * pixelSize;
-                                p2 += ox2 * pixelSize;
-
-                                byte* p3, p4;
-                                p3 = p4 = src + oy2 * srcStride;
-                                p3 += ox1 * pixelSize;
-                                p4 += ox2 * pixelSize;
-
-                                // interpolate using 4 points
-
-                                for (var z = 0; z < pixelSize; z++)
-                                {
-                                    dst[z] = (byte) (
-                                        dy2 * (dx2 * p1[z] + dx1 * p2[z]) +
-                                        dy1 * (dx2 * p3[z] + dx1 * p4[z]));
-                                }
-                            }
-                        }
-                        dst += dstOffset;
-                    }
-                }
-            });
             return res;
         }
 
         public static Size CalculateSize(int width, int height, double angle)
         {
-            //Debug.WriteLine($"angle: {angle}");
             if (Math.Abs(angle) < float.Epsilon)
                 return new Size(width, height);
             // angle's sine and cosine

@@ -2,6 +2,7 @@
 #define SIMDUTILS_H
 
 #include <stdlib.h>
+
 using namespace System::Runtime::InteropServices;
 using namespace System;
 using namespace System::Collections::Generic;
@@ -32,6 +33,11 @@ namespace AutoOverlay {
 
 		static void ApplyColorMap(IntPtr image, IntPtr write, int height, int stride, int rowSize, int pixelSize,
 			array<unsigned char>^ fixedColors, array<unsigned char, 2>^ dynamicColors, array<double, 2>^ dynamicWeights);
+
+		static void BilinearRotate(
+			IntPtr srcImage, int srcWidth, int srcHeight, int srcStride,
+			IntPtr dstImage, int dstWidth, int dstHeight, int dstStride,
+			double angle, int pixelSize);
 	};
 };
 #endif
