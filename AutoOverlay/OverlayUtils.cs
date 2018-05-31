@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.Linq;
 using System.Runtime.InteropServices;
 using AvsFilterNet;
@@ -124,13 +126,43 @@ namespace AutoOverlay
 
         public static int GetWidthSubsample(ColorSpaces colorSpace)
         {
-            return colorSpace.HasFlag(ColorSpaces.CS_Sub_Width_4) ? 4 :
-                colorSpace.HasFlag(ColorSpaces.CS_Sub_Width_2) ? 2 : 1;
+            return colorSpace.HasFlag(ColorSpaces.CS_Sub_Width_1) ? 1 :
+                (colorSpace.HasFlag(ColorSpaces.CS_Sub_Width_4) ? 4 : 2);
         }
+
         public static int GetHeightSubsample(ColorSpaces colorSpace)
         {
-            return colorSpace.HasFlag(ColorSpaces.CS_Sub_Height_4) ? 4 :
-                colorSpace.HasFlag(ColorSpaces.CS_Sub_Height_2) ? 2 : 1;
+            return colorSpace.HasFlag(ColorSpaces.CS_Sub_Height_1) ? 1 :
+                (colorSpace.HasFlag(ColorSpaces.CS_Sub_Height_4) ? 4 : 2);
+        }
+
+        public static YUVPlanes[] GetPlanes(ColorSpaces colorSpace)
+        {
+            if (colorSpace.HasFlag(ColorSpaces.CS_INTERLEAVED))
+                return new[] {default(YUVPlanes)};
+            return new[] { YUVPlanes.PLANAR_Y, YUVPlanes.PLANAR_U, YUVPlanes.PLANAR_V };
+        }
+
+        public static Bitmap ToBitmap(this VideoFrame frame, PixelFormat pixelFormat)
+        {
+            Bitmap bmp;
+            switch (pixelFormat)
+            {
+                case PixelFormat.Format8bppIndexed:
+                    bmp = new Bitmap(frame.GetRowSize(), frame.GetHeight(), frame.GetPitch(), pixelFormat, frame.GetReadPtr());
+                    var palette = bmp.Palette;
+                    for (var i = 0; i < 256; i++)
+                        palette.Entries[i] = Color.FromArgb((byte)i, (byte)i, (byte)i);
+                    bmp.Palette = palette;
+                    break;
+                case PixelFormat.Format24bppRgb:
+                    bmp = new Bitmap(frame.GetRowSize()/3, frame.GetHeight(), frame.GetPitch(), pixelFormat, frame.GetReadPtr());
+                    bmp.RotateFlip(RotateFlipType.Rotate180FlipX);
+                    break;
+                default:
+                    throw new NotImplementedException();
+            }
+            return bmp;
         }
     }
 }

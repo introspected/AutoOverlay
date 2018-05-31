@@ -314,10 +314,7 @@ namespace AutoOverlay
                             debug: chbDebug.Checked)[CurrentFrame];
                     }
                     else frame = src.BilinearResize(outSize.Width, outSize.Height)[CurrentFrame];
-                    var wrapper = new Bitmap(outSize.Width, outSize.Height, frame.GetPitch(),
-                        PixelFormat.Format24bppRgb, frame.GetReadPtr());
-                    var res = new Bitmap(wrapper);
-                    res.RotateFlip(RotateFlipType.Rotate180FlipX);
+                    var res = new Bitmap(frame.ToBitmap(PixelFormat.Format24bppRgb));
                     pictureBox.SuspendLayout();
                     pictureBox.Image?.Dispose();
                     pictureBox.Image = res;

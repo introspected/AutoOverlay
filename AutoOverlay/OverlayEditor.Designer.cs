@@ -30,8 +30,8 @@
         {
             this.components = new System.ComponentModel.Container();
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(OverlayEditor));
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
             this.panel1 = new System.Windows.Forms.Panel();
             this.trackBar = new System.Windows.Forms.TrackBar();
             this.panel3 = new System.Windows.Forms.Panel();
@@ -40,13 +40,6 @@
             this.chbEditor = new System.Windows.Forms.CheckBox();
             this.panelManage = new System.Windows.Forms.Panel();
             this.grid = new System.Windows.Forms.DataGridView();
-            this.intervalDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.xDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.yDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.Size = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.Crop = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.Angle = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.diffDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.frameIntervalBindingSource = new System.Windows.Forms.BindingSource(this.components);
             this.panel2 = new System.Windows.Forms.Panel();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
@@ -104,8 +97,15 @@
             this.btnJoinNext = new System.Windows.Forms.ToolStripButton();
             this.btnJoinPrev = new System.Windows.Forms.ToolStripButton();
             this.btnSeparate = new System.Windows.Forms.ToolStripButton();
-            this.pictureBox = new System.Windows.Forms.PictureBox();
             this.btnDelete = new System.Windows.Forms.ToolStripButton();
+            this.pictureBox = new System.Windows.Forms.PictureBox();
+            this.intervalDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.xDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.yDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.Resolution = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.Crop = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.Angle = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.diffDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trackBar)).BeginInit();
             this.panel3.SuspendLayout();
@@ -237,7 +237,7 @@
             this.intervalDataGridViewTextBoxColumn,
             this.xDataGridViewTextBoxColumn,
             this.yDataGridViewTextBoxColumn,
-            this.Size,
+            this.Resolution,
             this.Crop,
             this.Angle,
             this.diffDataGridViewTextBoxColumn});
@@ -261,64 +261,6 @@
             this.grid.RowPrePaint += new System.Windows.Forms.DataGridViewRowPrePaintEventHandler(this.grid_RowPrePaint);
             this.grid.KeyDown += new System.Windows.Forms.KeyEventHandler(this.SuppressKeyPress);
             this.grid.KeyUp += new System.Windows.Forms.KeyEventHandler(this.SuppressKeyPress);
-            // 
-            // intervalDataGridViewTextBoxColumn
-            // 
-            this.intervalDataGridViewTextBoxColumn.DataPropertyName = "Interval";
-            this.intervalDataGridViewTextBoxColumn.HeaderText = "Interval";
-            this.intervalDataGridViewTextBoxColumn.Name = "intervalDataGridViewTextBoxColumn";
-            this.intervalDataGridViewTextBoxColumn.ReadOnly = true;
-            this.intervalDataGridViewTextBoxColumn.Width = 67;
-            // 
-            // xDataGridViewTextBoxColumn
-            // 
-            this.xDataGridViewTextBoxColumn.DataPropertyName = "X";
-            this.xDataGridViewTextBoxColumn.HeaderText = "X";
-            this.xDataGridViewTextBoxColumn.Name = "xDataGridViewTextBoxColumn";
-            this.xDataGridViewTextBoxColumn.ReadOnly = true;
-            this.xDataGridViewTextBoxColumn.Width = 39;
-            // 
-            // yDataGridViewTextBoxColumn
-            // 
-            this.yDataGridViewTextBoxColumn.DataPropertyName = "Y";
-            this.yDataGridViewTextBoxColumn.HeaderText = "Y";
-            this.yDataGridViewTextBoxColumn.Name = "yDataGridViewTextBoxColumn";
-            this.yDataGridViewTextBoxColumn.ReadOnly = true;
-            this.yDataGridViewTextBoxColumn.Width = 39;
-            // 
-            // Size
-            // 
-            this.Size.DataPropertyName = "Size";
-            this.Size.HeaderText = "Size";
-            this.Size.Name = "Size";
-            this.Size.ReadOnly = true;
-            this.Size.Width = 52;
-            // 
-            // Crop
-            // 
-            this.Crop.DataPropertyName = "Crop";
-            this.Crop.HeaderText = "Crop";
-            this.Crop.Name = "Crop";
-            this.Crop.ReadOnly = true;
-            this.Crop.Width = 54;
-            // 
-            // Angle
-            // 
-            this.Angle.DataPropertyName = "Angle";
-            this.Angle.HeaderText = "Angle";
-            this.Angle.Name = "Angle";
-            this.Angle.ReadOnly = true;
-            this.Angle.Width = 59;
-            // 
-            // diffDataGridViewTextBoxColumn
-            // 
-            this.diffDataGridViewTextBoxColumn.DataPropertyName = "Diff";
-            dataGridViewCellStyle1.Format = "F1";
-            this.diffDataGridViewTextBoxColumn.DefaultCellStyle = dataGridViewCellStyle1;
-            this.diffDataGridViewTextBoxColumn.HeaderText = "Diff";
-            this.diffDataGridViewTextBoxColumn.Name = "diffDataGridViewTextBoxColumn";
-            this.diffDataGridViewTextBoxColumn.ReadOnly = true;
-            this.diffDataGridViewTextBoxColumn.Width = 48;
             // 
             // frameIntervalBindingSource
             // 
@@ -1073,16 +1015,6 @@
             this.btnSeparate.Text = "Separate";
             this.btnSeparate.Click += new System.EventHandler(this.btnSeparate_Click);
             // 
-            // pictureBox
-            // 
-            this.pictureBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pictureBox.Location = new System.Drawing.Point(0, 0);
-            this.pictureBox.Name = "pictureBox";
-            this.pictureBox.Size = new System.Drawing.Size(779, 535);
-            this.pictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.pictureBox.TabIndex = 2;
-            this.pictureBox.TabStop = false;
-            // 
             // btnDelete
             // 
             this.btnDelete.BackColor = System.Drawing.Color.MediumBlue;
@@ -1095,6 +1027,74 @@
             this.btnDelete.Size = new System.Drawing.Size(44, 22);
             this.btnDelete.Text = "Delete";
             this.btnDelete.Click += new System.EventHandler(this.btnDelete_Click);
+            // 
+            // pictureBox
+            // 
+            this.pictureBox.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.pictureBox.Location = new System.Drawing.Point(0, 0);
+            this.pictureBox.Name = "pictureBox";
+            this.pictureBox.Size = new System.Drawing.Size(779, 535);
+            this.pictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.pictureBox.TabIndex = 2;
+            this.pictureBox.TabStop = false;
+            // 
+            // intervalDataGridViewTextBoxColumn
+            // 
+            this.intervalDataGridViewTextBoxColumn.DataPropertyName = "Interval";
+            this.intervalDataGridViewTextBoxColumn.HeaderText = "Interval";
+            this.intervalDataGridViewTextBoxColumn.Name = "intervalDataGridViewTextBoxColumn";
+            this.intervalDataGridViewTextBoxColumn.ReadOnly = true;
+            this.intervalDataGridViewTextBoxColumn.Width = 67;
+            // 
+            // xDataGridViewTextBoxColumn
+            // 
+            this.xDataGridViewTextBoxColumn.DataPropertyName = "X";
+            this.xDataGridViewTextBoxColumn.HeaderText = "X";
+            this.xDataGridViewTextBoxColumn.Name = "xDataGridViewTextBoxColumn";
+            this.xDataGridViewTextBoxColumn.ReadOnly = true;
+            this.xDataGridViewTextBoxColumn.Width = 39;
+            // 
+            // yDataGridViewTextBoxColumn
+            // 
+            this.yDataGridViewTextBoxColumn.DataPropertyName = "Y";
+            this.yDataGridViewTextBoxColumn.HeaderText = "Y";
+            this.yDataGridViewTextBoxColumn.Name = "yDataGridViewTextBoxColumn";
+            this.yDataGridViewTextBoxColumn.ReadOnly = true;
+            this.yDataGridViewTextBoxColumn.Width = 39;
+            // 
+            // Resolution
+            // 
+            this.Resolution.DataPropertyName = "Size";
+            this.Resolution.HeaderText = "Size";
+            this.Resolution.Name = "Resolution";
+            this.Resolution.ReadOnly = true;
+            this.Resolution.Width = 52;
+            // 
+            // Crop
+            // 
+            this.Crop.DataPropertyName = "Crop";
+            this.Crop.HeaderText = "Crop";
+            this.Crop.Name = "Crop";
+            this.Crop.ReadOnly = true;
+            this.Crop.Width = 54;
+            // 
+            // Angle
+            // 
+            this.Angle.DataPropertyName = "Angle";
+            this.Angle.HeaderText = "Angle";
+            this.Angle.Name = "Angle";
+            this.Angle.ReadOnly = true;
+            this.Angle.Width = 59;
+            // 
+            // diffDataGridViewTextBoxColumn
+            // 
+            this.diffDataGridViewTextBoxColumn.DataPropertyName = "Diff";
+            dataGridViewCellStyle1.Format = "F1";
+            this.diffDataGridViewTextBoxColumn.DefaultCellStyle = dataGridViewCellStyle1;
+            this.diffDataGridViewTextBoxColumn.HeaderText = "Diff";
+            this.diffDataGridViewTextBoxColumn.Name = "diffDataGridViewTextBoxColumn";
+            this.diffDataGridViewTextBoxColumn.ReadOnly = true;
+            this.diffDataGridViewTextBoxColumn.Width = 48;
             // 
             // OverlayEditor
             // 
@@ -1183,8 +1183,6 @@
         private System.Windows.Forms.ToolStripButton btnReset;
         private System.Windows.Forms.CheckBox chbPreview;
         private System.Windows.Forms.CheckBox chbEditor;
-        private System.Windows.Forms.DataGridViewTextBoxColumn sourceSizeDataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn overlaySizeDataGridViewTextBoxColumn;
         private System.Windows.Forms.Panel panel3;
         private System.Windows.Forms.Label label19;
         private System.Windows.Forms.NumericUpDown nudCurrentFrame;
@@ -1204,13 +1202,6 @@
         private System.Windows.Forms.Label label7;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Button btnResetCrop;
-        private System.Windows.Forms.DataGridViewTextBoxColumn intervalDataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn xDataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn yDataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Size;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Crop;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Angle;
-        private System.Windows.Forms.DataGridViewTextBoxColumn diffDataGridViewTextBoxColumn;
         private System.Windows.Forms.GroupBox groupBox3;
         private System.Windows.Forms.Button btnAutoOverlayScene;
         private System.Windows.Forms.Button btnAutoOverlaySeparatedFrame;
@@ -1226,5 +1217,12 @@
         private System.Windows.Forms.Button btnPanScan;
         private System.Windows.Forms.Button btnPanScanFull;
         private System.Windows.Forms.ToolStripButton btnDelete;
+        private System.Windows.Forms.DataGridViewTextBoxColumn intervalDataGridViewTextBoxColumn;
+        private System.Windows.Forms.DataGridViewTextBoxColumn xDataGridViewTextBoxColumn;
+        private System.Windows.Forms.DataGridViewTextBoxColumn yDataGridViewTextBoxColumn;
+        private System.Windows.Forms.DataGridViewTextBoxColumn Resolution;
+        private System.Windows.Forms.DataGridViewTextBoxColumn Crop;
+        private System.Windows.Forms.DataGridViewTextBoxColumn Angle;
+        private System.Windows.Forms.DataGridViewTextBoxColumn diffDataGridViewTextBoxColumn;
     }
 }

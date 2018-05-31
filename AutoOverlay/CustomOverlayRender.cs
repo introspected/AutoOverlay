@@ -17,7 +17,6 @@ namespace AutoOverlay
         private Clip srcClip;
         private Clip overClip;
         private string userFunction;
-        private bool debug;
 
         protected override void Initialize(AVSValue args)
         {
