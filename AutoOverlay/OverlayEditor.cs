@@ -132,7 +132,7 @@ namespace AutoOverlay
             cbMode.SelectedItem = OverlayMode.Fit;
             nudOutputWidth.Value = engine.SrcInfo.Width;
             nudOutputHeight.Value = engine.SrcInfo.Height;
-            nudCurrentFrame.Maximum = trackBar.Maximum = engine.GetVideoInfo().num_frames;
+            nudMaxFrame.Value = nudMinFrame.Maximum = nudMaxFrame.Maximum = engine.GetVideoInfo().num_frames - 1;
             engine.CurrentFrameChanged += OnCurrentFrameChanged;
             keyboardHook.KeyDown += keyboardHook_KeyDown;
             Closing += (o, e) => keyboardHook.Dispose();
@@ -199,20 +199,27 @@ namespace AutoOverlay
             }
         }
 
-        private void LoadStat()
+        private void LoadStat(object sender = null, EventArgs e = null)
         {
             Cursor.Current = Cursors.WaitCursor;
+            nudCurrentFrame.Minimum = trackBar.Minimum = (int) nudMinFrame.Value;
+            nudCurrentFrame.Maximum = trackBar.Maximum = (int) nudMaxFrame.Value;
             Intervals.RaiseListChangedEvents = false;
             Intervals.Clear();
             if (engine?.OverlayStat == null) return;
-            FrameInterval last = null;
-            foreach (var info in engine.OverlayStat.Frames)
+            FrameInterval lastInterval = null;
+            OverlayInfo lastFrame = null;
+            var min = (int) nudMinFrame.Value;
+            var max = (int) nudMaxFrame.Value;
+            foreach (var info in engine.OverlayStat.Frames.Where(p => p.FrameNumber >= min && p.FrameNumber <= max))
             {
-                if (info.FrameNumber == engine.GetVideoInfo().num_frames)
-                    break;
-                if (last == null || !last.Frames.First().Equals(info))
-                    last = Intervals.AddNew();
-                last.Frames.Add(info);
+                if (lastInterval == null || !lastFrame.Equals(info))
+                {
+                    lastInterval = new FrameInterval();
+                    Intervals.Add(lastInterval);
+                    lastFrame = info;
+                }
+                lastInterval.Frames.Add(info);
             }
 
             Text = Text + " " + Intervals.Count;
@@ -811,6 +818,13 @@ namespace AutoOverlay
                 engine.OverlayStat[frame] = null;
             Intervals.Remove(Interval);
             grid.Refresh();
+        }
+
+        private void grid_CellValueNeeded(object sender, DataGridViewCellValueEventArgs e)
+        {
+            var interval = Intervals[e.RowIndex];
+            var fieldName = grid.Columns[e.ColumnIndex].Name;
+            e.Value = interval.GetType().GetField(fieldName).GetValue(interval);
         }
     }
 }
