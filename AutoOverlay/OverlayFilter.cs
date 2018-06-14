@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Windows.Forms;
 using AvsFilterNet;
@@ -77,6 +78,13 @@ namespace AutoOverlay
             if (angle == 0)
                 return resized;
             return resized.Invoke(rotateFunc, angle / 100.0);
+        }
+
+        protected void Log(string format, params object[] args)
+        {
+#if DEBUG
+            Debug.WriteLine(format, args);
+#endif
         }
     }
 }

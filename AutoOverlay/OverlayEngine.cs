@@ -159,11 +159,8 @@ namespace AutoOverlay
                 }
                 return existed;
             }
-            StringBuilder log;
-            var info = GetOverlayInfoImpl(n, out log);
-#if DEBUG
-            System.Diagnostics.Debug.WriteLine(log);
-#endif
+            var info = GetOverlayInfoImpl(n, out var sb);
+            Log(sb.ToString());
             return info;
         }
 
@@ -512,9 +509,6 @@ namespace AutoOverlay
                                     searchArea.Width = Math.Min(oldMaxX - searchArea.X + 1, Round(config.MaxX * coefCurrent) - searchArea.X + 1);
                                     searchArea.Height = Math.Min(oldMaxY - searchArea.Y + 1, Round(config.MaxY * coefCurrent) - searchArea.Y + 1);
 
-                                    //if (searchArea.Width < 1 || searchArea.Height < 1)
-                                    //    continue;
-
                                     int angleFrom = Round(angle1 * 100), angleTo = Round(angle2 * 100);
 
                                     if (!initStep)
@@ -553,9 +547,7 @@ namespace AutoOverlay
                             .TakeWhile((p, i) => i < config.Branches && (p.Diff < float.Epsilon || p.Diff/results.First().Diff < 1 + config.BranchCorrelation/100.0))
                             .Distinct()
                             .ToList();
-#if DEBUG
-                        //bestAr.ForEach(best => Debug.WriteLine($"Step: {step} X: {best.X} Y: {best.Y} Width: {best.OverlayWidth} Height: {best.OverlayHeight} AR: {best.OverlayWidth / (double)best.OverlayHeight:F2} Angle: {best.Angle:F2} Diff: {best.Diff}"));
-#endif
+                        bestAr.ForEach(best => Log($"Step: {step} X,Y: ({best.X},{best.Y}) Size: {best.Width}x{best.Height} ({best.AspectRatio:F2}:1) Angle: {best.Angle:F2} Diff: {best.Diff}"));
                         results.Clear();
                     }
                     var res = bestAr[0];
