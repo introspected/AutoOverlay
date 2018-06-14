@@ -124,16 +124,37 @@ namespace AutoOverlay
                 action(control);
         }
 
-        public static int GetWidthSubsample(ColorSpaces colorSpace)
+        public static int GetWidthSubsample(this ColorSpaces colorSpace)
         {
             return colorSpace.HasFlag(ColorSpaces.CS_Sub_Width_1) ? 1 :
                 (colorSpace.HasFlag(ColorSpaces.CS_Sub_Width_4) ? 4 : 2);
         }
 
-        public static int GetHeightSubsample(ColorSpaces colorSpace)
+        public static int GetHeightSubsample(this ColorSpaces colorSpace)
         {
             return colorSpace.HasFlag(ColorSpaces.CS_Sub_Height_1) ? 1 :
                 (colorSpace.HasFlag(ColorSpaces.CS_Sub_Height_4) ? 4 : 2);
+        }
+
+        private static readonly Dictionary<ColorSpaces, int> bitDepths = new Dictionary<ColorSpaces, int>
+        {
+            {ColorSpaces.CS_Sample_Bits_14, 14},
+            {ColorSpaces.CS_Sample_Bits_12, 12},
+            {ColorSpaces.CS_Sample_Bits_10, 10},
+            {ColorSpaces.CS_Sample_Bits_16, 16},
+            {ColorSpaces.CS_Sample_Bits_32, 32},
+            {ColorSpaces.CS_Sample_Bits_8, 8}
+        };
+
+        public static int GetBitDepth(this ColorSpaces colorSpace)
+        {
+            return bitDepths.First(p => colorSpace.HasFlag(p.Key)).Value;
+        }
+
+        public static ColorSpaces ChangeBitDepth(this ColorSpaces colorSpace, int depth)
+        {
+            var en = bitDepths.First(p => p.Value == depth).Key;
+            return (colorSpace & ~ColorSpaces.CS_Sample_Bits_Mask) | en;
         }
 
         public static YUVPlanes[] GetPlanes(ColorSpaces colorSpace)
@@ -143,16 +164,19 @@ namespace AutoOverlay
             return new[] { YUVPlanes.PLANAR_Y, YUVPlanes.PLANAR_U, YUVPlanes.PLANAR_V };
         }
 
-        public static Bitmap ToBitmap(this VideoFrame frame, PixelFormat pixelFormat)
+        public static Bitmap ToBitmap(this VideoFrame frame, PixelFormat pixelFormat, YUVPlanes plane = default(YUVPlanes))
         {
             Bitmap bmp;
             switch (pixelFormat)
             {
                 case PixelFormat.Format8bppIndexed:
-                    bmp = new Bitmap(frame.GetRowSize(), frame.GetHeight(), frame.GetPitch(), pixelFormat, frame.GetReadPtr());
+                    bmp = new Bitmap(frame.GetRowSize(plane), frame.GetHeight(plane), frame.GetPitch(plane), pixelFormat, frame.GetReadPtr(plane));
                     var palette = bmp.Palette;
-                    for (var i = 0; i < 256; i++)
-                        palette.Entries[i] = Color.FromArgb((byte)i, (byte)i, (byte)i);
+                    unchecked
+                    {
+                        for (var i = 0; i < 256; i++)
+                            palette.Entries[i] = Color.FromArgb(i, i, i);
+                    }
                     bmp.Palette = palette;
                     break;
                 case PixelFormat.Format24bppRgb:
