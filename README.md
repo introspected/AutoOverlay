@@ -145,16 +145,16 @@ Color adjustment performs by histogram matching in the intersection area. For th
 - **debug** -  output align settings to the top left corner.
 
 ### ColorAdjust
-    ColorAdjust(clip, clip, clip, clip sampleMask, clip referenceMask, bool limitedRange, string planes, float limit)
-Color matching. All clips must be in the same color space. This filter is used inside OverlayRender but it is also useful as standalone. 
+    ColorAdjust(clip, clip, clip, clip sampleMask, clip referenceMask, bool limitedRange, string planes, float dither)
+Color matching. Input clip, sample clip and reference clip must be in the same type of color space (YUV or RGB) and matrix. HDR support. Input clip and sample clip must have the same bit depth (usually sample is the cropped or resized input clip). The bit depth of output clip will changed to the reference one. The filter provides perfect mathing only if sample and reference are represent the same area of frame while the input (first argument) may have different framing. This filter is used inside OverlayRender but it is also useful as standalone. 
 - **clip** - clip for color adjustment
 - **sample** - the sample clip (usually the first clip or cropped) 
 - **reference** - reference clip (usually the same time and area from different master)
-- **sampleMask** (default empty) - mask clip to exclude some parts from sample
-- **referenceMask** (default empty) - mask clip to exclude some parts from reference
+- **sampleMask** (default empty) - mask clip to exclude some parts from sample (8 bit planar (Y plane only is used) or RGB24)
+- **referenceMask** (default empty) - mask clip to exclude some parts from reference (8 bit planar (Y plane only is used) or RGB24)
 - **limitedRange** (default true) - TV or PC range for YUV clips
 - **planes** (default yuv) - planes to process for YUV clips. Any combination of y,u,v supported.
-- **limit** (default 0.95) - some magic value, will be described later.
+- **dither** (default 0.95) - dither level from 0 (disable) to 1 (aggressive). 
 
 ### OverlayCompare
     OverlayCompare(clip, clip, clip, string sourceText, string overlayText, int sourceColor, int overlayColor,
@@ -183,3 +183,9 @@ tbd
     OverlayEngine(OM.ConvertToY8(), WS.ConvertToY8(), statFile="c:\test\Overlay.stat")
     OverlayRender(OM.ConvertToYV24(), WS.ConvertToYV24(), debug=true, noise=50, upsize="Spline64Resize")
     ConvertToYV12()
+#### Color matching
+    HDR=AviSource("c:\test\UHD_HDR.avs") # Stacked 2160p YUV420P16 Rec2020 clip
+    HDR=HDR.ConvertFromStacked() # HDR video should be unstacked
+    HDR=HDR.z_ConvertFormat(pixel_type="YUV420P10",colorspace_op="2020ncl:st2084:2020:l=>709:709:709:l",dither_type="none") # Convert Rec2020 to Rec709 using z.lib
+    SDR=AviSource("c:\test\FullHD_SDR.avs") # 1080p YUV420P10 Rec709 clip
+    HDR.ColorAdjust(HDR, SDR) # Output is 2160p YV12 Rec709 clip
