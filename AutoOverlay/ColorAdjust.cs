@@ -7,7 +7,7 @@ using AvsFilterNet;
 
 [assembly: AvisynthFilterClass(
     typeof(ColorAdjust), nameof(ColorAdjust),
-    "ccc[sampleMask]c[refMask]c[limitedRange]b[planes]s[dither]f",
+    "ccc[sampleMask]c[refMask]c[limitedRange]b[channels]s[dither]f",
     MtMode.NICE_FILTER)]
 namespace AutoOverlay
 {
@@ -17,6 +17,7 @@ namespace AutoOverlay
         private double dither = 0.95;
         private const int tr = 0;
         private YUVPlanes[] planes;
+        private int[] channels;
         private bool limitedRange = true;
         private int sampleBits, referenceBits;
 
@@ -27,7 +28,13 @@ namespace AutoOverlay
             sampleMaskClip = args[3].IsClip() ? args[3].AsClip() : null;
             refMaskClip = args[4].IsClip() ? args[4].AsClip() : null;
             limitedRange = GetVideoInfo().IsPlanar() && args[5].AsBool(limitedRange);
-            planes = args[6].AsString("yuv").ToCharArray().Select(p => Enum.Parse(typeof(YUVPlanes), "PLANAR_" + p, true)).Cast<YUVPlanes>().ToArray();
+            planes = GetVideoInfo().IsRGB()
+                ? new[] {default(YUVPlanes)}
+                : args[6].AsString("yuv").ToCharArray().Select(p => Enum.Parse(typeof(YUVPlanes), "PLANAR_" + p, true))
+                    .Cast<YUVPlanes>().ToArray();
+            channels = GetVideoInfo().IsPlanar()
+                ? new[] {0}
+                : args[6].AsString("rgb").ToLower().ToCharArray().Select(p => "bgr".IndexOf(p)).ToArray();
             if (!OverlayUtils.IsRealPlanar(Child))
                 planes = new[] { default(YUVPlanes) };
             dither = args[7].AsFloat(dither);
@@ -56,17 +63,18 @@ namespace AutoOverlay
 
         public override VideoFrame GetFrame(int n, ScriptEnvironment env)
         {
+            var input = Child.GetFrame(n, env);
             var sampleFrames = Enumerable.Range(n - tr, tr * 2 + 1).Select(p => sampleClip.GetFrame(p, env)).ToList();
             var referenceFrames = Enumerable.Range(n - tr, tr * 2 + 1).Select(p => referenceClip.GetFrame(p, env)).ToList();
-            var output = NewVideoFrame(env);
-            using (var input = Child.GetFrame(n, env))
+            var writable = GetVideoInfo().pixel_type == Child.GetVideoInfo().pixel_type && env.MakeWritable(input);
+            var output = writable ? input : NewVideoFrame(env);
             using (var sampleMaskFrame = sampleMaskClip?.GetFrame(n, env))
             using (var refMaskFrame = refMaskClip?.GetFrame(n, env))
             {
                 var pixelSize = sampleClip.GetVideoInfo().IsRGB() ? 3 : 1;
                 Parallel.ForEach(planes, plane =>
                 {
-                    Parallel.For(0, pixelSize, channel =>
+                    Parallel.ForEach(channels, channel =>
                     {
                         int[] sampleHist = null, referenceHist = null;
                         Parallel.Invoke(
@@ -85,6 +93,8 @@ namespace AutoOverlay
                     });
                 });
             }
+            if (!writable)
+                input.Dispose();
             sampleFrames.ForEach(p => p.Dispose());
             referenceFrames.ForEach(p => p.Dispose());
             return output;
