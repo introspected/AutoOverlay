@@ -153,7 +153,7 @@ Color matching. Input clip, sample clip and reference clip must be in the same t
 - **sampleMask** (default empty) - mask clip to exclude some parts from sample (8 bit planar (Y plane only is used) or RGB24)
 - **referenceMask** (default empty) - mask clip to exclude some parts from reference (8 bit planar (Y plane only is used) or RGB24)
 - **limitedRange** (default true) - TV or PC range for YUV clips
-- **planes** (default yuv) - planes to process for YUV clips. Any combination of y,u,v supported.
+- **channels** (default yuv or rgb) - planes to process for YUV clips or channels for RGB. Any combination of y,u,v and r,g,b supported (ex: y, uv, r, br).
 - **dither** (default 0.95) - dither level from 0 (disable) to 1 (aggressive). 
 
 ### OverlayCompare
