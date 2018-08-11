@@ -111,10 +111,10 @@ namespace AutoOverlay {
 					int ox2 = ox1 == xmax ? ox1 : ox1 + 1;
 					int oy2 = oy1 == ymax ? oy1 : oy1 + 1;
 
-					double dx1 = max(0.0, ox - ox1);
+					double dx1 = std::max(0.0, ox - ox1);
 					double dx2 = 1.0 - dx1;
 
-					double dy1 = max(0.0, oy - oy1);
+					double dy1 = std::max(0.0, oy - oy1);
 					double dy2 = 1.0 - dy1;
 
 					// get four points
@@ -188,10 +188,10 @@ namespace AutoOverlay {
 					int ox2 = ox1 == xmax ? ox1 : ox1 + 1;
 					int oy2 = oy1 == ymax ? oy1 : oy1 + 1;
 
-					double dx1 = max(0.0, ox - ox1);
+					double dx1 = std::max(0.0, ox - ox1);
 					double dx2 = 1.0 - dx1;
 
-					double dy1 = max(0.0, oy - oy1);
+					double dy1 = std::max(0.0, oy - oy1);
 					double dy2 = 1.0 - dy1;
 
 					// get four points

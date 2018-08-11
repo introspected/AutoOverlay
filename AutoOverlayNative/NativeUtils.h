@@ -1,6 +1,3 @@
-#ifndef SIMDUTILS_H
-#define SIMDUTILS_H
-
 #include "Stdafx.h"
 
 using namespace System::Runtime::InteropServices;
@@ -152,4 +149,3 @@ namespace AutoOverlay {
 			double angle, int pixelSize);
 	};
 };
-#endif

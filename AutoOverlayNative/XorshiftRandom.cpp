@@ -1,5 +1,4 @@
-#include "XorshiftRandom.h"
-#include <iostream>
+#include "Stdafx.h"
 
 namespace AutoOverlay
 {
@@ -17,7 +16,7 @@ namespace AutoOverlay
 
 	inline int XorshiftRandom::Next()
 	{
-		unsigned int x = seed;
+		uint32_t x = seed;
 		x ^= x << 13;
 		x ^= x >> 17;
 		x ^= x << 5;

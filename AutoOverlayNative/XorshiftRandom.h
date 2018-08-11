@@ -3,7 +3,7 @@ namespace AutoOverlay
 	public ref class XorshiftRandom sealed
 	{
 	private:
-		unsigned int seed;
+		uint32_t seed;
 	public:
 		XorshiftRandom();
 		XorshiftRandom(int seed);
