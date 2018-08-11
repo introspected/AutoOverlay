@@ -75,7 +75,7 @@ namespace AutoOverlay
                 }
                 var sample = colorAdjust == ColorAdjustMode.AsOverlay ? srcTest : overTest;
                 var reference = colorAdjust == ColorAdjustMode.AsOverlay ? overTest : srcTest;
-                var adjusted = clip2Adjust.ColorAdjust(sample, reference, maskTest, maskTest, planes: lumaOnly ? "y" : "yuv");
+                var adjusted = clip2Adjust.ColorAdjust(sample, reference, maskTest, maskTest, channels: lumaOnly ? "y" : "yuv");
                 if (!GetVideoInfo().IsRGB() && !string.IsNullOrEmpty(matrix))
                     adjusted = adjusted.ConvertToYV24(matrix: matrix);
                 if (colorAdjust == ColorAdjustMode.AsOverlay)
