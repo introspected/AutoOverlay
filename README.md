@@ -14,10 +14,27 @@ The plugin is designed for auto-aligned optimal overlay of one video clip onto a
 The auto-align within OverlayEngine is performed by testing different coordinates (X and Y of the top left corner), resolutions, aspect ratio and rotation angles of the overlay frame in order to find the best combination of these parameters. The function of comparing the areas of two frames is the root-mean-square error (RMSE) on which PSNR is based - but is inversely proportional. The result of this function within the plugin is called simply DIFF since during development other functions were tested, too. The aim of auto-align is to minimize diff value.  
 To increase performance, auto-align is divided into several stages of scaling and tests of different OverlayConfigs  which particularly include ranges of acceptable align values. For every OverlayConfig on the first stage all possible combinations are tested in low resolution. On the next, a comparison based on the best align settings from the previous stage. Finally, if the required accuracy is achieved with current OverlayConfig, the remaining are not tested.  
 After auto-align it is possible to overlay one frame onto another in different ways with configurable OverlayRender.
+
 ### Load plugin in script
     LoadPlugin("%plugin folder%\AvsFilterNet.dll")
     LoadNetPlugin("%plugin folder %\AutoOverlay_netautoload.dll")
 AviSynth+ supports plugin auto loading, if .NET plugin filename includes suffix _netautoload. So it includes by default. Check the proper filename in LoadNetPlugin clause.
+
+## Sample
+    portrait=ImageSource("Lenna.portrait.jpg").ConvertToYV24()
+    landscape=ImageSource("Lenna.landscape.jpg").ConvertToYV24()
+    OverlayEngine(portrait, landscape)
+    OverlayRender(portrait, landscape, colorAdjust=2, mode=2, gradient=20, \
+        width=500, height=500, upsize="Spline64Resize", downsize="Spline64Resize")
+    
+<details> 
+    <summary><b>Portrait image + landscape image -> script output</b></summary>
+    <p>
+        <img src="https://github.com/introspected/AutoOverlay/blob/master/sample/Lenna.portrait.jpg"/>
+        <img src="https://github.com/introspected/AutoOverlay/blob/master/sample/Lenna.landscape.jpg"/>
+        <img src="https://github.com/introspected/AutoOverlay/blob/master/sample/Lenna.AutoOverlay.png"/>
+    </p>
+</details>
 
 ## Filters
 ### OverlayConfig
