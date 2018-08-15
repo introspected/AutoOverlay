@@ -96,7 +96,7 @@ namespace AutoOverlay
                 throw new AvisynthException();
             debug = args[17].AsBool(debug);
 
-            if (args[15].AsBool())
+            if (args[15].AsBool(false))
             {
                 var activeForm = Form.ActiveForm;
                 form?.Close();

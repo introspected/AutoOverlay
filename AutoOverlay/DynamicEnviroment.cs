@@ -124,7 +124,7 @@ namespace AutoOverlay
             else if (binder.ReturnType == typeof(string))
                 result = tuple.Item1.AsString();
             else if (binder.ReturnType == typeof(bool))
-                result = tuple.Item1.AsBool();
+                result = tuple.Item1.AsBool(false);
             else throw new InvalidOperationException();
 
             return true;
