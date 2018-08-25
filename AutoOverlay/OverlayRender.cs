@@ -169,7 +169,7 @@ namespace AutoOverlay
                     if (maskOver != null || opacity - 1 < double.Epsilon)
                         hybrid = hybrid.Overlay(over.Invoke(rotateFunc, info.Angle / 100.0), Math.Max(0, info.X), Math.Max(0, info.Y));
                     if (maskOver == null && info.Angle != 0)
-                        maskOver = GetBlankClip(over, true);
+                        maskOver = GetBlankClip(over, true).Dynamic();
                     return hybrid.Overlay(src, Math.Max(0, -info.X), Math.Max(0, -info.Y), mask: maskSrc)
                             .Overlay(over.Invoke(rotateFunc, info.Angle / 100.0), Math.Max(0, info.X), Math.Max(0, info.Y),
                             opacity: opacity, mask: maskOver?.Invoke(rotateFunc, info.Angle / 100.0))
@@ -237,7 +237,7 @@ namespace AutoOverlay
                     if (maskOver != null)
                         hybrid = hybrid.Overlay(over.Invoke(rotateFunc, info.Angle / 100.0), finalX + Math.Max(0, info.X), finalY + Math.Max(0, info.Y));
                     if (maskOver == null && info.Angle != 0)
-                        maskOver = GetBlankClip(over, true);
+                        maskOver = GetBlankClip(over, true).Dynamic();
                     return hybrid.Overlay(src, finalX + Math.Max(0, -info.X), finalY + Math.Max(0, -info.Y))
                             .Overlay(over.Invoke(rotateFunc, info.Angle / 100.0), finalX + Math.Max(0, info.X), finalY + Math.Max(0, info.Y), mask: maskOver?.Invoke(rotateFunc, info.Angle / 100.0))
                             .Invoke(downsizeFunc, GetVideoInfo().width, GetVideoInfo().height);
