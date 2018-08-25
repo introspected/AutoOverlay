@@ -6,7 +6,7 @@
 - .NET framework 4.0 or higher
 
 ### Installation
-- Copy x86 and/or x64 versions of AvsFilterNet to the plugins folder.
+- Copy x86 and/or x64 versions of AvsFilterNet.dll and AutoOverlayNative.dll to the plugins folder.
 - Copy AutoOverlay_netautoload.dll to the plugin folder, the same file used for both x86 and x64.
 
 ### Description
