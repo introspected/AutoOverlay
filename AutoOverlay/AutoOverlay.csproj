@@ -50,36 +50,36 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AvsArgumentAttribute.cs" />
-    <Compile Include="ColorAdjust.cs" />
-    <Compile Include="ColorAdjustMode.cs" />
-    <Compile Include="ColorRangeMask.cs" />
-    <Compile Include="CustomOverlayRender.cs" />
+    <Compile Include="Filters\ColorAdjust.cs" />
+    <Compile Include="Enum\ColorAdjustMode.cs" />
+    <Compile Include="Filters\ColorRangeMask.cs" />
+    <Compile Include="Filters\CustomOverlayRender.cs" />
     <Compile Include="ExtraVideoInfo.cs" />
     <Compile Include="FrameEventArgs.cs" />
     <Compile Include="KeyboardHook.cs" />
-    <Compile Include="OverlayCompare.cs" />
+    <Compile Include="Filters\OverlayCompare.cs" />
     <Compile Include="OverlayEditor.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="OverlayEditor.Designer.cs">
       <DependentUpon>OverlayEditor.cs</DependentUpon>
     </Compile>
-    <Compile Include="OverlayEngineMode.cs" />
-    <Compile Include="OverlayFilter.cs" />
+    <Compile Include="Enum\OverlayEngineMode.cs" />
+    <Compile Include="Filters\OverlayFilter.cs" />
     <Compile Include="AbstractOverlayInfo.cs" />
-    <Compile Include="BilinearRotate.cs" />
+    <Compile Include="Filters\BilinearRotate.cs" />
     <Compile Include="DynamicEnviroment.cs" />
     <Compile Include="FileOverlayStat.cs" />
     <Compile Include="FrameInterval.cs" />
-    <Compile Include="OverlayMask.cs" />
-    <Compile Include="OverlayMode.cs" />
-    <Compile Include="DynamicOverlayRender.cs" />
-    <Compile Include="OverlayRender.cs" />
-    <Compile Include="StaticOverlayRender.cs" />
+    <Compile Include="Filters\OverlayMask.cs" />
+    <Compile Include="Enum\OverlayMode.cs" />
+    <Compile Include="Filters\DynamicOverlayRender.cs" />
+    <Compile Include="Filters\OverlayRender.cs" />
+    <Compile Include="Filters\StaticOverlayRender.cs" />
     <Compile Include="OverlayUtils.cs" />
     <Compile Include="IOverlayStat.cs" />
-    <Compile Include="OverlayConfig.cs" />
-    <Compile Include="OverlayEngine.cs" />
+    <Compile Include="Filters\OverlayConfig.cs" />
+    <Compile Include="Filters\OverlayEngine.cs" />
     <Compile Include="OverlayInfo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

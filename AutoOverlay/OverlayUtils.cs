@@ -13,6 +13,8 @@ namespace AutoOverlay
 {
     public static class OverlayUtils
     {
+        public const string DEFAULT_RESIZE_FUNCTION = "BicubicResize";
+
         [DllImport("kernel32.dll", EntryPoint = "CopyMemory", SetLastError = false)]
         public static extern void CopyMemory(IntPtr dest, IntPtr src, int count);
 
@@ -203,7 +205,7 @@ namespace AutoOverlay
 
         public static void InitArgs(AvisynthFilter filter, AVSValue args)
         {
-            var annotatedProperties = GetAnnotatedProperties(filter);
+            var annotatedProperties = GetAnnotatedProperties(filter.GetType());
 
             if (annotatedProperties.Length != args.ArraySize() && annotatedProperties.Length != args.ArraySize() - 1)
                 throw new AvisynthException("Instance attributes count not match to declared");
@@ -249,9 +251,9 @@ namespace AutoOverlay
             }
         }
 
-        public static Tuple<PropertyInfo, AvsArgumentAttribute>[] GetAnnotatedProperties(AvisynthFilter filter)
+        public static Tuple<PropertyInfo, AvsArgumentAttribute>[] GetAnnotatedProperties(Type filter)
         {
-            return filter.GetType().GetProperties(
+            return filter.GetProperties(
                     BindingFlags.NonPublic | BindingFlags.Public |
                     BindingFlags.Instance | BindingFlags.GetProperty |
                     BindingFlags.SetProperty)
@@ -263,7 +265,7 @@ namespace AutoOverlay
 
         public static void Dispose(AvisynthFilter filter)
         {
-            GetAnnotatedProperties(filter).Select(p => p.Item1).Where(p => p.PropertyType == typeof(Clip))
+            GetAnnotatedProperties(filter.GetType()).Select(p => p.Item1).Where(p => p.PropertyType == typeof(Clip))
                 .Select(p => p.GetGetMethod(true).Invoke(filter, null)).OfType<Clip>().ToList()
                 .ForEach(p => p.Dispose());
         }

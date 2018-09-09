@@ -59,10 +59,10 @@ namespace AutoOverlay
         public Clip Configs { get; private set; }
 
         [AvsArgument]
-        public string Downsize { get; private set; } = "BicubicResize";
+        public string Downsize { get; private set; } = OverlayUtils.DEFAULT_RESIZE_FUNCTION;
 
         [AvsArgument]
-        public string Upsize { get; private set; } = "BicubicResize";
+        public string Upsize { get; private set; } = OverlayUtils.DEFAULT_RESIZE_FUNCTION;
 
         [AvsArgument]
         public string Rotate { get; private set; } = "BilinearRotate";

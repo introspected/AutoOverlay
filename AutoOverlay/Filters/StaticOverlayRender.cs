@@ -86,10 +86,10 @@ namespace AutoOverlay
         public override string Matrix { get; protected set; }
 
         [AvsArgument]
-        public override string Upsize { get; protected set; } = "BicubicResize";
+        public override string Upsize { get; protected set; } = OverlayUtils.DEFAULT_RESIZE_FUNCTION;
 
         [AvsArgument]
-        public override string Downsize { get; protected set; } = "BicubicResize";
+        public override string Downsize { get; protected set; } = OverlayUtils.DEFAULT_RESIZE_FUNCTION;
 
         [AvsArgument]
         public override string Rotate { get; protected set; } = "BilinearRotate";
@@ -107,8 +107,8 @@ namespace AutoOverlay
                 X = X,
                 Y = Y,
                 Angle = (int) Math.Round(Angle*100),
-                Width = OverlayWidth,
-                Height = OverlayHeight,
+                Width = OverlayWidth == 0 ? Overlay.GetVideoInfo().width : OverlayWidth,
+                Height = OverlayHeight == 0 ? Overlay.GetVideoInfo().height : OverlayHeight,
                 Diff = Diff
             };
             overlaySettings.SetCrop(RectangleF.FromLTRB(

@@ -8,7 +8,7 @@ using AvsFilterNet;
     "[MinOverlayArea]f[MinSourceArea]f[AspectRatio1]f[AspectRatio2]f[Angle1]f[Angle2]f" +
     "[MinSampleArea]i[RequiredSampleArea]i[MaxSampleDiff]f[Subpixel]i[ScaleBase]f" +
     "[Branches]i[BranchMaxDiff]f[AcceptableDiff]f[Correction]i" +
-    "[minX]i[maxX]i[minY]i[maxY]i[minArea]i[maxArea]i[fixedAspectRatio]b",
+    "[MinX]i[MaxX]i[MinY]i[MaxY]i[MinArea]i[MaxArea]i[FixedAspectRatio]b[Debug]b",
     MtMode.SERIALIZED)]
 namespace AutoOverlay
 {
@@ -80,6 +80,9 @@ namespace AutoOverlay
 
         [AvsArgument]
         public bool FixedAspectRatio { get; set; }
+
+        [AvsArgument]
+        public override bool Debug { get; protected set; }
 
         protected override void Initialize(AVSValue args)
         {

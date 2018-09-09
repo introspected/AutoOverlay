@@ -10,6 +10,8 @@ namespace AutoOverlay
 {
     public class CustomOverlayRender : OverlayFilter
     {
+        [AvsArgument(Required = true)] public Clip Engine { get; private set; }
+
         [AvsArgument(Required = true)]
         public Clip Source { get; private set; }
 
