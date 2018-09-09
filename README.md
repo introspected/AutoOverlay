@@ -39,9 +39,10 @@ AviSynth+ supports plugin auto loading, if .NET plugin filename includes suffix 
 ## Filters
 ### OverlayConfig
     OverlayConfig(float minOverlayArea, float minSourceArea, float aspectRatio1, float aspectRatio2, 
-                  float angle1, float angle2, int minSampleArea, int requiredSampleArea, float maxSampleDifference, 
-                  int subpixel, float scaleBase, int branches, float acceptableDiff, int correction,
-                  int minX, int maxX, int minY, int maxY, int minArea, int maxArea, bool fixedAspectRatio, bool debug)
+                  float angle1, float angle2, int minSampleArea, int requiredSampleArea, float maxSampleDiff, 
+                  int subpixel, float scaleBase, int branches, float branchMaxDiff, float acceptableDiff, 
+                  int correction, int minX, int maxX, int minY, int maxY, int minArea, int maxArea, 
+                  bool fixedAspectRatio, bool debug)
 This filter describes configuration for OverlayEngine: how to search optimal align settings. It defines the bounds of align values such as coordinates of the top left corner of overlaid image relative source image, width and height of scaled overlaid image and its rotation angle. Configuration contains OverlayEngine settings for auto-align process as well.  
 The filter output is one frame clip that contains given arguments encoded to the image. It is the hack to inject these values to OverlayEngine as independent entity.  
 It is possible to add some clips to config chain with regular splice operator: OverlayConfig(…) + OverlayConfig(…). OverlayEngine then will test each config in given order. As soon as acceptable diff value is reached, it will be returned as best align and other configs will not be processed.
@@ -53,10 +54,11 @@ It is possible to add some clips to config chain with regular splice operator: O
 - **angle1** и **angle2** (default 0) - range of acceptable rotation angle if overlaid image. Can be specified in any order. Negative values – clockwise rotation, positive – counter.
 - **minSampleArea** (default 1000) – minimum area in pixels of downsized source clip at first scale stage. The smaller, the faster, but also the greater risk of getting an incorrect result. Recommended range: 500-3000. 
 - **requiredSampleArea** (default 1000) - maximum area in pixels of downscaled source clip at first scale stage. The smaller, the faster, but also the greater risk of getting an incorrect result. Recommended range: 1000-5000. 
-- **maxSampleDifference** (default 5) – max allowed DIFF between downscaled source clip at previous and current scale iteration. If it is too high then previous iteration will not be processed.  
+- **maxSampleDiff** (default 5) – max allowed DIFF between downscaled source clip at previous and current scale iteration. If it is too high then previous iteration will not be processed.  
 - **subpixel** (default 0) – subpixel align accuracy. 0 – one pixel accuracy, 1 – half pixel, 2 – quarter and so on. Zero is recommended if one clip is much smaller then another. 1-3 if both clips have about the same resolution. 
 - **scaleBase** (default 1.5) – base to calculate downscale coefficient by formula `coef=scaleBase^(1 - (maxStep - currentStep))`.
 - **branches** (default 1) - how many best align params from previous scale stage will be analyzed at the next one.  1-10 is recommended. The higher - the longer.
+- **branchMaxDiff** - maximum difference between best branch and current one to accept
 - **acceptableDiff** (default 5) – acceptable DIFF value. If it will be achieved with current OverlayConfig the remaining configs in the chain will not be processed.
 - **correction** (default 1) – the value of correction the best align params between scale stages. The higher, then more different align params are tested. 
 - **minX**, **maxX**, **minY**, **maxY** - ranges of top left corner coordinates, unlimited by default.
@@ -65,13 +67,14 @@ It is possible to add some clips to config chain with regular splice operator: O
 - **debug** (default false) – output given arguments, slower.
 
 ### OverlayEngine
-    OverlayEngine(clip, clip, string statFile, int backwardFrames, int forwardFrames, clip sourceMask, 
-                  clip overlayMask, float maxDiff, float maxDiffIncrease, float maxDeviation, bool stabilize,
-                  clip configs, string downsize, string upsize, string rotate, bool editor, string mode, bool debug)
+    OverlayEngine(clip, clip, string statFile, int backwardFrames, int forwardFrames, 
+                  clip sourceMask, clip overlayMask, float maxDiff, float maxDiffIncrease, 
+                  float maxDeviation, bool stabilize, clip configs, string downsize, string upsize, 
+                  string rotate, bool editor, string mode, bool debug)
 Filter takes two clips: source and overlay. It performs auto-align by resizing, rotation and shifting an overlay clip to find the best diff value. Best align settings are encoded into output frame so it could be read by another filter. The sequence of these align settings frame-by-frame (statistics) could be written to in-memory cache or file for reuse and manual editing via built-in visual editor. 
 #### Parameters
-- **source** - first, base clip.
-- **overlay** - second, overlaid clip. Both clips must be in the same color space without chroma subsampling. Y8, YV24 and RGB24 are supported.
+- **source** (required) - first, base clip.
+- **overlay** (required) - second, overlaid clip. Both clips must be in the same color space without chroma subsampling. Y8, YV24 and RGB24 are supported.
 - **statFile** (default empty) – path to the file with current align values. If empty then in-memory cache is used. Recommended use-case: to test different OverlayConfigs use in-memory cache. After that set statFile and run analysis pass.
 - **backwardFrames** and **forwardFrames** (default 3) – count of previous and forward frames for searching align params of current frame. 
 - **sourceMask**, **overlayMask** (default empty) – mask clips for source and overlaid clips. If mask was specified then pixels that correspond to zero values in mask will be excluded from comparison function. In RGB color space all channels are analyzed independent. In YUV only luma channel is analyzed. Masks and clips should be in the same type color space (YUV or RGB24). Note that in planar color space masks should be in full range (`ColorYUV(levels="TV->PC")`). 
@@ -80,10 +83,10 @@ Filter takes two clips: source and overlay. It performs auto-align by resizing, 
 - **maxDeviation** (default 0.5) – max allowed rest area of clip in percent subtracting intersection to detect scene change.
 - **stabilize** (default true) – attempt to stabilize align values at the beginning of scene when there is no enough backward frames including to current scene.
 - **configs** (default OverlayConfig with default values) – configuration list in the form of clip. Example: `configs=OverlayConfig(subpixel=1, acceptableDiff=10) + OverlayConfig(angle1=-1, angle2=1)`. If during analyses of first configuration it founds align values with diff below 10 then second one with high ranges and low performance will be skipped.
-- **downsize** and **upsize** (default *BilinearResize*) – functions that used for downsizing and upsizing of overlaid clip during auto-align.
+- **downsize** and **upsize** (default *BicubicResize*) – functions that used for downsizing and upsizing of overlaid clip during auto-align.
 - **rotate** (default *BilinearRotate*) – rotation function. Currently built-in one is used which based on AForge.NET.
 - **editor** (default false). If true then visual editor form will be open at the script loading. 
-- **mode** (default "default") – engine mode:
+- **mode** (default "default") – engine mode:  
 DEFAULT – default mode  
 UPDATE – as default but with forced diff update   
 ERASE – erase statistics  
@@ -127,14 +130,14 @@ The scenes that were changed by user are highlighted with yellow color in grid. 
 
 ### OverlayRender
     OverlayRender(clip, clip, clip, clip sourceMask, clip overlayMask, bool lumaOnly, int width, int height, 
-                  int gradient, int noise, bool dynamicNoise, bool mode, float opacity, int colorAdjust, 
+                  int gradient, int noise, bool dynamicNoise, int mode, float opacity, int colorAdjust, 
                   string matrix, string upsize, string downsize, string rotate, bool debug)
 This filter preforms rendering of the result clip using align values from the engine. 
 
 #### Parameters
-- **engine** - *OverlayEngine* clip.
-- **source** - first, base clip.
-- **overlay** - second, overlaid clip. Both clips must be in the same color space without chroma subsampling. Y8, YV24 and RGB24 are supported.
+- **engine** (required) - *OverlayEngine* clip.
+- **source** (required) - first, base clip.
+- **overlay** (required) - second, overlaid clip. Both clips must be in the same color space without chroma subsampling. Y8, YV24 and RGB24 are supported.
 - **sourceMask**, **overlayMask** (default empty) - mask clips for source and overlaid clips. Unlike masks in overlay engine in this filter they work as avisynth built-in overlay filter masks. If both masks are specified then they are joined to one according align values. The purpose of the masks is maximum hiding of logos and other unwanted parts of the clips at transparent or gradient parts, which could be specified by *gradient* and *noise* parameters. 
 - **lumaOnly** (default false) – overlay only luma channel when *mode*=1.
 - **width** и **height** - output width and height. By default are taken from source clip.
@@ -157,16 +160,18 @@ This filter preforms rendering of the result clip using align values from the en
 3 - intermediate clip
 Color adjustment performs by histogram matching in the intersection area. For the YUV images adjusts only luma channel. For the RGB images adjusts all 3 channels independently.
 - **matrix** (default empty). If specified YUV image converts to RGB with given matrix for color adjustment. 
-- **downsize** и **upsize** (default *BilinearResize*) - downsize and upsize functions. It’s recommended to use functions with high quality interpolation. 
+- **downsize** и **upsize** (default *BicubicResize*) - downsize and upsize functions. It’s recommended to use functions with high quality interpolation. 
 - **rotate** (default *BilinearRotate*) – rotation function.
 - **debug** -  output align settings to the top left corner.
 
 ### ColorAdjust
-    ColorAdjust(clip, clip, clip, clip sampleMask, clip referenceMask, bool limitedRange, string planes, float dither)
+    ColorAdjust(clip, clip, clip, clip sampleMask, clip referenceMask, bool limitedRange, string channels, float dither)
 Color matching. Input clip, sample clip and reference clip must be in the same type of color space (YUV or RGB) and matrix. HDR support. Input clip and sample clip must have the same bit depth (usually sample is the cropped or resized input clip). The bit depth of output clip will changed to the reference one. The filter provides perfect mathing only if sample and reference are represent the same area of frame while the input (first argument) may have different framing. This filter is used inside OverlayRender but it is also useful as standalone. 
-- **clip** - clip for color adjustment
-- **sample** - the sample clip (usually the first clip or cropped) 
-- **reference** - reference clip (usually the same time and area from different master)
+
+#### Parameters
+- **clip** (required) - clip for color adjustment
+- **sample** (required) - the sample clip (usually the first clip or cropped) 
+- **reference** (required) - reference clip (usually the same time and area from different master)
 - **sampleMask** (default empty) - mask clip to exclude some parts from sample (8 bit planar (Y plane only is used) or RGB24)
 - **referenceMask** (default empty) - mask clip to exclude some parts from reference (8 bit planar (Y plane only is used) or RGB24)
 - **limitedRange** (default true) - TV or PC range for YUV clips
@@ -174,13 +179,112 @@ Color matching. Input clip, sample clip and reference clip must be in the same t
 - **dither** (default 0.95) - dither level from 0 (disable) to 1 (aggressive). 
 
 ### OverlayCompare
-    OverlayCompare(clip, clip, clip, string sourceText, string overlayText, int sourceColor, int overlayColor,
-                   int borderSize, float opacity, int width, int height, bool info)
+OverlayCompare(clip, clip, clip, string sourceText, string overlayText, int sourceColor, int overlayColor, 
+               int borderSize, float opacity, int width, int height, bool debug)
+This filter generates comparison clip from source and overlay clips with borders and labels.
+
+#### Parameters
+- **engine** (required) - *OverlayEngine* clip.
+- **source** (required) - first, base clip.
+- **overlay** (required) - second, overlaid clip.
+- **sourceText** (default "Source") - source clip name.
+- **overlayText** (default "Source") - overlay clip name.
+- **sourceColor** (default 0x0000FF) - source clip border color.
+- **overlayColor** (default 0x00FF00) - overlay clip border color.
+- **borderSize** (default 2) - border size.
+- **opacity** (default 0.51) - opacity of overlay clip.
+- **width** (source clip width by default) - output width.
+- **height** (source clip height by default) - output height.
+- **debug** (default false) - print align settings. 
+
+### StaticOverlayRender
+    StaticOverlayRender(clip, clip, int x, int y, float angle, int overlayWidth, int overlayHeight, 
+                        float cropLeft, float cropTop, float cropRight, float cropBottom, float diff, 
+                        clip sourceMask, clip overlayMask, bool lumaOnly, int width, int height, 
+                        int gradient, int noise, bool dynamicNoise, int mode, float opacity, int colorAdjust, 
+                        string matrix, string upsize, string downsize, string rotate, bool debug)
+As OverlayRender but with fixed align settings without OverlayEngine.
+
+#### Parameters
+- **source** (required) - first, base clip.
+- **overlay** (required) - second, overlaid clip. Both clips must be in the same color space without chroma subsampling. Y8, YV24 and RGB24 are supported.
+- **x** (required) - x coordinate.
+- **y** (required) - y coordinate.
+- **angle** (default 0) - rotation angle.
+- **overlayWidth** (overlay clip width by default) - width of overlay clip after resize.
+- **overlayHeight** (overlay clip height by default) - height of overlay clip after resize.
+- **cropLeft**, **cropTop**, **cropRight**, **cropBottom** (default 0) - crop overlay clip before resize for subpixel alignment.
+- **diff** (default 0) - DIFF value for debug output. 
+- **sourceMask**, **overlayMask** (default empty) - mask clips for source and overlaid clips. Unlike masks in overlay engine in this filter they work as avisynth built-in overlay filter masks. If both masks are specified then they are joined to one according align values. The purpose of the masks is maximum hiding of logos and other unwanted parts of the clips at transparent or gradient parts, which could be specified by *gradient* and *noise* parameters. 
+- **lumaOnly** (default false) – overlay only luma channel when *mode*=1.
+- **width** и **height** - output width and height. By default are taken from source clip.
+- **gradient** (default 0) – length of gradient at the overlay mask to make borders between images smoother. Useful when clips are scientifically differ in colors or align is not very good.
+- **noise** (default 0) - length of "noise gradient" at the overlay mask to make borders between images smoother. Useful when clips are in the same color and align is very good.
+- **dynamicNoise** (default true) – use dynamic noise gradient if *noise* > 0.
+- **mode** (default 1) – overlay and cropping mode:  
+1 - crop around the edges of the source image.  
+2 - combination of both images with cropping to the all four edges of the output clip with "ambilight" at the corners.  
+3 - combination of both images without any cropping.  
+4 - as 3 but with "ambilight" at the corners.  
+5 - as 3 but with "ambilight" at all free space.  
+6 – as 3 but with pure white clips. Useful to combine the result clip with another one.  
+7 - as 1 but clips overlaid in difference mode. Useful to check align.
+- **opacity** (default 1) – opacity of overlaid image from 0 to 1.
+- **colorAdjust** (default 0) *unstable* - color adjustment mode:  
+0 - disabled  
+1 – overlaid clip will be adjusted to source  
+2 - source clip will be adjusted to overlaid  
+3 - intermediate clip
+Color adjustment performs by histogram matching in the intersection area. For the YUV images adjusts only luma channel. For the RGB images adjusts all 3 channels independently.
+- **matrix** (default empty). If specified YUV image converts to RGB with given matrix for color adjustment. 
+- **downsize** и **upsize** (default *BicubicResize*) - downsize and upsize functions. It’s recommended to use functions with high quality interpolation. 
+- **rotate** (default *BilinearRotate*) – rotation function.
+- **debug** -  output align settings to the top left corner.
+
+### CustomOverlayRender
+    CustomOverlayRender(clip, clip, clip, string function, int width, int height, bool debug)
+This filter allows to override default overlay algorithms by user using overlay settings from OverlayEngine. 
+
+#### Parameters
+- **engine** (required) - *OverlayEngine* clip.
+- **source** (required) - first, base clip.
+- **overlay** (required) - second, overlaid clip.
+- **function** (required) - user function name. The function must have the following parameters: `clip engine, clip source, clip overlay, int x, int y, float angle, int overlayWidth, int overlayHeight, float cropLeft, float cropTop, float cropRight, float cropBottom, float diff)`
+- **width** (source clip width by default) - output clip width.
+- **height** (source clip height by default) - output clip height.
+- **debug** (default false) - debug mode.
 
 ### ColorRangeMask
     ColorRangeMask(clip, int low, int high)
+Support filter which provides mask clip by color range: white if pixel value is between low and high arguments. For YUV clips only luma channel is used. For RGB clips all channels are proccessed independently. Output is the clip in the same color space. Limited range is not supported. 
 
-tbd
+#### Parameters
+- **input** (required) - input clip.
+- **low** (default 0) - lower bound of color range.
+- **high** (default 0) - higher bound of color range.
+
+### BilinearRotate
+    BilinearRotate(clip, float)
+Support filter for rotation by angle with bilinear interpolation.
+
+#### Parameters
+- **input** (required) - input clip.
+- **angle** (required) - rotation angle.
+
+### OverlayMask
+    OverlayMask(clip template, int width, int height, 
+                int left, int top, int right, int bottom, bool noise, bool gradient, int seed)
+Support filter which provides mask clip for overlay with gradient or noise at borders.
+
+#### Parameters
+- **template** (default empty) - if specified width, height and color space will be used from template clip for output.
+- **width** - output clip width if template is not specified. 
+- **height** - output clip height if template is not specified.
+- **left**, **top**, **right**, **bottom** - border size.
+- **noise** - noise generation on borders.
+- **gradient** - gradient borders.
+- **seed** - seed for noise generation.
+
 
 ## Examples
 #### Simple script 
