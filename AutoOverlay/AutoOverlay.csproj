@@ -49,6 +49,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AvsArgumentAttribute.cs" />
     <Compile Include="ColorAdjust.cs" />
     <Compile Include="ColorAdjustMode.cs" />
     <Compile Include="ColorRangeMask.cs" />

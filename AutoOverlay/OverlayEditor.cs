@@ -303,10 +303,10 @@ namespace AutoOverlay
                 var info = GetOverlayInfo();
                 var outSize = new Size((int) nudOutputWidth.Value, (int) nudOutputHeight.Value);
                 var crop = info.GetCrop();
-                using (var src = engine.SrcClip.Dynamic().ConvertToRGB24(matrix: "Rec709"))
-                using (var over = engine.OverClip.Dynamic().ConvertToRGB24(matrix: "Rec709"))
-                using (var srcMask = engine.SrcMaskClip?.Dynamic().ConvertToRGB24(matrix: "Rec709"))
-                using (var overMask = engine.OverMaskClip ?.Dynamic().ConvertToRGB24(matrix: "Rec709"))
+                using (var src = engine.Source.Dynamic().ConvertToRGB24(matrix: "Rec709"))
+                using (var over = engine.Overlay.Dynamic().ConvertToRGB24(matrix: "Rec709"))
+                using (var srcMask = engine.SourceMask?.Dynamic().ConvertToRGB24(matrix: "Rec709"))
+                using (var overMask = engine.OverlayMask ?.Dynamic().ConvertToRGB24(matrix: "Rec709"))
                 {
                     VideoFrame frame;
                     if (chbPreview.Checked)
@@ -315,9 +315,9 @@ namespace AutoOverlay
                             info.X, info.Y, info.Angle / 100.0, info.Width, info.Height,
                             crop.Left, crop.Top, crop.Right, crop.Bottom, info.Diff,
                             sourceMask: srcMask, overlayMask: overMask,
-                            lumaOnly: false, outWidth: outSize.Width, outHeight: outSize.Height,
+                            lumaOnly: false, width: outSize.Width, height: outSize.Height,
                             gradient: (int) nudGradientSize.Value, noise: (int) nudNoiseSize.Value,
-                            dynamicNoise: true, mode: (int) cbMode.SelectedItem, opacity: (double)nudOpacity.Value/100.0,
+                            dynamicNoise: true, mode: (int) cbMode.SelectedItem, opacity: (double) nudOpacity.Value/100.0,
                             debug: chbDebug.Checked)[CurrentFrame];
                     }
                     else frame = src.BilinearResize(outSize.Width, outSize.Height)[CurrentFrame];
@@ -733,7 +733,7 @@ namespace AutoOverlay
             Intervals.RaiseListChangedEvents = false;
             CheckChanges(Interval);
             var text = Text;
-            var intervals = Intervals.Where(p => p.Length >= engine.BackwardFrameCount).ToArray();
+            var intervals = Intervals.Where(p => p.Length >= engine.BackwardFrames).ToArray();
             var length = intervals.Sum(p => p.Length);
             var total = 0;
             foreach (var interval in intervals)

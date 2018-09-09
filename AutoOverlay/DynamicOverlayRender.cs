@@ -1,47 +1,52 @@
-﻿using System.Drawing;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using AutoOverlay;
 using AvsFilterNet;
 
 [assembly: AvisynthFilterClass(typeof(DynamicOverlayRender),
     nameof(OverlayRender),
-    "ccc[SourceMask]c[OverlayMask]c[LumaOnly]b[Width]i[Height]i[Gradient]i[Noise]i[DynamicNoise]b[Mode]i[Opacity]f[colorAdjust]i[matrix]s[Upsize]s[Downsize]s[Rotate]s[Debug]b",
+    "ccc[SourceMask]c[OverlayMask]c" +
+    "[LumaOnly]b[Width]i[Height]i[Gradient]i[Noise]i[DynamicNoise]b" +
+    "[Mode]i[Opacity]f[ColorAdjust]i[Matrix]s[Upsize]s[Downsize]s[Rotate]s[Debug]b",
     MtMode.SERIALIZED)]
 namespace AutoOverlay
 {
     public class DynamicOverlayRender : OverlayRender
     {
-        protected override void Initialize(AVSValue args)
-        {
-            srcClip = args[1].AsClip();
-            overClip = args[2].AsClip();
-            srcSize = new Size(srcClip.GetVideoInfo().width, srcClip.GetVideoInfo().height);
-            overSize = new Size(overClip.GetVideoInfo().width, overClip.GetVideoInfo().height);
-            srcMaskClip = args[3].IsClip() ? args[3].AsClip() : null;
-            overMaskClip = args[4].IsClip() ? args[4].AsClip() : null;
-            lumaOnly = args[5].AsBool(lumaOnly);
-            var width = args[6].AsInt(srcClip.GetVideoInfo().width);
-            var height = args[7].AsInt(srcClip.GetVideoInfo().height);
+        [AvsArgument(Required = true)] public override Clip Source { get; protected set; }
+        
+        [AvsArgument(Required = true)] public override Clip Overlay { get; protected set; }
 
-            var vi = srcClip.GetVideoInfo();
-            vi.width = width;
-            vi.height = height;
-            vi.pixel_type = srcClip.GetVideoInfo().pixel_type;
-            vi.num_frames = Child.GetVideoInfo().num_frames;
-            SetVideoInfo(ref vi);
+        [AvsArgument] public override Clip SourceMask { get; protected set; }
 
-            gradient = args[8].AsInt(gradient);
-            noise = args[9].AsInt(noise);
-            dynamicNoise = args[10].AsBool(dynamicNoise);
-            overlayMode = (OverlayMode) args[11].AsInt((int) overlayMode);
-            opacity = args[12].AsFloat(opacity);
-            colorAdjust = (ColorAdjustMode) args[13].AsInt((int) colorAdjust);
-            matrix = args[14].AsString(matrix);
-            upsizeFunc = args[15].AsString(upsizeFunc);
-            downsizeFunc = args[16].AsString(downsizeFunc);
-            rotateFunc = args[17].AsString(rotateFunc);
-            debug = args[18].AsBool(debug);
-        }
+        [AvsArgument] public override Clip OverlayMask { get; protected set; }
+
+        [AvsArgument] public override bool LumaOnly { get; protected set; }
+
+        [AvsArgument(Min = 1)] public override int Width { get; protected set; }
+
+        [AvsArgument(Min = 1)] public override int Height { get; protected set; }
+
+        [AvsArgument(Min = 0)] public override int Gradient { get; protected set; }
+
+        [AvsArgument(Min = 0)] public override int Noise { get; protected set; }
+
+        [AvsArgument(Min = 0)] public override bool DynamicNoise { get; protected set; } = true;
+
+        [AvsArgument(Min = 0)] public override OverlayMode Mode { get; protected set; } = OverlayMode.Fit;
+
+        [AvsArgument(Min = 0, Max = 1)] public override double Opacity { get; protected set; } = 1;
+
+        [AvsArgument] public override ColorAdjustMode ColorAdjust { get; protected set; } = ColorAdjustMode.None;
+
+        [AvsArgument] public override string Matrix { get; protected set; }
+
+        [AvsArgument] public override string Upsize { get; protected set; } = "BicubicResize";
+
+        [AvsArgument] public override string Downsize { get; protected set; } = "BicubicResize";
+
+        [AvsArgument] public override string Rotate { get; protected set; } = "BilinearRotate";
+
+        [AvsArgument] public override bool Debug { get; protected set; }
 
         protected override VideoFrame GetFrame(int n)
         {
@@ -50,7 +55,7 @@ namespace AutoOverlay
             using (var infoFrame = Child.GetFrame(n, StaticEnv))
                 info = OverlayInfo.FromFrame(infoFrame);
             var hybrid = RenderFrame(info);
-            if (debug)
+            if (Debug)
                 hybrid = hybrid.Subtitle(info.ToString().Replace("\n", "\\n"), lsp: 0);
             var res = NewVideoFrame(StaticEnv);
             using (VideoFrame frame = hybrid[n])

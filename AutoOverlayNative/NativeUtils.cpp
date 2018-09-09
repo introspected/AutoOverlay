@@ -8,61 +8,6 @@ namespace AutoOverlay {
 
 	const double EPSILON = std::numeric_limits<double>::epsilon();
 
-	double NativeUtils::SquaredDifferenceSum(
-		const unsigned char *src, int srcStride,
-		const unsigned char *over, int overStride,
-		int width, int height)
-	{
-		__int64 sum = 0;
-		for (int row = 0; row < height; ++row)
-		{
-			for (int col = 0; col < width; ++col)
-			{
-				int diff = src[col] - over[col];
-				int square = diff * diff;
-				sum += square;
-			}
-			src += srcStride;
-			over += overStride;
-		}
-		return (double)sum / (width*height);
-	}
-
-	double NativeUtils::SquaredDifferenceSumMasked(
-		const unsigned char *src, int srcStride,
-		const unsigned char *srcMask, int srcMaskStride,
-		const unsigned char *over, int overStride,
-		const unsigned char *overMask, int overMaskStride,
-		int width, int height)
-	{
-		__int64 sum = 0;
-		int pixelCount = width * height;
-		for (int row = 0; row < height; ++row)
-		{
-			for (int col = 0; col < width; ++col)
-			{
-				if ((srcMask == nullptr || srcMask[col] > 0) 
-					&& (overMask == nullptr || overMask[col] > 0)) 
-				{
-					int diff = src[col] - over[col];
-					int square = diff * diff;
-					sum += square;
-				} 
-				else
-				{
-					pixelCount--;
-				}
-			}
-			src += srcStride;
-			over += overStride;
-			if (srcMask != nullptr)
-				srcMask += srcMaskStride;
-			if (overMask != nullptr)
-				overMask += overMaskStride;
-		}
-		return (double)sum / pixelCount;
-	}
-
 	void BilinearRotate1(
 		IntPtr srcImage, int srcWidth, int srcHeight, int srcStride,
 		IntPtr dstImage, int dstWidth, int dstHeight, int dstStride,
@@ -126,7 +71,7 @@ namespace AutoOverlay {
 					unsigned char p3 = p[ox1];
 					unsigned char p4 = p[ox2];
 
-					dst[x] = (unsigned char)(dy2 * (dx2 * p1 + dx1 * p2) + dy1 * (dx2 * p3 + dx1 * p4));
+					dst[x] = static_cast<unsigned char>(dy2 * (dx2 * p1 + dx1 * p2) + dy1 * (dx2 * p3 + dx1 * p4));
 				}
 			}
 		}
@@ -178,8 +123,8 @@ namespace AutoOverlay {
 				double oy = ty - angleSin * cx;
 
 				// top-left coordinate
-				int ox1 = (int)ox;
-				int oy1 = (int)oy;
+				int ox1 = static_cast<int>(ox);
+				int oy1 = static_cast<int>(oy);
 
 				// validate source pixel's coordinates
 				if (ox1 >= 0 && oy1 >= 0 && ox1 < srcWidth && oy1 < srcHeight)
@@ -208,9 +153,8 @@ namespace AutoOverlay {
 					// interpolate using 4 points
 					for (int z = 0; z < pixelSize; z++)
 					{
-						dst[z] = (unsigned char)
-							(dy2 * (dx2 * p1[z] + dx1 * p2[z]) +
-								dy1 * (dx2 * p3[z] + dx1 * p4[z]));
+						dst[z] = static_cast<unsigned char>(dy2 * (dx2 * p1[z] + dx1 * p2[z]) +
+							dy1 * (dx2 * p3[z] + dx1 * p4[z]));
 					}
 				}
 			}

@@ -7,39 +7,52 @@ using AvsFilterNet;
 
 [assembly: AvisynthFilterClass(
     typeof(ColorAdjust), nameof(ColorAdjust),
-    "ccc[sampleMask]c[refMask]c[limitedRange]b[channels]s[dither]f",
+    "c[Sample]c[Reference]c[SampleMask]c[ReferenceMask]c[LimitedRange]b[Channels]s[Dither]f",
     MtMode.NICE_FILTER)]
 namespace AutoOverlay
 {
-    public class ColorAdjust : AvisynthFilter
+    public class ColorAdjust : OverlayFilter
     {
-        private Clip sampleClip, referenceClip, sampleMaskClip, refMaskClip;
-        private double dither = 0.95;
+        [AvsArgument(Required = true)]
+        public Clip Sample { get; private set; }
+
+        [AvsArgument(Required = true)]
+        public Clip Reference { get; private set; }
+
+        [AvsArgument]
+        public Clip SampleMask { get; private set; }
+
+        [AvsArgument]
+        public Clip ReferenceMask { get; private set; }
+
+        [AvsArgument]
+        public bool LimitedRange { get; set; } = true;
+
+        [AvsArgument]
+        public string Channels { get; set; }
+
+        [AvsArgument(Min = 0, Max = 1)]
+        public double Dither { get; set; } = 0.95;
+        
         private const int tr = 0;
         private YUVPlanes[] planes;
-        private int[] channels;
-        private bool limitedRange = true;
+        private int[] realChannels;
         private int sampleBits, referenceBits;
 
-        public override void Initialize(AVSValue args, ScriptEnvironment env)
+        protected override void Initialize(AVSValue args)
         {
-            sampleClip = args[1].AsClip();
-            referenceClip = args[2].AsClip();
-            sampleMaskClip = args[3].IsClip() ? args[3].AsClip() : null;
-            refMaskClip = args[4].IsClip() ? args[4].AsClip() : null;
-            limitedRange = GetVideoInfo().IsPlanar() && args[5].AsBool(limitedRange);
+            LimitedRange = LimitedRange && GetVideoInfo().IsPlanar();
             planes = GetVideoInfo().IsRGB()
                 ? new[] {default(YUVPlanes)}
-                : args[6].AsString("yuv").ToCharArray().Select(p => Enum.Parse(typeof(YUVPlanes), "PLANAR_" + p, true))
+                : (Channels ?? "yuv").ToCharArray().Select(p => Enum.Parse(typeof(YUVPlanes), "PLANAR_" + p, true))
                     .Cast<YUVPlanes>().ToArray();
-            channels = GetVideoInfo().IsPlanar()
+            realChannels = GetVideoInfo().IsPlanar()
                 ? new[] {0}
-                : args[6].AsString("rgb").ToLower().ToCharArray().Select(p => "bgr".IndexOf(p)).ToArray();
+                : (Channels ?? "rgb").ToLower().ToCharArray().Select(p => "bgr".IndexOf(p)).ToArray();
             if (!OverlayUtils.IsRealPlanar(Child))
                 planes = new[] { default(YUVPlanes) };
-            dither = args[7].AsFloat(dither);
             var vi = GetVideoInfo();
-            var refVi = referenceClip.GetVideoInfo();
+            var refVi = Reference.GetVideoInfo();
             sampleBits = vi.pixel_type.GetBitDepth();
             referenceBits = refVi.pixel_type.GetBitDepth();
             vi.pixel_type = vi.pixel_type.ChangeBitDepth(referenceBits);
@@ -48,38 +61,38 @@ namespace AutoOverlay
 
         private int GetLowColor(int bits)
         {
-            if (!limitedRange)
+            if (!LimitedRange)
                 return 0;
             return 16 << (bits - 8);
         }
 
         private int GetHighColor(int bits, YUVPlanes plane)
         {
-            if (!limitedRange)
+            if (!LimitedRange)
                 return (1 << bits) - 1;
             var sdr = plane == YUVPlanes.PLANAR_U || plane == YUVPlanes.PLANAR_V ? 240 : 235;
             return sdr << (bits - 8);
         }
 
-        public override VideoFrame GetFrame(int n, ScriptEnvironment env)
+        protected override VideoFrame GetFrame(int n)
         {
-            var input = Child.GetFrame(n, env);
-            var sampleFrames = Enumerable.Range(n - tr, tr * 2 + 1).Select(p => sampleClip.GetFrame(p, env)).ToList();
-            var referenceFrames = Enumerable.Range(n - tr, tr * 2 + 1).Select(p => referenceClip.GetFrame(p, env)).ToList();
-            var writable = GetVideoInfo().pixel_type == Child.GetVideoInfo().pixel_type && env.MakeWritable(input);
-            var output = writable ? input : NewVideoFrame(env);
-            using (var sampleMaskFrame = sampleMaskClip?.GetFrame(n, env))
-            using (var refMaskFrame = refMaskClip?.GetFrame(n, env))
+            var input = Child.GetFrame(n, StaticEnv);
+            var sampleFrames = Enumerable.Range(n - tr, tr * 2 + 1).Select(p => Sample.GetFrame(p, StaticEnv)).ToList();
+            var referenceFrames = Enumerable.Range(n - tr, tr * 2 + 1).Select(p => Reference.GetFrame(p, StaticEnv)).ToList();
+            var writable = GetVideoInfo().pixel_type == Child.GetVideoInfo().pixel_type && StaticEnv.MakeWritable(input);
+            var output = writable ? input : NewVideoFrame(StaticEnv);
+            using (var sampleMaskFrame = SampleMask?.GetFrame(n, StaticEnv))
+            using (var refMaskFrame = ReferenceMask?.GetFrame(n, StaticEnv))
             {
-                var pixelSize = sampleClip.GetVideoInfo().IsRGB() ? 3 : 1;
+                var pixelSize = Sample.GetVideoInfo().IsRGB() ? 3 : 1;
                 Parallel.ForEach(planes, plane =>
                 {
-                    Parallel.ForEach(channels, channel =>
+                    Parallel.ForEach(realChannels, channel =>
                     {
                         int[] sampleHist = null, referenceHist = null;
                         Parallel.Invoke(
-                            () => sampleHist = GetHistogram(sampleFrames, sampleMaskFrame, pixelSize, channel, plane, sampleClip.GetVideoInfo().pixel_type, sampleBits, false),
-                            () => referenceHist = GetHistogram(referenceFrames, refMaskFrame, pixelSize, channel, plane, referenceClip.GetVideoInfo().pixel_type, referenceBits, limitedRange));
+                            () => sampleHist = GetHistogram(sampleFrames, sampleMaskFrame, pixelSize, channel, plane, Sample.GetVideoInfo().pixel_type, sampleBits, false),
+                            () => referenceHist = GetHistogram(referenceFrames, refMaskFrame, pixelSize, channel, plane, Reference.GetVideoInfo().pixel_type, referenceBits, LimitedRange));
                         
                         var map = GetTransitionMap(sampleHist, referenceHist, n, plane);
 
@@ -102,7 +115,7 @@ namespace AutoOverlay
 
         private ColorMap GetTransitionMap(int[] sampleHist, int[] referenceHist, int n, YUVPlanes plane)
         {
-            var map = new ColorMap(sampleBits, n, dither);
+            var map = new ColorMap(sampleBits, n, Dither);
             var highRefColor = GetHighColor(referenceBits, plane);
 
             for (int newColor = GetLowColor(referenceBits), oldColor = -1, lastOldColor = -1, lastNewColor = GetLowColor(referenceBits) - 1, restPixels = 0; newColor <= highRefColor; newColor++)
@@ -167,10 +180,8 @@ namespace AutoOverlay
                 newTotal -= expanded;
                 uni[color] = expanded;
             }
-#if DEBUG
             if (uni.Sum() != int.MaxValue)
                 throw new InvalidOperationException();
-#endif
             return uni;
         }
 
@@ -205,15 +216,6 @@ namespace AutoOverlay
                 }
             }
             return GetUniHistogram(hist);
-        }
-
-        protected override void Dispose(bool A_0)
-        {
-            sampleClip.Dispose();
-            referenceClip.Dispose();
-            sampleMaskClip?.Dispose();
-            refMaskClip?.Dispose();
-            base.Dispose(A_0);
         }
 
         class ColorMap

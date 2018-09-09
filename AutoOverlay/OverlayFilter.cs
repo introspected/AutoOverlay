@@ -1,23 +1,40 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Collections.Generic;
 using System.Drawing;
-using System.Windows.Forms;
+using System.Linq;
 using AvsFilterNet;
 
 namespace AutoOverlay
 {
     public abstract class OverlayFilter : AvisynthFilter
     {
-        protected bool debug;
+        public virtual bool Debug { get; protected set; }
 
         protected dynamic DynamicEnv => DynamicEnviroment.Env;
         protected ScriptEnvironment StaticEnv => DynamicEnviroment.Env;
 
+        private static ISet<OverlayFilter> Filters { get; } = new HashSet<OverlayFilter>();
+
+        protected OverlayFilter()
+        {
+            Filters.Add(this);
+        }
+
         public sealed override void Initialize(AVSValue args, ScriptEnvironment env)
         {
             using (new DynamicEnviroment(env))
-                Initialize(args);
-            base.Initialize(args, env);
+            {
+                try
+                {
+                    OverlayUtils.InitArgs(this, args);
+                    Initialize(args);
+                    base.Initialize(args, env);
+                }
+                catch
+                {
+                    DisposeAll();
+                    throw;
+                }
+            }
         }
 
         protected virtual void Initialize(AVSValue args)
@@ -38,13 +55,21 @@ namespace AutoOverlay
         {
             using (new DynamicEnviroment(env))
             {
-                return GetFrame(n);
+                try
+                {
+                    return GetFrame(n);
+                }
+                catch
+                {
+                    DisposeAll();
+                    throw;
+                }
             }
         }
 
         protected virtual VideoFrame GetFrame(int n)
         {
-            return debug ? GetSubtitledFrame(ToString()) : NewVideoFrame(StaticEnv);
+            return Debug ? GetSubtitledFrame(ToString()) : NewVideoFrame(StaticEnv);
         }
 
         protected VideoFrame GetSubtitledFrame(string text)
@@ -83,8 +108,21 @@ namespace AutoOverlay
         protected void Log(string format, params object[] args)
         {
 #if DEBUG
-            Debug.WriteLine(format, args);
+            System.Diagnostics.Debug.WriteLine(format, args);
 #endif
+        }
+
+        protected override void Dispose(bool A_0)
+        {
+            Filters.Remove(this);
+            OverlayUtils.Dispose(this);
+            base.Dispose(A_0);
+        }
+
+        private void DisposeAll()
+        {
+            foreach (var filter in Filters.ToArray())
+                filter.Dispose();
         }
     }
 }

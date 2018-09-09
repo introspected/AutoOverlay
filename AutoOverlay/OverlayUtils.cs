@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using AvsFilterNet;
 
@@ -187,6 +188,113 @@ namespace AutoOverlay
                     throw new NotImplementedException();
             }
             return bmp;
+        }
+
+        public static string Type(this AVSValue value)
+        {
+            if (value.IsArray()) return "Array";
+            if (value.IsBool()) return "Bool";
+            if (value.IsClip()) return "Clip";
+            if (value.IsFloat()) return "Float";
+            if (value.IsInt()) return "Int";
+            if (value.IsString()) return "String";
+            throw new InvalidOperationException();
+        }
+
+        public static void InitArgs(AvisynthFilter filter, AVSValue args)
+        {
+            var annotatedProperties = GetAnnotatedProperties(filter);
+
+            if (annotatedProperties.Length != args.ArraySize() && annotatedProperties.Length != args.ArraySize() - 1)
+                throw new AvisynthException("Instance attributes count not match to declared");
+            var zeroBased = annotatedProperties.Length == args.ArraySize();
+
+            var annotatedPropertiesWithArguments = annotatedProperties.Select((p, i) => new
+            {
+                Argument = args[zeroBased ? i : ++i],
+                Property = p.Item1,
+                Attribute = p.Item2
+            });
+
+            var filterName = filter.GetType().Assembly
+                                 .GetCustomAttributes(typeof(AvisynthFilterClassAttribute), true)
+                                 .OfType<AvisynthFilterClassAttribute>()
+                                 .FirstOrDefault(p => p.FilterType == filter.GetType())
+                                 ?.FilterName ?? filter.GetType().Name;
+
+            foreach (var tuple in annotatedPropertiesWithArguments)
+            {
+                var propertyName = $"{filterName}.{tuple.Property.Name}";
+                var isDefined = tuple.Argument.Defined();
+                if (tuple.Attribute.Required && !isDefined)
+                    throw new AvisynthException($"{propertyName} is required but not defined");
+                if (!isDefined)
+                    continue;
+                var value = tuple.Argument.AsObject();
+                if (!tuple.Attribute.Min.Equals(double.MinValue) && Convert.ToDouble(value) < tuple.Attribute.Min)
+                    throw new AvisynthException($"{propertyName} is equal to {value} but must be greater or equal to {tuple.Attribute.Min}");
+                if (!tuple.Attribute.Max.Equals(double.MaxValue) && Convert.ToDouble(value) > tuple.Attribute.Max)
+                    throw new AvisynthException($"{propertyName} is equal to {value} but must be less or equal to {tuple.Attribute.Max}");
+                if (tuple.Property.PropertyType.IsEnum && value is string)
+                    tuple.Attribute.Values = Enum.GetNames(tuple.Property.PropertyType);
+                if (tuple.Property.PropertyType.IsEnum && value is int)
+                    tuple.Attribute.Values = Enum.GetValues(tuple.Property.PropertyType).Cast<object>().Select(p => Convert.ToInt32(p).ToString()).ToArray();
+                if (tuple.Attribute.Values.Any() && tuple.Attribute.Values.Select(p => p.ToLower()).All(p => !p.Equals(value.ToString())))
+                    throw new AvisynthException($"{propertyName} is equal to '{value}' but allowed values are [{string.Join(", ", tuple.Attribute.Values)}]");
+                if (tuple.Property.PropertyType.IsEnum && value is string)
+                    value = Enum.Parse(tuple.Property.PropertyType, value.ToString(), true);
+                if (tuple.Property.PropertyType.IsEnum && value is int)
+                    value = Enum.ToObject(tuple.Property.PropertyType, value);
+                tuple.Property.GetSetMethod(true).Invoke(filter, new[] {value});
+            }
+        }
+
+        public static Tuple<PropertyInfo, AvsArgumentAttribute>[] GetAnnotatedProperties(AvisynthFilter filter)
+        {
+            return filter.GetType().GetProperties(
+                    BindingFlags.NonPublic | BindingFlags.Public |
+                    BindingFlags.Instance | BindingFlags.GetProperty |
+                    BindingFlags.SetProperty)
+                .Select(p =>
+                    Tuple.Create(p,
+                        (AvsArgumentAttribute) Attribute.GetCustomAttribute(p, typeof(AvsArgumentAttribute))))
+                .Where(p => p.Item2 != null).ToArray();
+        }
+
+        public static void Dispose(AvisynthFilter filter)
+        {
+            GetAnnotatedProperties(filter).Select(p => p.Item1).Where(p => p.PropertyType == typeof(Clip))
+                .Select(p => p.GetGetMethod(true).Invoke(filter, null)).OfType<Clip>().ToList()
+                .ForEach(p => p.Dispose());
+        }
+
+        public static object AsObject(this AVSValue value)
+        {
+            if (value.IsArray())
+            {
+                var length = value.ArraySize();
+                if (length == 0)
+                    return null;
+                var type = value[0].AsObject().GetType();
+                var arrayType = type.MakeArrayType();
+                var array = (Array) Activator.CreateInstance(arrayType, new object[length]);
+                for (var i = 0; i < length; i++)
+                    array.SetValue(value[i].AsObject(), i);
+                return array;
+            }
+            if (!value.Defined())
+                return null;
+            if (value.IsString())
+                return value.AsString();
+            if (value.IsClip())
+                return value.AsClip();
+            if (value.IsInt())
+                return value.AsInt();
+            if (value.IsFloat())
+                return value.AsFloat();
+            if (value.IsBool())
+                return value.AsBool();
+            throw new ArgumentException("Unrecognized AvsValue type");
         }
     }
 }

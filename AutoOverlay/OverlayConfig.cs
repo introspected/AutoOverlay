@@ -6,73 +6,86 @@ using AvsFilterNet;
 [assembly: AvisynthFilterClass(typeof(OverlayConfig),
     nameof(OverlayConfig),
     "[MinOverlayArea]f[MinSourceArea]f[AspectRatio1]f[AspectRatio2]f[Angle1]f[Angle2]f" +
-    "[MinSampleArea]i[RequiredSampleArea]i[MaxSampleDifference]f[Subpixel]i[ScaleBase]f[Branches]i[AcceptableDiff]f[Correction]i" +
-    "[minX]i[maxX]i[minY]i[maxY]i[minArea]i[maxArea]i[fixedAspectRatio]b[debug]b",
+    "[MinSampleArea]i[RequiredSampleArea]i[MaxSampleDiff]f[Subpixel]i[ScaleBase]f" +
+    "[Branches]i[BranchMaxDiff]f[AcceptableDiff]f[Correction]i" +
+    "[minX]i[maxX]i[minY]i[maxY]i[minArea]i[maxArea]i[fixedAspectRatio]b",
     MtMode.SERIALIZED)]
 namespace AutoOverlay
 {
     [Serializable]
     public class OverlayConfig : OverlayFilter
     {
-        public double MinOverlayArea { get; set; } = 0;
-        public double MinSourceArea { get; set; } = 0;
+        [AvsArgument(Min = 0, Max = 100)]
+        public double MinOverlayArea { get; set; }
 
-        public double AspectRatio1 { get; set; } = 0;
-        public double AspectRatio2 { get; set; } = 0;
+        [AvsArgument(Min = 0, Max = 100)]
+        public double MinSourceArea { get; set; }
 
-        public double Angle1 { get; set; } = 0;
-        public double Angle2 { get; set; } = 0;
+        [AvsArgument(Min = 0)]
+        public double AspectRatio1 { get; set; }
 
+        [AvsArgument(Min = 0)]
+        public double AspectRatio2 { get; set; }
+
+        [AvsArgument(Min = 360, Max = 360)]
+        public double Angle1 { get; set; }
+
+        [AvsArgument(Min = 360, Max = 360)]
+        public double Angle2 { get; set; }
+
+        [AvsArgument(Min = 1)]
         public int MinSampleArea { get; set; } = 1000;
-        public int RequiredSampleArea { get; set; } = 1000;
-        public double MaxSampleDifference { get; set; } = 5;
 
-        public int Subpixel { get; set; } = 0;
+        [AvsArgument(Min = 1)]
+        public int RequiredSampleArea { get; set; } = 3000;
+
+        [AvsArgument(Min = 0)]
+        public double MaxSampleDiff { get; set; } = 5;
+
+        [AvsArgument(Min = 0, Max = 5)]
+        public int Subpixel { get; set; }
+
+        [AvsArgument(Min = 1.1, Max = 5)]
         public double ScaleBase { get; set; } = 1.5;
-        public int Branches { get; set; } = 1;
-        public double BranchCorrelation { get; set; } = 0.5; //TODO add to filter params
 
+        [AvsArgument(Min = 1, Max = 100)]
+        public int Branches { get; set; } = 1;
+
+        [AvsArgument(Min = 1, Max = 100)]
+        public double BranchMaxDiff { get; set; } = 1;
+
+        [AvsArgument(Min = 0)]
         public double AcceptableDiff { get; set; } = 5;
+
+        [AvsArgument(Min = 0, Max = 100)]
         public int Correction { get; set; } = 1;
 
+        [AvsArgument]
         public int MinX { get; set; } = short.MinValue;
+
+        [AvsArgument]
         public int MaxX { get; set; } = short.MaxValue;
+
+        [AvsArgument]
         public int MinY { get; set; } = short.MinValue;
+
+        [AvsArgument]
         public int MaxY { get; set; } = short.MaxValue;
+
+        [AvsArgument(Min = 1)]
         public int MinArea { get; set; } = 1;
+
+        [AvsArgument(Min = 1)]
         public int MaxArea { get; set; } = short.MaxValue * short.MaxValue;
 
+        [AvsArgument]
         public bool FixedAspectRatio { get; set; }
 
         protected override void Initialize(AVSValue args)
         {
             base.Initialize(args);
-            MinOverlayArea = args[0].AsFloat(MinOverlayArea);
-            MinSourceArea = args[1].AsFloat(MinSourceArea);
-            AspectRatio1 = args[2].AsFloat(AspectRatio1);
-            AspectRatio2 = args[3].AsFloat(AspectRatio2);
-            Angle1 = args[4].AsFloat(Angle1);
-            Angle2 = args[5].AsFloat(Angle2);
-            MinSampleArea = args[6].AsInt(MinSampleArea);
-            RequiredSampleArea = args[7].AsInt(RequiredSampleArea);
-            MaxSampleDifference = args[8].AsFloat(MaxSampleDifference);
-            Subpixel = args[9].AsInt(Subpixel);
-            ScaleBase = args[10].AsFloat(ScaleBase);
-            Branches = args[11].AsInt(Branches);
-            AcceptableDiff = args[12].AsFloat(AcceptableDiff);
-            Correction = args[13].AsInt(Correction);
-            MinX = args[14].AsInt(MinX);
-            MaxX = args[15].AsInt(MaxX);
-            MinY = args[16].AsInt(MinY);
-            MaxY = args[17].AsInt(MaxY);
-            MinArea = args[18].AsInt(MinArea);
-            MaxArea = args[19].AsInt(MaxArea);
-            FixedAspectRatio = args[20].AsBool(FixedAspectRatio);
-            debug = args[21].AsBool(debug);
             if (Math.Abs(AspectRatio1 - AspectRatio2) >= double.Epsilon && FixedAspectRatio)
                 throw new AvisynthException("Aspect ratio must be fixed");
-            //if (Math.Abs(AspectRatio1 - AspectRatio2) < double.Epsilon && !args[20].Defined())
-            //    FixedAspectRatio = true;
         }
         
         protected override VideoFrame GetFrame(int n)
@@ -94,7 +107,7 @@ namespace AutoOverlay
                     writer.Write(Angle2);
                     writer.Write(MinSampleArea);
                     writer.Write(RequiredSampleArea);
-                    writer.Write(MaxSampleDifference);
+                    writer.Write(MaxSampleDiff);
                     writer.Write(Subpixel);
                     writer.Write(ScaleBase);
                     writer.Write(Branches);
@@ -133,7 +146,7 @@ namespace AutoOverlay
                         Angle2 = reader.ReadDouble(),
                         MinSampleArea = reader.ReadInt32(),
                         RequiredSampleArea = reader.ReadInt32(),
-                        MaxSampleDifference = reader.ReadDouble(),
+                        MaxSampleDiff = reader.ReadDouble(),
                         Subpixel = reader.ReadInt32(),
                         ScaleBase = reader.ReadDouble(),
                         Branches = reader.ReadInt32(),
@@ -158,7 +171,7 @@ namespace AutoOverlay
                    $"AspectRatio1={AspectRatio1:F2}, AspectRatio2={AspectRatio2:F2},\n" +
                    $"Angle1={Angle1:F2}, Angle2={Angle2:F2},\n" +
                    $"MinSampleArea={MinSampleArea}, RequiredSampleArea={RequiredSampleArea},\n" +
-                   $"MaxSampleDifference={MaxSampleDifference}, Subpixel={Subpixel},\n" +
+                   $"MaxSampleDifference={MaxSampleDiff}, Subpixel={Subpixel},\n" +
                    $"ScaleBase={ScaleBase:F1}, PointCount={Branches},\n" +
                    $"AcceptableDiff={AcceptableDiff:F2}, Correction={Correction}";
         }
@@ -168,7 +181,7 @@ namespace AutoOverlay
             return MinOverlayArea.Equals(other.MinOverlayArea) && MinSourceArea.Equals(other.MinSourceArea) 
                 && AspectRatio1.Equals(other.AspectRatio1) && AspectRatio2.Equals(other.AspectRatio2) 
                 && Angle1.Equals(other.Angle1) && Angle2.Equals(other.Angle2) && MinSampleArea == other.MinSampleArea 
-                && RequiredSampleArea == other.RequiredSampleArea && MaxSampleDifference.Equals(other.MaxSampleDifference) 
+                && RequiredSampleArea == other.RequiredSampleArea && MaxSampleDiff.Equals(other.MaxSampleDiff) 
                 && Subpixel == other.Subpixel && ScaleBase.Equals(other.ScaleBase) && Branches == other.Branches 
                 && AcceptableDiff.Equals(other.AcceptableDiff) && Correction == other.Correction;
         }
@@ -193,7 +206,7 @@ namespace AutoOverlay
                 hashCode = (hashCode * 397) ^ Angle2.GetHashCode();
                 hashCode = (hashCode * 397) ^ MinSampleArea;
                 hashCode = (hashCode * 397) ^ RequiredSampleArea;
-                hashCode = (hashCode * 397) ^ MaxSampleDifference.GetHashCode();
+                hashCode = (hashCode * 397) ^ MaxSampleDiff.GetHashCode();
                 hashCode = (hashCode * 397) ^ Subpixel.GetHashCode();
                 hashCode = (hashCode * 397) ^ ScaleBase.GetHashCode();
                 hashCode = (hashCode * 397) ^ Branches;
