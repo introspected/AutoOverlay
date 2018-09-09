@@ -103,7 +103,9 @@ namespace AutoOverlay
             SrcInfo = Source.GetVideoInfo();
             OverInfo = Overlay.GetVideoInfo();
             if ((SrcInfo.ColorSpace ^ OverInfo.ColorSpace).HasFlag(ColorSpaces.CS_PLANAR))
-                throw new AvisynthException();
+                throw new AvisynthException("Both clips must be in planar or RGB color space");
+            if (SrcInfo.ColorSpace.GetBitDepth() != OverInfo.ColorSpace.GetBitDepth())
+                throw new AvisynthException("Both clips must have the same bit depth");
             MaxDeviation /= 100.0;
 
             var vi = GetVideoInfo();
@@ -837,6 +839,7 @@ namespace AutoOverlay
             var srcMaskStride = srcMask?.GetPitch() ?? 0;
             var overMaskStride = overMask?.GetPitch() ?? 0;
             var overMaskData = overMask?.GetReadPtr() ?? IntPtr.Zero;
+            var depth = SrcInfo.ColorSpace.GetBitDepth();
 
             var best = new OverlayInfo
             {
@@ -871,7 +874,7 @@ namespace AutoOverlay
                                 srcMask == null ? IntPtr.Zero : srcMaskRow, srcMaskStride,
                                 overRow, overStride,
                                 overMask == null ? IntPtr.Zero : overMaskRow, overMaskStride,
-                                sampleWidth*pixelSize, sampleHeight, 1));
+                                sampleWidth*pixelSize, sampleHeight, depth));
                     lock (best)
                         if (rmse < best.Diff)
                         {

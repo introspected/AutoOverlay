@@ -66,8 +66,11 @@ namespace AutoOverlay
 			};
 			switch(depth)
 			{
-				case 1: return SquaredDifferenceSum<unsigned char>(params);
-				case 2: return SquaredDifferenceSum<unsigned short>(params);
+				case 8: return SquaredDifferenceSum<unsigned char>(params);
+				case 10: return SquaredDifferenceSum<unsigned short>(params);
+				case 12: return SquaredDifferenceSum<unsigned short>(params);
+				case 14: return SquaredDifferenceSum<unsigned short>(params);
+				case 16: return SquaredDifferenceSum<unsigned short>(params);
 				default: throw gcnew InvalidOperationException();
 			}
 		}
