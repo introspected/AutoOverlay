@@ -13,7 +13,12 @@ namespace AutoOverlay
 {
     public static class OverlayUtils
     {
+        public const string DEFAULT_PRESIZE_FUNCTION = "BilinearResize";
         public const string DEFAULT_RESIZE_FUNCTION = "BicubicResize";
+        public const string DEFAULT_ROTATE_FUNCTION = "BilinearRotate";
+        public const MtMode DEFAULT_MT_MODE = MtMode.SERIALIZED;
+
+        public static readonly Size NO_SUB_SAMPLE = new Size(1, 1);
 
         [DllImport("kernel32.dll", EntryPoint = "CopyMemory", SetLastError = false)]
         public static extern void CopyMemory(IntPtr dest, IntPtr src, int count);
@@ -48,11 +53,11 @@ namespace AutoOverlay
         {
             if (val == null)
                 return new AVSValue();
-            if (val is DynamicEnviroment)
-                val = ((DynamicEnviroment) val).Clip;
+            if (val is DynamicEnvironment)
+                val = ((DynamicEnvironment) val).Clip;
             if (val is Clip clip)
             {
-                var cached = DynamicEnviroment.FindClip(clip);
+                var cached = DynamicEnvironment.FindClip(clip);
                 if (cached != null)
                     return cached;
             }
@@ -64,13 +69,18 @@ namespace AutoOverlay
 
         public static dynamic Dynamic(this Clip clip)
         {
-            return new DynamicEnviroment(clip);
+            return new DynamicEnvironment(clip);
         }
 
-        public static bool IsRealPlanar(Clip clip)
+        public static bool IsRealPlanar(this Clip clip)
         {
             var colorInfo = clip.GetVideoInfo().pixel_type;
-            return colorInfo.HasFlag(ColorSpaces.CS_PLANAR) && !colorInfo.HasFlag(ColorSpaces.CS_INTERLEAVED); //Y8 is interleaved
+            return IsRealPlanar(colorInfo);
+        }
+
+        public static bool IsRealPlanar(this ColorSpaces pixelType)
+        {
+            return pixelType.HasFlag(ColorSpaces.CS_PLANAR) && !pixelType.HasFlag(ColorSpaces.CS_INTERLEAVED); //Y8 is interleaved
         }
 
         public static void ResetChroma(VideoFrame frame)
@@ -83,12 +93,12 @@ namespace AutoOverlay
         {
             if (from.GetPitch(plane) == to.GetPitch(plane))
                 CopyMemory(to.GetWritePtr(plane), from.GetReadPtr(plane),
-                    from.GetHeight(plane) * from.GetRowSize(plane));
+                    from.GetHeight(plane) * from.GetPitch(plane));
             else
             {
-                var src = from.GetReadPtr();
-                var dest = to.GetWritePtr();
-                for (var y = 0; y < from.GetHeight(plane); y++, src += from.GetPitch(plane), dest+=to.GetPitch(plane))
+                var src = from.GetReadPtr(plane);
+                var dest = to.GetWritePtr(plane);
+                for (var y = 0; y < from.GetHeight(plane); y++, src += from.GetPitch(plane), dest += to.GetPitch(plane))
                     CopyMemory(dest, src, from.GetRowSize(plane));
             }
         }
@@ -129,14 +139,28 @@ namespace AutoOverlay
 
         public static int GetWidthSubsample(this ColorSpaces colorSpace)
         {
+            if (!colorSpace.IsRealPlanar())
+                return 1;
             return colorSpace.HasFlag(ColorSpaces.CS_Sub_Width_1) ? 1 :
                 (colorSpace.HasFlag(ColorSpaces.CS_Sub_Width_4) ? 4 : 2);
         }
 
         public static int GetHeightSubsample(this ColorSpaces colorSpace)
         {
+            if (!colorSpace.IsRealPlanar())
+                return 1;
             return colorSpace.HasFlag(ColorSpaces.CS_Sub_Height_1) ? 1 :
                 (colorSpace.HasFlag(ColorSpaces.CS_Sub_Height_4) ? 4 : 2);
+        }
+
+        public static Size GetSubSample(this ColorSpaces colorSpace)
+        {
+            return new Size(colorSpace.GetWidthSubsample(), colorSpace.GetHeightSubsample());
+        }
+
+        public static bool WithoutSubSample(this ColorSpaces colorSpace)
+        {
+            return colorSpace.GetSubSample() == NO_SUB_SAMPLE;
         }
 
         private static readonly Dictionary<ColorSpaces, int> bitDepths = new Dictionary<ColorSpaces, int>
@@ -183,7 +207,7 @@ namespace AutoOverlay
                     bmp.Palette = palette;
                     break;
                 case PixelFormat.Format24bppRgb:
-                    bmp = new Bitmap(frame.GetRowSize()/3, frame.GetHeight(), frame.GetPitch(), pixelFormat, frame.GetReadPtr());
+                    bmp = new Bitmap(frame.GetRowSize() / 3, frame.GetHeight(), frame.GetPitch(), pixelFormat, frame.GetReadPtr());
                     bmp.RotateFlip(RotateFlipType.Rotate180FlipX);
                     break;
                 default:
@@ -233,6 +257,17 @@ namespace AutoOverlay
                 if (!isDefined)
                     continue;
                 var value = tuple.Argument.AsObject();
+
+                if (tuple.Property.PropertyType == typeof(Rectangle))
+                {
+                    using var clip = value as Clip;
+                    using var frame = clip.GetFrame(0, DynamicEnvironment.Env);
+                    var rect = Rect.FromFrame(frame);
+                    object rectangle = Rectangle.FromLTRB(rect.Left, rect.Top, rect.Right, rect.Bottom);
+                    tuple.Property.GetSetMethod(true).Invoke(filter, new[] {rectangle});
+                    continue;
+                }
+
                 if (!tuple.Attribute.Min.Equals(double.MinValue) && Convert.ToDouble(value) < tuple.Attribute.Min)
                     throw new AvisynthException($"{propertyName} is equal to {value} but must be greater or equal to {tuple.Attribute.Min}");
                 if (!tuple.Attribute.Max.Equals(double.MaxValue) && Convert.ToDouble(value) > tuple.Attribute.Max)
@@ -270,6 +305,27 @@ namespace AutoOverlay
                 .ForEach(p => p.Dispose());
         }
 
+        public static Size GetSize(this Clip clip)
+        {
+            var info = clip.GetVideoInfo();
+            return info.GetSize();
+        }
+
+        public static Size GetSize(this VideoInfo info)
+        {
+            return new Size(info.width, info.height);
+        }
+
+        public static int GetArea(this Size size)
+        {
+            return size.Width * size.Height;
+        }
+
+        public static double GetAspectRatio(this Size size)
+        {
+            return (double) size.Width / size.Height;
+        }
+
         public static object AsObject(this AVSValue value)
         {
             if (value.IsArray())
@@ -297,6 +353,47 @@ namespace AutoOverlay
             if (value.IsBool())
                 return value.AsBool();
             throw new ArgumentException("Unrecognized AvsValue type");
+        }
+
+        public static bool IsLuma(this YUVPlanes plane)
+        {
+            return plane != YUVPlanes.PLANAR_U && plane != YUVPlanes.PLANAR_V;
+        }
+
+        public static bool IsChroma(this YUVPlanes plane)
+        {
+            return plane == YUVPlanes.PLANAR_U || plane == YUVPlanes.PLANAR_V;
+        }
+
+        public static string GetLetter(this YUVPlanes plane)
+        {
+            return plane.ToString().Last().ToString();
+        }
+
+        public static string GetKey(this YUVPlanes plane)
+        {
+            switch (plane)
+            {
+                case YUVPlanes.PLANAR_Y: return "y";
+                case YUVPlanes.PLANAR_V: return "v";
+                case YUVPlanes.PLANAR_U: return "u";
+                default: return null;
+            }
+        } 
+
+        public static RectangleD RealCrop(this Rectangle crop)
+        {
+            return RectangleD.FromLTRB(
+                crop.Left / OverlayInfo.CROP_VALUE_COUNT_R,
+                crop.Top / OverlayInfo.CROP_VALUE_COUNT_R,
+                crop.Right / OverlayInfo.CROP_VALUE_COUNT_R,
+                crop.Bottom / OverlayInfo.CROP_VALUE_COUNT_R
+            );
+        }
+
+        public static double GetFraction(this double val)
+        {
+            return val - Math.Truncate(val);
         }
     }
 }

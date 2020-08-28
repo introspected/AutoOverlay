@@ -5,12 +5,13 @@ using AvsFilterNet;
 [assembly: AvisynthFilterClass(typeof(CustomOverlayRender),
     nameof(CustomOverlayRender),
     "ccc[Function]s[Width]i[Height]i[Debug]b",
-    MtMode.SERIALIZED)]
+    OverlayUtils.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
     public class CustomOverlayRender : OverlayFilter
     {
-        [AvsArgument(Required = true)] public Clip Engine { get; private set; }
+        [AvsArgument(Required = true)]
+        public Clip Engine { get; private set; }
 
         [AvsArgument(Required = true)]
         public Clip Source { get; private set; }
@@ -48,8 +49,8 @@ namespace AutoOverlay
                     info = OverlayInfo.FromFrame(infoFrame);
             var crop = info.GetCrop();
             var hybrid = DynamicEnv.Invoke(Function,
-                Child, Source, Overlay, info.X, info.Y, info.Angle / 100.0, info.Width, info.Height, 
-                crop.Left, crop.Top, info.CropRight, info.CropBottom, info.Diff);
+                Engine, Source, Overlay, info.X, info.Y, info.Angle / 100.0, info.Width, info.Height, 
+                crop.Left, crop.Top, crop.Right, crop.Bottom, info.Diff);
             if (Debug)
                 hybrid = hybrid.Subtitle(info.ToString().Replace("\n", "\\n"), lsp: 0);
             var res = NewVideoFrame(StaticEnv);

@@ -27,14 +27,14 @@ namespace AutoOverlay
         [AvsArgument(Min = 0)]
         public double AspectRatio2 { get; set; }
 
-        [AvsArgument(Min = 360, Max = 360)]
+        [AvsArgument(Min = -360, Max = 360)]
         public double Angle1 { get; set; }
 
-        [AvsArgument(Min = 360, Max = 360)]
+        [AvsArgument(Min = -360, Max = 360)]
         public double Angle2 { get; set; }
 
         [AvsArgument(Min = 1)]
-        public int MinSampleArea { get; set; } = 1000;
+        public int MinSampleArea { get; set; } = 1500;
 
         [AvsArgument(Min = 1)]
         public int RequiredSampleArea { get; set; } = 3000;
@@ -42,7 +42,7 @@ namespace AutoOverlay
         [AvsArgument(Min = 0)]
         public double MaxSampleDiff { get; set; } = 5;
 
-        [AvsArgument(Min = 0, Max = 5)]
+        [AvsArgument(Min = -5, Max = 5)]
         public int Subpixel { get; set; }
 
         [AvsArgument(Min = 1.1, Max = 5)]
@@ -51,8 +51,8 @@ namespace AutoOverlay
         [AvsArgument(Min = 1, Max = 100)]
         public int Branches { get; set; } = 1;
 
-        [AvsArgument(Min = 1, Max = 100)]
-        public double BranchMaxDiff { get; set; } = 1;
+        [AvsArgument(Min = 0, Max = 100)]
+        public double BranchMaxDiff { get; set; } = 0.2;
 
         [AvsArgument(Min = 0)]
         public double AcceptableDiff { get; set; } = 5;
@@ -123,6 +123,7 @@ namespace AutoOverlay
                     writer.Write(MinArea);
                     writer.Write(MaxArea);
                     writer.Write(FixedAspectRatio);
+                    writer.Write(BranchMaxDiff);
                 }
             }
             return frame;
@@ -161,7 +162,8 @@ namespace AutoOverlay
                         MaxY = reader.ReadInt32(),
                         MinArea = reader.ReadInt32(),
                         MaxArea = reader.ReadInt32(),
-                        FixedAspectRatio = reader.ReadBoolean()
+                        FixedAspectRatio = reader.ReadBoolean(),
+                        BranchMaxDiff = reader.ReadDouble()
                     };
                 }
             }

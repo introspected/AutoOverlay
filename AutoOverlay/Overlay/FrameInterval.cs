@@ -18,7 +18,8 @@ namespace AutoOverlay
 
         public string Interval => First == Last ? First.ToString() : $"{First} ({Length})";
         public string Size => $"{Width}x{Height}";
-        public string Crop => $"{CropLeft/(OverlayInfo.CROP_VALUE_COUNT/100)}," +
+
+        public string Crop => $"{CropLeft / (OverlayInfo.CROP_VALUE_COUNT / 100)}," +
                               $"{CropTop / (OverlayInfo.CROP_VALUE_COUNT / 100)}," +
                               $"{CropRight / (OverlayInfo.CROP_VALUE_COUNT / 100)}," +
                               $"{CropBottom / (OverlayInfo.CROP_VALUE_COUNT / 100)}";
@@ -77,10 +78,40 @@ namespace AutoOverlay
             set => Frames.ForEach(p => p.CropBottom = value);
         }
 
+        public override int BaseWidth
+        {
+            get => Frames.FirstOrDefault()?.BaseWidth ?? 0;
+            set => Frames.ForEach(p => p.BaseWidth = value);
+        }
+
+        public override int BaseHeight
+        {
+            get => Frames.FirstOrDefault()?.BaseHeight ?? 0;
+            set => Frames.ForEach(p => p.BaseHeight = value);
+        }
+
+        public override int SourceWidth
+        {
+            get => Frames.FirstOrDefault()?.SourceWidth ?? 0;
+            set => Frames.ForEach(p => p.SourceWidth = value);
+        }
+
+        public override int SourceHeight
+        {
+            get => Frames.FirstOrDefault()?.SourceHeight ?? 0;
+            set => Frames.ForEach(p => p.SourceHeight = value);
+        }
+
         public override int Angle
         {
             get => Frames.FirstOrDefault()?.Angle ?? 0;
             set => Frames.ForEach(p => p.Angle = value);
+        }
+
+        public override double Comparison
+        {
+            get => Frames.Sum(p => p.Comparison) / Frames.Count;
+            set => throw new InvalidOperationException("Diff is unique for each frame");
         }
 
         public bool Contains(int frame)

@@ -53,7 +53,7 @@ namespace AutoOverlay
                 .Crop(BorderSize, BorderSize, -BorderSize, -BorderSize)
                 .AddBorders(BorderSize, BorderSize, BorderSize, BorderSize, OverlayColor);
             return Child.Dynamic().OverlayRender(srcCropped, overCropped, 
-                opacity: Opacity, mode: (int) OverlayMode.Fill,
+                opacity: Opacity, mode: (int) FramingMode.Fill,
                 width: GetVideoInfo().width, height: GetVideoInfo().height, debug: Debug)
                 .Subtitle(SourceText, size: 32, text_color: SourceColor, align: 1)
                 .Subtitle(OverlayText, size: 32, text_color: OverlayColor, align: 3)[n];

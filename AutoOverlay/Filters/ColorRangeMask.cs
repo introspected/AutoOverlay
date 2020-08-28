@@ -1,22 +1,27 @@
-﻿using AutoOverlay;
+﻿using System.Threading.Tasks;
+using AutoOverlay;
 using AvsFilterNet;
 
-[assembly: AvisynthFilterClass(typeof(ColorRangeMask), nameof(ColorRangeMask), "c[low]i[high]i", MtMode.NICE_FILTER)]
+[assembly: AvisynthFilterClass(typeof(ColorRangeMask), nameof(ColorRangeMask), "c[low]i[high]i", OverlayUtils.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
     public class ColorRangeMask : AvisynthFilter
     {
         private int low, high;
+        private int max;
         private int width, height;
         private bool realPlanar;
+        private bool hdr;
 
         public override void Initialize(AVSValue args, ScriptEnvironment env)
         {
-            low = args[1].AsInt(byte.MinValue);
-            high = args[2].AsInt(byte.MaxValue);
-            width = GetVideoInfo().width;
-            height = GetVideoInfo().height;
-            realPlanar = OverlayUtils.IsRealPlanar(Child);
+            var vi = Child.GetVideoInfo();
+            low = args[1].AsInt(0);
+            high = args[2].AsInt((1 << vi.pixel_type.GetBitDepth()) - 1);
+            width = vi.width* (vi.IsRGB() ? 3 : 1);
+            height = vi.height;
+            realPlanar = Child.IsRealPlanar();
+            hdr = vi.pixel_type.GetBitDepth() > 8;
         }
 
         public override VideoFrame GetFrame(int n, ScriptEnvironment env)
@@ -24,26 +29,45 @@ namespace AutoOverlay
             var resFrame = NewVideoFrame(env);
             if (realPlanar)
                 OverlayUtils.ResetChroma(resFrame);
-            using (var srcFrame = base.GetFrame(n, env))
+            using var srcFrame = base.GetFrame(n, env);
+            unsafe
             {
-                unsafe
+                var srcStride = srcFrame.GetPitch();
+                var destStride = resFrame.GetPitch();
+                if (hdr)
+                {
+                    var src = (ushort*) srcFrame.GetReadPtr();
+                    var dest = (ushort*) resFrame.GetWritePtr();
+
+                    Parallel.For(0, height, y =>
+                    {
+                        var srcData = src + y * srcStride;
+                        var destData = dest + y * destStride;
+                        for (var x = 0; x < width; x++)
+                        {
+                            var val = srcData[x];
+                            destData[x] = val >= low && val <= high ? ushort.MaxValue : ushort.MinValue;
+                        }
+                    });
+                }
+                else
                 {
                     var src = (byte*) srcFrame.GetReadPtr();
-                    var srcStride = srcFrame.GetPitch();
                     var dest = (byte*) resFrame.GetWritePtr();
-                    var destStride = resFrame.GetPitch();
-                    var rowSize = resFrame.GetRowSize();
-                    
-                    for (var y = 0; y < height; y++, src += srcStride, dest += destStride)
+
+                    Parallel.For(0, height, y =>
                     {
-                        for (var x = 0; x < rowSize; x++)
+                        var srcData = src + y * srcStride;
+                        var destData = dest + y * destStride;
+                        for (var x = 0; x < width; x++)
                         {
-                            var val = src[x];
-                            dest[x] = val >= low && val <= high ? byte.MaxValue : byte.MinValue;
+                            var val = srcData[x];
+                            destData[x] = val >= low && val <= high ? byte.MaxValue : byte.MinValue;
                         }
-                    }
+                    });
                 }
             }
+
             return resFrame;
         }
     }

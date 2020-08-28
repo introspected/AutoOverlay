@@ -1,14 +1,16 @@
 namespace AutoOverlay
 {
-	public ref class XorshiftRandom sealed
+	public ref class FastRandom sealed
 	{
 	private:
 		uint32_t seed;
+		
 	public:
-		XorshiftRandom();
-		XorshiftRandom(int seed);
+		FastRandom();
+		FastRandom(int seed);
 
 		int Next();
+		int Next(int limit);
 		double NextDouble();
 	};
 }

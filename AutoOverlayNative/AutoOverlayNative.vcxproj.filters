@@ -21,9 +21,27 @@
     <ClInclude Include="NativeUtils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="XorshiftRandom.h">
+    <ClInclude Include="FastRandom.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="$(SolutionDir)\simd\src\Simd\Simd*.hpp" />
+    <ClInclude Include="$(SolutionDir)\simd\src\Simd\Simd*.hpp" />
+    <ClInclude Include="$(SolutionDir)\simd\src\Simd\Simd*.hpp" />
+    <ClInclude Include="$(SolutionDir)\simd\src\Simd\Simd*.hpp" />
+    <ClInclude Include="$(SolutionDir)\simd\src\Simd\Simd*.hpp" />
+    <ClInclude Include="$(SolutionDir)\simd\src\Simd\Simd*.hpp" />
+    <ClInclude Include="$(SolutionDir)\simd\src\Simd\Simd*.hpp" />
+    <ClInclude Include="$(SolutionDir)\simd\src\Simd\Simd*.hpp" />
+    <ClInclude Include="$(SolutionDir)\simd\src\Simd\Simd*.hpp" />
+    <ClInclude Include="$(SolutionDir)\simd\src\Simd\Simd*.hpp" />
+    <ClInclude Include="$(SolutionDir)\simd\src\Simd\Simd*.hpp" />
+    <ClInclude Include="$(SolutionDir)\simd\src\Simd\Simd*.hpp" />
+    <ClInclude Include="$(SolutionDir)\simd\src\Simd\Simd*.hpp" />
+    <ClInclude Include="$(SolutionDir)\simd\src\Simd\Simd*.hpp" />
+    <ClInclude Include="$(SolutionDir)\simd\src\Simd\Simd*.hpp" />
+    <ClInclude Include="$(SolutionDir)\simd\src\Simd\Simd*.hpp" />
+    <ClInclude Include="$(SolutionDir)\simd\src\Simd\Simd*.hpp" />
+    <ClInclude Include="$(SolutionDir)\simd\src\Simd\Simd*.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Stdafx.cpp">
@@ -32,7 +50,7 @@
     <ClCompile Include="NativeUtils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="XorshiftRandom.cpp">
+    <ClCompile Include="FastRandom.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

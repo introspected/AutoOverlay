@@ -1,6 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Threading.Tasks;
 using AvsFilterNet;
 
 namespace AutoOverlay
@@ -9,10 +11,12 @@ namespace AutoOverlay
     {
         public virtual bool Debug { get; protected set; }
 
-        protected dynamic DynamicEnv => DynamicEnviroment.Env;
-        protected ScriptEnvironment StaticEnv => DynamicEnviroment.Env;
+        public dynamic DynamicEnv => DynamicEnvironment.Env;
+        public ScriptEnvironment StaticEnv => DynamicEnvironment.Env;
 
         private static ISet<OverlayFilter> Filters { get; } = new HashSet<OverlayFilter>();
+
+        private DynamicEnvironment topLevel;
 
         protected OverlayFilter()
         {
@@ -21,19 +25,23 @@ namespace AutoOverlay
 
         public sealed override void Initialize(AVSValue args, ScriptEnvironment env)
         {
-            using (new DynamicEnviroment(env))
+            try
             {
-                try
+                using (new DynamicEnvironment(env))
                 {
+
                     OverlayUtils.InitArgs(this, args);
                     Initialize(args);
                     base.Initialize(args, env);
                 }
-                catch
-                {
-                    DisposeAll();
-                    throw;
-                }
+                topLevel = new DynamicEnvironment(env, false);
+                AfterInitialize();
+                topLevel.Detach();
+            }
+            catch
+            {
+                DisposeAll();
+                throw;
             }
         }
 
@@ -50,10 +58,14 @@ namespace AutoOverlay
             };
             SetVideoInfo(ref vi);
         }
-        
+
+        protected virtual void AfterInitialize()
+        {
+        }
+
         public sealed override VideoFrame GetFrame(int n, ScriptEnvironment env)
         {
-            using (new DynamicEnviroment(env))
+            using (new DynamicEnvironment(env))
             {
                 try
                 {
@@ -87,28 +99,65 @@ namespace AutoOverlay
                 return DynamicEnv.BlankClip(clip, color_yuv: white ? 0xFF8080 : 0x008080);
             return DynamicEnv.BlankClip(clip, color: white ? 0xFFFFFF : 0);
         }
+        protected dynamic InitClip(dynamic clip, int width, int height, int color, string pixelType = null)
+        {
+            var rgb = pixelType?.StartsWith("RGB") ?? ((Clip) clip).GetVideoInfo().IsRGB();
+            return rgb ?
+                clip.BlankClip(width: width, height: height, color: color, pixel_type: pixelType) :
+                clip.BlankClip(width: width, height: height, color_yuv: color, pixel_type: pixelType);
+        }
 
-        protected dynamic ResizeRotate(
+        public dynamic ResizeRotate(
             Clip clip, 
             string resizeFunc, string rotateFunc, 
-            int width, int height, int angle = 0, 
-            RectangleF crop = default(RectangleF))
+            int width, int height, int angle = 0,
+            RectangleD crop = default(RectangleD))
         {
-            if (clip == null || crop == RectangleF.Empty && width == clip.GetVideoInfo().width && height == clip.GetVideoInfo().height)
+            if (clip == null || crop == RectangleD.Empty && width == clip.GetVideoInfo().width && height == clip.GetVideoInfo().height)
                 return clip.Dynamic();
+
+            var intCrop = Rectangle.FromLTRB(
+                (int) Math.Floor(crop.Left),
+                (int) Math.Floor(crop.Top),
+                (int) Math.Floor(crop.Right),
+                (int) Math.Floor(crop.Bottom)
+            );
+            if (!intCrop.IsEmpty)
+            {
+                clip = DynamicEnv.Crop(clip, intCrop.Left, intCrop.Top, -intCrop.Right, -intCrop.Bottom);
+                crop = RectangleD.FromLTRB(
+                    crop.Left - intCrop.Left,
+                    crop.Top - intCrop.Top,
+                    crop.Right - intCrop.Right,
+                    crop.Bottom - intCrop.Bottom
+                );
+            }
+
             dynamic resized;
-            if (crop == RectangleF.Empty)
+            if (crop == RectangleD.Empty)
                 resized = clip.Dynamic().Invoke(resizeFunc, width, height);
-            else resized = clip.Dynamic().Invoke(resizeFunc, width, height, crop.Left, crop.Top, -crop.Right, -crop.Bottom);
+            else resized = clip.Dynamic().Invoke(resizeFunc, width, height,
+                src_left: crop.Left, src_top: crop.Top, 
+                src_width: -crop.Right, src_height: -crop.Bottom);
             if (angle == 0)
                 return resized;
             return resized.Invoke(rotateFunc, angle / 100.0);
         }
 
+        protected void Log(Func<string> supplier)
+        {
+#if DEBUG
+            System.Diagnostics.Debug.WriteLine(supplier());
+#endif
+        }
+
         protected void Log(string format, params object[] args)
         {
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine(format, args);
+            if (args.Length == 0)
+                System.Diagnostics.Debug.WriteLine(format);
+            else
+                System.Diagnostics.Debug.WriteLine(format, args);
 #endif
         }
 
@@ -117,12 +166,28 @@ namespace AutoOverlay
             Filters.Remove(this);
             OverlayUtils.Dispose(this);
             base.Dispose(A_0);
+            topLevel.Dispose();
         }
 
         private void DisposeAll()
         {
             foreach (var filter in Filters.ToArray())
                 filter.Dispose();
+        }
+
+        protected void Copy(VideoFrame frame, VideoFrame res, YUVPlanes[] planes)
+        {
+            using (frame)
+            {
+                Parallel.ForEach(planes, plane => OverlayUtils.CopyPlane(frame, res, plane));
+            }
+        }
+
+        protected VideoFrame Copy(VideoFrame frame)
+        {
+            var res = NewVideoFrame(StaticEnv);
+            Copy(frame, res, OverlayUtils.GetPlanes(GetVideoInfo().pixel_type));
+            return res;
         }
     }
 }

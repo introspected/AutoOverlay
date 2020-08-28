@@ -1,3 +1,6 @@
 [submodule "AvsFilterNet"]
 	path = AvsFilterNet
-	url = https://github.com/introspected/AvsFilterNet.git
+	url = https://github.com/Asd-g/AvsFilterNet.git
+[submodule "simd"]
+	path = simd
+	url = https://github.com/ermig1979/Simd.git

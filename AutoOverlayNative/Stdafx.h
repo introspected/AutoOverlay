@@ -8,7 +8,8 @@
 #include <iostream>
 #include <math.h>
 #include <algorithm>
-#include "XorshiftRandom.h"
+#include "FastRandom.h"
 #include "NativeUtils.h"
+#include <Simd/SimdLib.h>
 
 #endif
