@@ -252,11 +252,6 @@ This filter generates comparison clip from source and overlay clips with borders
                         float colorAdjust, string adjustChannels, string matrix, string upsize, string downsize, 
                         string rotate, bool simd, bool debug, bool invert, bool extrapolation, int blankColor, float background, int backBlur)
 
-    StaticOverlayRender(clip, clip, int x, int y, float angle, int overlayWidth, int overlayHeight, 
-                        float cropLeft, float cropTop, float cropRight, float cropBottom, float diff, 
-                        clip sourceMask, clip overlayMask, bool lumaOnly, int width, int height, 
-                        int gradient, int noise, bool dynamicNoise, int mode, float opacity, int colorAdjust, 
-                        string matrix, string upsize, string downsize, string rotate, bool debug)
 As OverlayRender but with fixed align settings without OverlayEngine.
 
 #### Parameters
