@@ -38,10 +38,16 @@ namespace AutoOverlay
                 AfterInitialize();
                 topLevel.Detach();
             }
-            catch
+            catch (Exception ex)
             {
-                DisposeAll();
-                throw;
+                try
+                {
+                    DisposeAll();
+                }
+                finally
+                {
+                    throw ex;
+                }
             }
         }
 
@@ -71,10 +77,16 @@ namespace AutoOverlay
                 {
                     return GetFrame(n);
                 }
-                catch
+                catch (Exception ex)
                 {
-                    DisposeAll();
-                    throw;
+                    try
+                    {
+                        DisposeAll();
+                    }
+                    finally
+                    {
+                        throw ex;
+                    }
                 }
             }
         }
@@ -169,7 +181,7 @@ namespace AutoOverlay
             topLevel.Dispose();
         }
 
-        private void DisposeAll()
+        private static void DisposeAll()
         {
             foreach (var filter in Filters.ToArray())
                 filter.Dispose();

@@ -496,9 +496,9 @@ namespace AutoOverlay
                     var minAspectRatio = Math.Min(config.AspectRatio1, config.AspectRatio2);
                     var minDimension = Math.Min(OverInfo.Width, OverInfo.Height);
                     var defaultShift = config.FixedAspectRatio ? 0 : (minDimension + config.Correction * 2.0) / minDimension - 1;
-                    if (maxAspectRatio < double.Epsilon)
+                    if (maxAspectRatio <= double.Epsilon)
                         maxAspectRatio = OverInfo.AspectRatio + defaultShift;
-                    if (minAspectRatio < double.Epsilon)
+                    if (minAspectRatio <= double.Epsilon)
                         minAspectRatio = OverInfo.AspectRatio - defaultShift;
 
                     var angle1 = Math.Min(config.Angle1 % 360, config.Angle2 % 360);
@@ -550,9 +550,9 @@ namespace AutoOverlay
                         var overMaskBase = OverlayMask == null ? null : StepResize(OverlayMask, step - 1);
 
                         var defArea = Math.Min(SrcInfo.AspectRatio, OverInfo.AspectRatio) / Math.Max(SrcInfo.AspectRatio, OverInfo.AspectRatio) * 100;
-                        if (config.MinSourceArea < double.Epsilon)
+                        if (config.MinSourceArea <= double.Epsilon)
                             config.MinSourceArea = defArea;
-                        if (config.MinOverlayArea < double.Epsilon)
+                        if (config.MinOverlayArea <= double.Epsilon)
                             config.MinOverlayArea = defArea;
 
                         var minIntersectArea = (int)(srcScaledArea * config.MinSourceArea / 100.0);
@@ -888,8 +888,8 @@ namespace AutoOverlay
 
                 if (!config.FixedAspectRatio) //TODO fix
                 {
-                    var ar1 = config.AspectRatio1 < double.Epsilon ? OverInfo.AspectRatio : config.AspectRatio1;
-                    var ar2 = config.AspectRatio2 < double.Epsilon ? OverInfo.AspectRatio : config.AspectRatio2;
+                    var ar1 = config.AspectRatio1 <= double.Epsilon ? OverInfo.AspectRatio : config.AspectRatio1;
+                    var ar2 = config.AspectRatio2 <= double.Epsilon ? OverInfo.AspectRatio : config.AspectRatio2;
                     var minAr = ignoreAspectRatio ? 0 : Math.Min(ar1, ar2);
                     var maxAr = ignoreAspectRatio ? int.MaxValue : Math.Max(ar1, ar2);
                     config.AspectRatio1 = Math.Min(Math.Max(ar * 0.998, minAr), maxAr);
