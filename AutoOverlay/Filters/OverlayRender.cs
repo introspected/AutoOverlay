@@ -207,13 +207,15 @@ namespace AutoOverlay
                 }
                 if (ColorAdjust > double.Epsilon)
                 {
-                    src = src.ColorAdjust(srcTest, overTest, maskTest, maskTest, intensity: ColorAdjust, channels: AdjustChannels, debug: Debug, SIMD: SIMD);
+                    src = src.ColorAdjust(srcTest, overTest, maskTest, maskTest, intensity: ColorAdjust, 
+                        channels: AdjustChannels, debug: Debug, SIMD: SIMD, extrapolation: Extrapolation, dynamicNoise: DynamicNoise);
                     if (!GetVideoInfo().IsRGB() && !string.IsNullOrEmpty(Matrix))
                         src = src.ConvertToYV24(matrix: Matrix);
                 }
                 if (ColorAdjust < 1 - double.Epsilon)
                 {
-                    over = over.ColorAdjust(overTest, srcTest, maskTest, maskTest, intensity: 1 - ColorAdjust, channels: AdjustChannels, debug: Debug, exclude: 0, SIMD: SIMD);
+                    over = over.ColorAdjust(overTest, srcTest, maskTest, maskTest, intensity: 1 - ColorAdjust, 
+                        channels: AdjustChannels, debug: Debug, SIMD: SIMD, extrapolation: Extrapolation, dynamicNoise: DynamicNoise);
                     if (!GetVideoInfo().IsRGB() && !string.IsNullOrEmpty(Matrix))
                         over = over.ConvertToYV24(matrix: Matrix);
                 }

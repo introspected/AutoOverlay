@@ -10,6 +10,7 @@ namespace AutoOverlay
 {
 	struct ColorMatching
 	{
+		int frameNumber;
 		IntPtr input;
 		int strideIn;
 		IntPtr output;
@@ -246,14 +247,14 @@ namespace AutoOverlay
 			}
 		}
 
-		static void ApplyColorMap(
+		static void ApplyColorMap(int n,
 			IntPtr input, int strideIn, bool hdrIn,
 			IntPtr output, int strideOut, bool hdrOut,
 			int inputRowSize, int height, int pixelSize, int channel,
 			array<int>^ fixedColors, array<array<int>^>^ dynamicColors, array<array<double>^>^ dynamicWeights)
 		{
 			ColorMatching params = {
-				input, strideIn, output, strideOut,
+				n, input, strideIn, output, strideOut,
 				inputRowSize, height, pixelSize, channel,
 				&fixedColors, &dynamicColors, &dynamicWeights
 			};
@@ -272,7 +273,7 @@ namespace AutoOverlay
 		{
 			TInputColor* readData = reinterpret_cast<TInputColor*>(params.input.ToPointer()) + params.channel;
 			TOutputColor* writeData = reinterpret_cast<TOutputColor*>(params.output.ToPointer()) + params.channel;
-			FastRandom^ rand = gcnew FastRandom(0);
+			FastRandom^ rand = gcnew FastRandom(params.frameNumber);
 			params.strideIn /= sizeof(TInputColor);
 			params.strideOut /= sizeof(TOutputColor);
 			params.inputRowSize /= sizeof(TInputColor);

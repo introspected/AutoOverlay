@@ -10,7 +10,7 @@ using MathNet.Numerics.Interpolation;
 [assembly: AvisynthFilterClass(
     typeof(ColorAdjust), nameof(ColorAdjust),
     "c[Sample]c[Reference]c[SampleMask]c[ReferenceMask]c[Intensity]f[LimitedRange]b" +
-    "[Channels]s[Dither]f[Exclude]f[Interpolation]s[Extrapolation]b[SIMD]b[Debug]b",
+    "[Channels]s[Dither]f[Exclude]f[Interpolation]s[Extrapolation]b[DynamicNoise]b[SIMD]b[Debug]b",
     OverlayUtils.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
@@ -48,6 +48,9 @@ namespace AutoOverlay
 
         [AvsArgument]
         public bool Extrapolation { get; protected set; } = true;
+
+        [AvsArgument]
+        public bool DynamicNoise { get; private set; } = true;
 
         [AvsArgument]
         public bool SIMD { get; private set; } = true;
@@ -106,7 +109,7 @@ namespace AutoOverlay
         protected override VideoFrame GetFrame(int n)
         {
             var input = Child.GetFrame(n, StaticEnv);
-            if (Intensity < double.Epsilon)
+            if (Intensity <= double.Epsilon)
                 return input;
             var sampleFrames = Enumerable.Range(n - tr, tr * 2 + 1).Select(p => Sample.GetFrame(p, StaticEnv)).ToList();
             var referenceFrames = Enumerable.Range(n - tr, tr * 2 + 1).Select(p => Reference.GetFrame(p, StaticEnv)).ToList();
@@ -135,7 +138,7 @@ namespace AutoOverlay
                         if (Extrapolation)
                             Extrapolate(map, srcHist, GetLowColor(referenceBits), GetHighColor(referenceBits, plane));
 
-                        Interpolate(map, GetLowColor(referenceBits), GetHighColor(referenceBits, plane));
+                        Interpolate(map, GetLowColor(referenceBits), GetHighColor(referenceBits, plane), sampleBits, referenceBits);
 
                         if (Intensity < 1)
                         {
@@ -149,7 +152,7 @@ namespace AutoOverlay
 
                         var tuple = map.GetColorsAndWeights();
 
-                        NativeUtils.ApplyColorMap(
+                        NativeUtils.ApplyColorMap(DynamicNoise ? n : 0,
                             input.GetReadPtr(plane), input.GetPitch(plane), sampleBits > 8,
                             output.GetWritePtr(plane), output.GetPitch(plane), referenceBits > 8,
                             input.GetRowSize(plane), input.GetHeight(plane), pixelSize, channel,
@@ -165,7 +168,7 @@ namespace AutoOverlay
             return output;
         }
 
-        private void Extrapolate(ColorMap map, int[] srcHist, int minColor, int maxColor, int limit = 17770)
+        private void Extrapolate(ColorMap map, int[] srcHist, int minColor, int maxColor)
         {
             var min = srcHist.TakeWhile(p => p == 0).Count();
             var max = srcHist.Length - srcHist.Reverse().TakeWhile(p => p == 0).Count() - 1;
@@ -173,34 +176,30 @@ namespace AutoOverlay
             var first = map.First();
             var last = map.Last();
 
-            var sampleCount = Math.Min(limit, last - first + 1);
+            var sampleCount = last - first + 1;
+            var mappedColors = Enumerable.Range(first, sampleCount).Where(map.Contains);
+            var mappedCount = mappedColors.Count();
+            var limit = Math.Max(mappedCount / 10, Math.Min(mappedCount, 10));
+
 
             if (min < first)
             {
-                var mappedColors = Enumerable.Range(first, sampleCount).Where(map.Contains).ToList();
-                var avgDiff = mappedColors.Sum(p => map.Average(p) - p) / mappedColors.Count;
+                var avgDiff = mappedColors.Take(limit).Sum(p => map.Average(p) - p) / limit;
                 var mapped = min + avgDiff;
-                if (mapped > minColor)
-                {
-                    map.Add(min, mapped);
-                    Log(() => $"Min: {min} -> {mapped:F3}");
-                }
+                map.Add(min, Math.Max(minColor, mapped));
+                Log(() => $"Min: {min} -> {mapped:F3}");
             }
 
             if (max > last)
             {
-                var mappedColors = Enumerable.Range(last - sampleCount + 1, sampleCount).Where(map.Contains).ToList();
-                var avgDiff = mappedColors.Sum(p => map.Average(p) - p) / mappedColors.Count;
+                var avgDiff = mappedColors.Reverse().Take(limit).Sum(p => map.Average(p) - p) / limit;
                 var mapped = max + avgDiff;
-                if (mapped < maxColor)
-                {
-                    map.Add(max, mapped);
-                    Log(() => $"Max: {max} -> {mapped:F3}");
-                }
+                map.Add(max, Math.Min(maxColor, mapped));
+                Log(() => $"Max: {max} -> {mapped:F3}");
             }
         }
 
-        private void Interpolate(ColorMap map, int min, int max)
+        private void Interpolate(ColorMap map, int min, int max, int srcBits, int refBits)
         {
             var interpolator = GetInterpolator(map);
 
@@ -208,10 +207,11 @@ namespace AutoOverlay
 
             var firstOldColor = map.First();
             var lastOldColor = map.Last();
+            var mult = Math.Pow(2, refBits - srcBits);
             for (var oldColor = 0; oldColor < map.FixedMap.Length; oldColor++)
             {
                 if (oldColor < firstOldColor || oldColor > lastOldColor)
-                    map.Add(oldColor, oldColor);
+                    map.Add(oldColor, oldColor * mult);
                 else if (!map.Contains(oldColor))
                 {
                     var interpolated = interpolator.Interpolate(oldColor);
