@@ -93,7 +93,7 @@ namespace AutoOverlay
         public override bool Invert { get; protected set; }
 
         [AvsArgument]
-        public override bool Extrapolation { get; protected set; } = true;
+        public override bool Extrapolation { get; protected set; } = false;
 
         [AvsArgument]
         public override int BlankColor { get; protected set; } = -1;

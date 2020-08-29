@@ -186,14 +186,15 @@ This filter preforms rendering of the result clip using align values from the en
 - **simd** (default *true*) – SIMD Library using to increase performance in some cases.
 - **debug** -  output align settings to the top left corner.
 - **invert** - swap source and overlay clips.
-- **extrapolation** - not implemented yet.
+- **extrapolation** - same as ColorAdjust.extrapolation.
 - **blankColor** (default black) - blank color in hex format `0xFF8080` to fill empty areas of image in 3 and 4 modes.
 - **background** (default 0) - value between -1 and 1 to set what clip will be used as blurred background in 2,4,5 modes. -1 - source, 1 - overlay clips.
 - **backBlur** (default 15) - blur intensity in 2,4,5 modes.
 
 ### ColorAdjust
-    ColorAdjust(clip sample, clip reference, clip sampleMask, clip referenceMask, float intensity, bool limitedRange, 
-                string channels, float dither, float exclude, string interpolation, bool extrapolation, bool simd, bool debug)
+    ColorAdjust(clip sample, clip reference, clip sampleMask, clip referenceMask, float intensity, 
+	            bool limitedRange, string channels, float dither, float exclude, string interpolation, 
+				bool extrapolation, bool dynamicNoise, bool simd, bool debug)
     
 Color matching. Input clip, sample clip and reference clip must be in the same type of color space (YUV or RGB). Any planar YUV (8-16 bit), RGB24 and RGB48 color spaces are supported. Input clip and sample clip must have the same bit depth (usually sample is the cropped or resized input clip). The bit depth of output clip will changed to the reference one. The filter provides perfect matching only if sample and reference are represent the same area of frame while the input (first argument) may have different framing. This filter is used inside OverlayRender but it is also useful as standalone. 
 
@@ -208,7 +209,8 @@ Color matching. Input clip, sample clip and reference clip must be in the same t
 - **dither** (default 0.95) - dither level from 0 (disable) to 1 (aggressive). 
 - **exclude** (default 0) - value to exclude rare colors by formula: *current_color_pixel_count / total_pixel_count < exclude*.
 - **interpolation** (default spline) - interpolation mode for Math.NET Numerics (spline, akima, linear).
-- **extrapolation** (default true) - adjust the colors of input clip out of bounds colors of sample clip. 
+- **extrapolation** (default false, experimental) - adjust the colors of input clip out of bounds colors of sample clip.
+- **dynamicNoise** (default true) - dynamic noise if color mapping is the same between frames.
 - **simd** (default true) - SIMD Library using to increase performance in some cases.
 
 ### ComplexityOverlay
@@ -339,6 +341,11 @@ Support filter which provides mask clip for overlay with gradient or noise at bo
     ConvertToYV12()
 
 ## Changelist
+### 29.08.2020 v0.3.1
+1. Fix first frame x264 encoding.
+2. ColorAdjust: HDR extrapolation fix, dynamicNoise parameter.
+3. OverlayRender: extrapolation parameter.
+
 ### 28.08.2020 v0.3
 1. OverlayEngine: presize and resize instead of upsize and downsize.
 2. OverlayEngine: new engine mode PROCESSED.

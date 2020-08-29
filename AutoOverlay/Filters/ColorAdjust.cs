@@ -47,7 +47,7 @@ namespace AutoOverlay
         public ColorInterpolation Interpolation { get; set; } = ColorInterpolation.Spline;
 
         [AvsArgument]
-        public bool Extrapolation { get; protected set; } = true;
+        public bool Extrapolation { get; protected set; } = false;
 
         [AvsArgument]
         public bool DynamicNoise { get; private set; } = true;

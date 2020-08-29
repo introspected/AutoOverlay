@@ -168,14 +168,15 @@ Separate - обособление кадра. Join prev - присоединит
 - **simd** (default *true*) – использование SIMD Library для повышения производительности в некоторых случаях
 - **debug** - вывод параметров наложения.
 - **invert** - поменять местами основной и накладываемый клипы, "инвертировать" параметры наложения. 
-- **extrapolation** - not implemented yet.
+- **extrapolation** - то же самое, что ColorAdjust.extrapolation.
 - **blankColor** (default black) - цвет в HEX формате `0xFF8080` для заполнения пустот в режимах 3 и 4.
 - **background** (default 0) - вещественное значение между -1 и 1 для задания источника заблюренного фона в режимах 2,4,5. -1 - основной клип, 1 - накладываемый клип.
 - **backBlur** (default 15) - сила смазывания в режимах 2,4,5.
 
 ### ColorAdjust
-    ColorAdjust(clip sample, clip reference, clip sampleMask, clip referenceMask, float intensity, bool limitedRange, 
-                string channels, float dither, float exclude, string interpolation, bool extrapolation, bool simd, bool debug)
+    ColorAdjust(clip sample, clip reference, clip sampleMask, clip referenceMask, float intensity, 
+	            bool limitedRange, string channels, float dither, float exclude, string interpolation, 
+				bool extrapolation, bool dynamicNoise, bool simd, bool debug)
 
 Автокоррекция цвета. Входной клип, sample и reference клипы должны быть в одном типе цветового диапазона (YUV or RGB). Поддерживаются любые планарные цветовое диапазоны YUV (8-16 bit), RGB24 и RGB48. Входной клип и sample клип должны иметь одинаковую глубину цвета (обычно sample - это весь входной фильтр или его часть). Глубина цвета входного фильтра изменится на глубину цвета клипа reference. Фильтр дает хороший результат только если sample и reference клипы содержат схожее наполнение кадра. Фильтр используется внутри OverlayRender, но может использоваться и независимо. 
 
@@ -190,7 +191,8 @@ Separate - обособление кадра. Join prev - присоединит
 - **dither** (default 0.95) - уровень дизеринга 0 (disable) to 1 (aggressive). 
 - **exclude** (default 0) - исключение редко встречающихся в изображениях цветов по формуле: *current_color_pixel_count / total_pixel_count < exclude*.
 - **interpolation** (default spline) - алгоритм интерполяции из библиотеки Math.NET Numerics (spline, akima, linear).
-- **extrapolation** (default true) - экстраполяция цветов, выходящих за границы сэмплов.
+- **extrapolation** (default false, experimental) - экстраполяция цветов, выходящих за границы сэмплов.
+- **dynamicNoise** (default true) - динамический шум, если цветовая карта совпадает у нескольких кадров.
 - **simd** (default true) - использование SIMD Library для повышения производительности в некоторых случаях
 
 ### ComplexityOverlay
@@ -234,11 +236,6 @@ This filter generates comparison clip from source and overlay clips with borders
                         float colorAdjust, string adjustChannels, string matrix, string upsize, string downsize, 
                         string rotate, bool simd, bool debug, bool invert, bool extrapolation, int blankColor, float background, int backBlur)
 
-    StaticOverlayRender(clip, clip, int x, int y, float angle, int overlayWidth, int overlayHeight, 
-                        float cropLeft, float cropTop, float cropRight, float cropBottom, float diff, 
-                        clip sourceMask, clip overlayMask, bool lumaOnly, int width, int height, 
-                        int gradient, int noise, bool dynamicNoise, int mode, float opacity, int colorAdjust, 
-                        string matrix, string upsize, string downsize, string rotate, bool debug)
 As OverlayRender but with fixed align settings without OverlayEngine.
 
 #### Parameters
@@ -326,6 +323,11 @@ Support filter which provides mask clip for overlay with gradient or noise at bo
     ConvertToYV12()
 
 ## История изменений
+### 29.08.2020 v0.3.1
+1. Исправлена ошибка кодирования x264 первого кадра.
+2. ColorAdjust: исправлена HDR экстраполяция, параметр dynamicNoise.
+3. OverlayRender: параметр extrapolation.
+
 ### 28.08.2020 v0.3
 1. OverlayEngine: presize и resize вместо upsize и downsize.
 2. OverlayEngine: новый режим PROCESSED.
