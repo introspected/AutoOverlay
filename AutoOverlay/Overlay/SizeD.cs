@@ -19,6 +19,11 @@ namespace AutoOverlay
             Height = height;
         }
 
+        public SizeD Invert()
+        {
+            return new SizeD(1 / Width, 1 / Height);
+        }
+
         public double AspectRatio => Width / Height;
 
         public static implicit operator SizeD(Size size)

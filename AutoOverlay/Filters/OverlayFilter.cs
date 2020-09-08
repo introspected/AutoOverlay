@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
+using AutoOverlay.Overlay;
 using AvsFilterNet;
 
 namespace AutoOverlay
@@ -123,7 +124,7 @@ namespace AutoOverlay
             Clip clip, 
             string resizeFunc, string rotateFunc, 
             int width, int height, int angle = 0,
-            RectangleD crop = default(RectangleD))
+            RectangleD crop = default)
         {
             if (clip == null || crop == RectangleD.Empty && width == clip.GetVideoInfo().width && height == clip.GetVideoInfo().height)
                 return clip.Dynamic();
@@ -159,7 +160,8 @@ namespace AutoOverlay
         protected void Log(Func<string> supplier)
         {
 #if DEBUG
-            System.Diagnostics.Debug.WriteLine(supplier());
+            if (Debug)
+                System.Diagnostics.Debug.WriteLine(supplier());
 #endif
         }
 

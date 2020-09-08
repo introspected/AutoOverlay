@@ -8,10 +8,12 @@ using System.Text;
 namespace AutoOverlay
 {
     [Serializable]
-    public struct RectangleD
+    public struct RectangleD : IEquatable<RectangleD>
     {
 
         public const double EPSILON = 0.000001;
+
+        private const long MULT = (int) (1 / EPSILON);
 
         public static readonly RectangleD Empty;
 
@@ -45,6 +47,21 @@ namespace AutoOverlay
 
         public double AspectRatio => Width / Height;
 
+        public RectangleD Scale(double coef)
+        {
+            return Scale(coef, coef);
+        }
+
+        public RectangleD Scale(SizeD coefs)
+        {
+            return Scale(coefs.Width, coefs.Height);
+        }
+
+        public RectangleD Scale(double coefWidth, double coefHeight)
+        {
+            return new RectangleD(X * coefWidth, Y * coefHeight, Width * coefWidth, Height * coefHeight);
+        }
+
         public static implicit operator RectangleD(Rectangle r)
         {
             return new RectangleD(r.X, r.Y, r.Width, r.Height);
@@ -63,8 +80,11 @@ namespace AutoOverlay
         public override bool Equals(object obj)
         {
             if (!(obj is RectangleD)) return false;
-            var r = (RectangleD) obj;
-            return Math.Abs(X - r.X) < EPSILON && Math.Abs(Y - r.Y) < EPSILON && 
+            return Equals((RectangleD) obj);
+        }
+        public bool Equals(RectangleD r)
+        {
+            return Math.Abs(X - r.X) < EPSILON && Math.Abs(Y - r.Y) < EPSILON &&
                    Math.Abs(Width - r.Width) < EPSILON && Math.Abs(Height - r.Height) < EPSILON;
         }
 
@@ -87,10 +107,10 @@ namespace AutoOverlay
         {
             unchecked
             {
-                var hashCode = X.GetHashCode();
-                hashCode = (hashCode * 397) ^ Y.GetHashCode();
-                hashCode = (hashCode * 397) ^ Width.GetHashCode();
-                hashCode = (hashCode * 397) ^ Height.GetHashCode();
+                var hashCode = ((long) (MULT * X)).GetHashCode();
+                hashCode = (hashCode * 397) ^ ((long)(MULT * Y)).GetHashCode();
+                hashCode = (hashCode * 397) ^ ((long)(MULT * Width)).GetHashCode();
+                hashCode = (hashCode * 397) ^ ((long)(MULT * Height)).GetHashCode();
                 return hashCode;
             }
         }

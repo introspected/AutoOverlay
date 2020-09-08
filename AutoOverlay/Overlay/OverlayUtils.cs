@@ -1,13 +1,16 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using AvsFilterNet;
+using Microsoft.VisualBasic.Logging;
 
 namespace AutoOverlay
 {
@@ -17,6 +20,7 @@ namespace AutoOverlay
         public const string DEFAULT_RESIZE_FUNCTION = "BicubicResize";
         public const string DEFAULT_ROTATE_FUNCTION = "BilinearRotate";
         public const MtMode DEFAULT_MT_MODE = MtMode.SERIALIZED;
+        public const int OVERLAY_FORMAT_VERSION = 3;
 
         public static readonly Size NO_SUB_SAMPLE = new Size(1, 1);
 
@@ -60,6 +64,11 @@ namespace AutoOverlay
                 var cached = DynamicEnvironment.FindClip(clip);
                 if (cached != null)
                     return cached;
+            }
+
+            if (!(val is string) && val is IEnumerable array)
+            {
+                return new AVSValue(array.OfType<object>().Select(ToAvsValue).ToArray());
             }
             var ctor = typeof(AVSValue).GetConstructor(new[] {val.GetType()});
             if (ctor == null)
@@ -258,13 +267,30 @@ namespace AutoOverlay
                     continue;
                 var value = tuple.Argument.AsObject();
 
+                Func<int, Rectangle> readRect = i =>
+                {
+                    using var frame = ((Clip) value).GetFrame(i, DynamicEnvironment.Env);
+                    var rect = Rect.FromFrame(frame);
+                    return Rectangle.FromLTRB(rect.Left, rect.Top, rect.Right, rect.Bottom);
+                };
+
                 if (tuple.Property.PropertyType == typeof(Rectangle))
                 {
-                    using var clip = value as Clip;
-                    using var frame = clip.GetFrame(0, DynamicEnvironment.Env);
-                    var rect = Rect.FromFrame(frame);
-                    object rectangle = Rectangle.FromLTRB(rect.Left, rect.Top, rect.Right, rect.Bottom);
-                    tuple.Property.GetSetMethod(true).Invoke(filter, new[] {rectangle});
+                    tuple.Property.GetSetMethod(true).Invoke(filter, new object[] { readRect(0) });
+                    continue;
+                }
+
+                if (typeof(ICollection<Rectangle>).IsAssignableFrom(tuple.Property.PropertyType))
+                {
+                    var col = (ICollection<Rectangle>) Activator.CreateInstance(tuple.Property.PropertyType);
+
+                    var clip = value as Clip;
+                    var numFrames = clip.GetVideoInfo().num_frames;
+                    if (numFrames > tuple.Attribute.Max)
+                        throw new AvisynthException($"{propertyName} contains {value} values but limit is {tuple.Attribute.Max}");
+                    for (var i = 0; i < numFrames; i++)
+                        col.Add(readRect(i));
+                    tuple.Property.GetSetMethod(true).Invoke(filter, new object[] {col});
                     continue;
                 }
 

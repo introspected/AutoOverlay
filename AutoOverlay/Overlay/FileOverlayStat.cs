@@ -17,14 +17,14 @@ namespace AutoOverlay
 
         private readonly OverlayStatFormat format;
 
-        public FileOverlayStat(string statFile, Size srcSize, Size overSize, byte version = 3)
+        public FileOverlayStat(string statFile, Size srcSize, Size overSize, byte version = OverlayUtils.OVERLAY_FORMAT_VERSION)
         {
             this.srcSize = srcSize;
             this.overSize = overSize;
-            this.statFile = statFile;
-            if (string.IsNullOrEmpty(statFile))
-                stream = new BufferedStream(new MemoryStream());
-            else stream = new BufferedStream(new FileStream(statFile, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite));
+            this.statFile = statFile == null ? null : Path.GetFullPath(statFile);
+            stream = string.IsNullOrEmpty(statFile) ? 
+                new BufferedStream(new MemoryStream()) : 
+                new BufferedStream(new FileStream(statFile, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite));
             reader = new BinaryReader(stream);
             format = new OverlayStatFormat(version);
         }

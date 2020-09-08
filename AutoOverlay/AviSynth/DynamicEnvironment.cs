@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Dynamic;
 using System.Globalization;
@@ -21,9 +23,13 @@ namespace AutoOverlay
 
         private static readonly ThreadLocal<Stack<DynamicEnvironment>> contexts = new ThreadLocal<Stack<DynamicEnvironment>>(() => new Stack<DynamicEnvironment>());
 
-        private readonly ConcurrentDictionary<Key, Tuple<AVSValue, Clip>> cache = new ConcurrentDictionary<Key, Tuple<AVSValue, Clip>>();
+        private readonly Dictionary<Key, Tuple<AVSValue, Clip, object>> cache;
 
         private readonly ScriptEnvironment _env;
+
+        private object owner;
+
+        private readonly HashSet<object> owners;
 
         public static DynamicEnvironment Env => contexts.Value.Any() ? contexts.Value.Peek() : null;
 
@@ -34,6 +40,31 @@ namespace AutoOverlay
         public static AVSValue FindClip(Clip clip)
         {
             return Env?.cache?.Values.FirstOrDefault(p => p.Item2 == clip)?.Item1;
+        }
+
+        public static IEnumerable<object> Owners => Env.owners;
+
+        public static object SetOwner(object owner)
+        {
+            Env.owner = owner;
+            if (owner != null)
+                Env.owners.Add(owner);
+            return default;
+        }
+
+        public static void OwnerExpired(object owner)
+        {
+            if (owner == null) return;
+            Env.cache
+                .Where(p => p.Value.Item3 == owner)
+                .ToList()
+                .ForEach(pair =>
+                {
+                    pair.Value.Item1.Dispose();
+                    pair.Value.Item2?.Dispose();
+                    Env.cache.Remove(pair.Key);
+                });
+            Env.owners.Remove(owner);
         }
 
         ~DynamicEnvironment()
@@ -56,6 +87,8 @@ namespace AutoOverlay
 
         public void DisposeImpl()
         {
+            owner = null;
+            owners.Clear();
             if (Clip != null)
                 return;
             while (contexts.Value.Count > 0)
@@ -78,6 +111,8 @@ namespace AutoOverlay
 
         public DynamicEnvironment(ScriptEnvironment env, bool collected = true)
         {
+            cache = new Dictionary<Key, Tuple<AVSValue, Clip, object>>();
+            owners = new HashSet<object>();
             contexts.Value.Push(this);
             _env = env;
             if (collected)
@@ -122,16 +157,41 @@ namespace AutoOverlay
                 argNames[lag + i] = binder.CallInfo.ArgumentNames[i];
             argNames = argNames.Where((p, i) => args[i] != null).ToArray();
             args = args.Where(p => p != null).ToArray();
-            var tuple = Env.cache.GetOrAdd(new Key(function, args, argNames),
-                key =>
-                {
-                    var avsArgList = args.Select(p => p.ToAvsValue()).ToArray();
-                    var avsArgs = new AVSValue(avsArgList);
-                    var res = ((ScriptEnvironment) Env).Invoke(function, avsArgs, argNames);
-                    var clip = res.AsClip();
-                    clip?.SetCacheHints(CacheType.CACHE_25_ALL, 1);
-                    return new Tuple<AVSValue, Clip>(res, clip);
-                });
+            var key = new Key(function, args, argNames);
+
+#if DEBUG && TRACE
+            Func<string> printArgs = () =>
+            {
+                return string.Join(", ",
+                    argNames.Select((n, i) => new
+                        {
+                            Name = n,
+                            Value = args[i] is Clip ? $"Clip@{args[i].GetHashCode()}" :
+                                args[i] is IEnumerable ar && !(args[i] is string) ? $"[{string.Join(", ", ar.OfType<object>())}]" :
+                                args[i]
+                        })
+                        .Select(p => p.Name == null ? p.Value : $"{p.Name} = {p.Value}"));
+            };
+#endif
+
+            if (!Env.cache.TryGetValue(key, out var tuple))
+            {
+                var avsArgList = args.Select(p => p.ToAvsValue()).ToArray();
+                var avsArgs = new AVSValue(avsArgList);
+                var res = ((ScriptEnvironment)Env).Invoke(function, avsArgs, argNames);
+                var clip = res.AsClip();
+                clip?.SetCacheHints(CacheType.CACHE_25_ALL, 1);
+#if DEBUG && TRACE
+                Debug.WriteLine($"New clip cached @{clip?.GetHashCode()} {function}({printArgs()})");
+#endif
+                Env.cache[key] = tuple = Tuple.Create(res, clip, Env.owner);
+            }
+            else
+            {
+#if DEBUG && TRACE
+                Debug.WriteLine($"Cached clip found @{tuple.Item2?.GetHashCode()} {function}({printArgs()})");
+#endif
+            }
 
             if (binder.ReturnType == typeof(AVSValue))
                 result = tuple.Item1;
@@ -159,6 +219,9 @@ namespace AutoOverlay
             {
                 switch (arg)
                 {
+                    case DynamicEnvironment dyn:
+                        realArgs.Add(dyn.Clip);
+                        break;
                     case IEnumerable<object> collection:
                         realArgs.AddRange(collection);
                         break;
@@ -191,17 +254,42 @@ namespace AutoOverlay
 
         public static implicit operator ScriptEnvironment(DynamicEnvironment env) => env?._env;
 
-        class Key
+        public class Key
         {
             private readonly string _function;
-            private readonly object[] _args;
+            private readonly List<long> _args = new List<long>();
             private readonly string[] _argNames;
 
             public Key(string function, object[] args, string[] argNames)
             {
                 _function = function;
-                _args = args;
+                foreach (var arg in args)
+                    _args.AddRange(Parse(arg));
                 _argNames = argNames;
+            }
+
+            private static IEnumerable<long> Parse(object arg)
+            {
+                switch (arg)
+                {
+                    case string str:
+                        yield return string.Intern(str).GetHashCode();
+                        break;
+                    case Clip clip:
+                        yield return clip.GetHashCode();
+                        break;
+                    case double real:
+                        yield return (long) (real * 1000000000000);
+                        break;
+                    case IEnumerable col:
+                        foreach (var val in col)
+                            foreach (var parsed in Parse(val))
+                                yield return parsed;
+                        break;
+                    default:
+                        yield return arg.GetHashCode();
+                        break;
+                }
             }
 
             private bool Equals(Key other)
