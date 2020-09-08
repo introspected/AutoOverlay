@@ -246,8 +246,8 @@ namespace AutoOverlay
                 yValues[i] = point.Item2;
             }
 
-            if (xValues.Length < 2)
-                return null;
+            if (xValues.Length == 1)
+                return GetInterpolator(Interpolation, new[] {xValues[0], xValues[0]}, new[] {yValues[0], yValues[0]});
             return GetInterpolator(Interpolation, xValues, yValues);
         }
 
