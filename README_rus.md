@@ -209,7 +209,7 @@ Separate - обособление кадра. Join prev - присоединит
 - **channels** (default yuv or rgb) - плоскости или каналы для обработки. Допустимы любые комбинации y,u,v или r,g,b (пример: y, uv, r, br).
 - **dither** (default 0.95) - уровень дизеринга 0 (disable) to 1 (aggressive). 
 - **exclude** (default 0) - исключение редко встречающихся в изображениях цветов по формуле: *current_color_pixel_count / total_pixel_count < exclude*.
-- **interpolation** (default spline) - алгоритм интерполяции из библиотеки Math.NET Numerics (spline, akima, linear).
+- **interpolation** (default linear) - алгоритм интерполяции из библиотеки Math.NET Numerics (spline, akima, linear).
 - **extrapolation** (default false, experimental) - экстраполяция цветов, выходящих за границы сэмплов.
 - **dynamicNoise** (default true) - динамический шум, если цветовая карта совпадает у нескольких кадров.
 - **simd** (default true) - использование SIMD Library для повышения производительности в некоторых случаях

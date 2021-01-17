@@ -227,7 +227,7 @@ Color matching. Input clip, sample clip and reference clip must be in the same t
 - **channels** (default yuv or rgb) - planes to process for YUV clips or channels for RGB. Any combination of y,u,v and r,g,b supported (ex: y, uv, r, br).
 - **dither** (default 0.95) - dither level from 0 (disable) to 1 (aggressive). 
 - **exclude** (default 0) - value to exclude rare colors by formula: *current_color_pixel_count / total_pixel_count < exclude*.
-- **interpolation** (default spline) - interpolation mode for Math.NET Numerics (spline, akima, linear).
+- **interpolation** (default linear) - interpolation mode for Math.NET Numerics (spline, akima, linear).
 - **extrapolation** (default false, experimental) - adjust the colors of input clip out of bounds colors of sample clip.
 - **dynamicNoise** (default true) - dynamic noise if color mapping is the same between frames.
 - **simd** (default true) - SIMD Library using to increase performance in some cases.
