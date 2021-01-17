@@ -4,6 +4,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using AutoOverlay.Stat;
+using AvsFilterNet;
 
 namespace AutoOverlay
 {
@@ -16,6 +17,19 @@ namespace AutoOverlay
         private readonly string statFile;
 
         private readonly OverlayStatFormat format;
+
+        public FileOverlayStat(string statFile)
+        {
+            this.statFile = statFile == null ? null : Path.GetFullPath(statFile);
+            if (!File.Exists(statFile))
+                throw new AvisynthException("Stat file not found");
+            stream = new BufferedStream(new FileStream(statFile, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite));
+            reader = new BinaryReader(stream);
+            var header = (byte) stream.ReadByte();
+            if (header == 0 || header > OverlayUtils.OVERLAY_FORMAT_VERSION)
+                throw new AvisynthException("Unsupported stat file version");
+            format = new OverlayStatFormat(header);
+        }
 
         public FileOverlayStat(string statFile, Size srcSize, Size overSize, byte version = OverlayUtils.OVERLAY_FORMAT_VERSION)
         {
@@ -151,8 +165,11 @@ namespace AutoOverlay
         {
             lock (stream)
             {
-                stream.Flush();
-                stream.Dispose();
+                try
+                {
+                    stream.Flush();
+                    stream.Dispose();
+                } catch { }
             }
         }
     }

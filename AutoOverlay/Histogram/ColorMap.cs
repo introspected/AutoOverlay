@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
-namespace AutoOverlay.Filters
+namespace AutoOverlay.Histogram
 {
     public class ColorMap
     {

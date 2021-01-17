@@ -1,8 +1,8 @@
 ﻿using System;
 
-namespace AutoOverlay
+namespace AutoOverlay.AviSynth
 {
-    [AttributeUsage(AttributeTargets.Property, Inherited = false)]
+    [AttributeUsage(AttributeTargets.Property)]
     public sealed class AvsArgumentAttribute : Attribute
     {
         public AvsArgumentAttribute() { }

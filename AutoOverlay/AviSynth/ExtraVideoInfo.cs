@@ -1,7 +1,7 @@
 ﻿using System.Drawing;
 using AvsFilterNet;
 
-namespace AutoOverlay
+namespace AutoOverlay.AviSynth
 {
     public class ExtraVideoInfo
     {

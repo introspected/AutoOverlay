@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -9,37 +8,48 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using AutoOverlay.AviSynth;
+using AutoOverlay.Overlay;
 using AvsFilterNet;
 
-namespace AutoOverlay
+namespace AutoOverlay.Forms
 {
     public partial class OverlayEditor : Form
     {
+        #region Fields and properties
         private readonly KeyboardHook keyboardHook = new KeyboardHook(true);
-
-        private readonly OverlayEngine engine;
 
         private bool captured;
 
-        private int _currentFrame;
-
-        private BindingList<FrameInterval> Intervals { get; } = new BindingList<FrameInterval>();
-
-        private volatile FrameInterval prevInterval;
-
-        private bool update;
-
-        private bool NeedSave => Intervals.Any(p => p.Modified);
-
-        private readonly ScriptEnvironment env;
-
-        private bool panscan;
-
-        private bool autoOverlay;
+        private int _currentFrame = -1;
 
         private string compareFilename;
 
-        private int CurrentFrame
+        private bool update;
+
+        private readonly SynchronizationContext context;
+
+        private volatile FrameInterval prevInterval;
+
+        private volatile object sync;
+
+        private volatile string activeOperationId;
+
+        public OverlayEngine Engine { get; }
+
+        public BindingList<FrameInterval> Intervals { get; } = new BindingList<FrameInterval>();
+
+        public ScriptEnvironment Env { get; }
+
+        public double MaxDeviation => (double) nudDeviation.Value / 100.0;
+
+        private bool NeedSave => Intervals.Any(p => p.Modified);
+
+        private static int Round(double value) => (int) Math.Round(value);
+        #endregion
+
+        #region State
+        public int CurrentFrame
         {
             get => _currentFrame;
             set
@@ -54,99 +64,66 @@ namespace AutoOverlay
                     pictureBox.ResumeLayout();
                     return;
                 }
+                if (_currentFrame >= 0)
+                    CheckChanges();
                 nudCurrentFrame.Value = trackBar.Value = _currentFrame = value;
-                Cursor.Current = Cursors.WaitCursor;
                 if (Interval == null || !Interval.Contains(value))
                 {
                     var interval = Intervals.FirstOrDefault(p => p.Contains(value));
                     if (interval == null)
                     {
-                        using (new DynamicEnvironment(env))
+                        using (new DynamicEnvironment(Env))
                         {
-                            var info = engine.GetOverlayInfo(value);
-                            interval = new FrameInterval
-                            {
-                                Frames = {info}
-                            };
+                            var info = Engine.GetOverlayInfo(value);
+                            interval = new FrameInterval(info);
                         }
+
                         InsertInterval(interval);
                     }
+
                     Interval = interval;
                 }
+                UpdateControls(Interval[CurrentFrame]);
                 RenderImpl();
-                Cursor.Current = Cursors.Default;
             }
         }
-
-        private void InsertInterval(FrameInterval interval)
-        {
-            var index = Intervals.Count(p => p.First < interval.First);
-            Intervals.Insert(index, interval);
-        }
-
-        private FrameInterval Interval
+        public FrameInterval Interval
         {
             get => grid.BindingContext[Intervals].Position >= 0 ? grid?.BindingContext?[Intervals].Current as FrameInterval : null;
             set => grid.BindingContext[Intervals].Position = value == null ? -1 : Intervals.IndexOf(value);
         }
 
-        private OverlayInfo FrameInfo => Interval?.Frames.FirstOrDefault(p => p.FrameNumber == CurrentFrame);
+        private OverlayInfo CurrentFrameInfo => Interval?[CurrentFrame];
 
-        private void UpdateInterval(object sender = null, EventArgs e = null)
+        public void CheckChanges()
         {
-            if (Interval == prevInterval) return;
-            CheckChanges(prevInterval);
-            prevInterval = Interval;
-            if (Interval != null)
-            {
-                UpdateControls(Interval);
-                if (!Interval.Contains(CurrentFrame))
-                    CurrentFrame = Interval.First;
-                else RenderImpl();
-            }
-        }
-
-        private void CheckChanges(FrameInterval interval)
-        {
-            if (interval == null) return;
+            var interval = prevInterval;
+            if (interval == null || !interval.Contains(CurrentFrame)) return;
             var info = GetOverlayInfo();
-            if (!info.Equals(interval))
+            if (!info.Equals(interval[CurrentFrame]))
             {
-                interval.CopyFrom(info);
-                interval.Modified = true;
+                if (interval.Fixed)
+                    foreach (var frame in interval)
+                    {
+                        frame.CopyFrom(info);
+                        frame.Modified = true;
+                    }
+                else
+                {
+                    interval[CurrentFrame].CopyFrom(info);
+                    interval[CurrentFrame].Modified = true;
+                }
                 grid.Refresh();
             }
         }
-
-        private void UpdateControls(AbstractOverlayInfo info)
-        {
-            if (!(panelManage.Enabled = info != null))
-                return;
-
-            update = true;
-
-            nudX.Value = info.X;
-            nudY.Value = info.Y;
-            nudAngle.Value = (decimal)(info.Angle/100.0);
-            nudOverlayWidth.Value = info.Width;
-            nudOverlayHeight.Value = info.Height;
-            var crop = info.GetCrop();
-            nudCropLeft.Value = (decimal) crop.Left;
-            nudCropTop.Value = (decimal) crop.Top;
-            nudCropRight.Value = (decimal) crop.Right;
-            nudCropBottom.Value = (decimal) crop.Bottom;
-            chbOverlaySizeSync.Checked = Round(engine.OverInfo.Width / info.GetAspectRatio(engine.OverInfo.Size)) == engine.OverInfo.Height;
-
-            update = false;
-        }
-
-        private static int Round(double value) => (int)Math.Round(value);
+        #endregion
 
         #region Form behavior
-        public OverlayEditor(OverlayEngine engine, ScriptEnvironment env)
+        public OverlayEditor(OverlayEngine engine, ScriptEnvironment env, SynchronizationContext context)
         {
-            this.engine = engine;
-            this.env = env;
+            this.context = context;
+            Engine = engine;
+            Env = env;
             InitializeComponent();
             cbMode.Items.AddRange(Enum.GetValues(typeof(FramingMode)).Cast<object>().ToArray());
             cbMode.SelectedItem = FramingMode.Fit;
@@ -164,10 +141,66 @@ namespace AutoOverlay
             }
             nudOutputWidth.Value = engine.SrcInfo.Width;
             nudOutputHeight.Value = engine.SrcInfo.Height;
+            nudDeviation.Value = engine.Stabilize ? 0 : new decimal(engine.MaxDeviation * 100.0);
             nudMaxFrame.Value = nudMinFrame.Maximum = nudMaxFrame.Maximum = engine.GetVideoInfo().num_frames - 1;
             engine.CurrentFrameChanged += OnCurrentFrameChanged;
             keyboardHook.KeyDown += keyboardHook_KeyDown;
             Closing += (o, e) => keyboardHook.Dispose();
+        }
+
+        public void UpdateControls(OverlayInfo info)
+        {
+            if (!(panelManage.Enabled = info != null))
+                return;
+
+            update = true;
+            Interval?.ClearCache();
+
+            nudX.Value = info.X;
+            nudY.Value = info.Y;
+            nudAngle.Value = (decimal)(info.Angle / 100.0);
+            nudOverlayWidth.Value = info.Width;
+            nudOverlayHeight.Value = info.Height;
+            var crop = info.GetCrop();
+            nudCropLeft.Value = (decimal)crop.Left;
+            nudCropTop.Value = (decimal)crop.Top;
+            nudCropRight.Value = (decimal)crop.Right;
+            nudCropBottom.Value = (decimal)crop.Bottom;
+            tbWarp.Text = info.Warp.ToString();
+            chbOverlaySizeSync.Checked = Round(Engine.OverInfo.Width / info.GetAspectRatio(Engine.OverInfo.Size)) == Engine.OverInfo.Height;
+
+            update = false;
+        }
+
+        private void grid_RowPrePaint(object sender, DataGridViewRowPrePaintEventArgs e)
+        {
+            var compareLimit = (double)nudCompare.Value;
+            if (e.RowIndex < 0) return;
+            var item = Intervals[e.RowIndex];
+            if (item.Modified)
+                grid.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.LightYellow;
+            else if (item.Comparison < compareLimit)
+                grid.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.SkyBlue;
+            else if (item.Diff > Engine.MaxDiff)
+                grid.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.LightCoral;
+            else if (item.Any(p => p.Diff > Engine.MaxDiff))
+                grid.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.LightPink;
+        }
+
+        private void OverlayEditor_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (NeedSave)
+            {
+                var answer = MessageBox.Show("Save changes before exit?", "Warning",
+                    MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question, MessageBoxDefaultButton.Button3);
+                if (answer == DialogResult.Cancel)
+                {
+                    e.Cancel = true;
+                    return;
+                }
+                if (answer == DialogResult.Yes)
+                    SaveStat();
+            }
         }
 
         private void keyboardHook_KeyDown(object sender, KeyEventArgs e)
@@ -179,8 +212,8 @@ namespace AutoOverlay
                 case Keys.Enter:
                     if (ActiveControl is NumericUpDown nud)
                     {
-                        var val = int.Parse(nud.Text);
-                        if (val != (int)nud.Value)
+                        var val = decimal.Parse(nud.Text);
+                        if (val != nud.Value)
                             nud.Value = val;
                     }
                     break;
@@ -257,58 +290,6 @@ namespace AutoOverlay
             }
         }
 
-        private void LoadStat(bool initial = false)
-        {
-            Cursor.Current = Cursors.WaitCursor;
-            Intervals.RaiseListChangedEvents = false;
-            Intervals.Clear();
-            if (engine?.OverlayStat == null) return;
-            FrameInterval lastInterval = null;
-            OverlayInfo lastFrame = null;
-            var maxDeviation = (double) nudDeviation.Value;
-            var min = (int) nudMinFrame.Value;
-            var max = (int) nudMaxFrame.Value;
-            var overSize = engine.OverInfo.Size;
-            var compareLimit = (double) nudCompare.Value;
-            using (var refStat = compareFilename == null ? null : new FileOverlayStat(compareFilename, engine.SrcInfo.Size, engine.OverInfo.Size))
-                foreach (var info in engine.OverlayStat.Frames.Where(p => p.FrameNumber >= min && p.FrameNumber <= max))
-                {
-                    info.Comparison = refStat?[info.FrameNumber]?.Compare(info, engine.SrcInfo.Size) ?? 2;
-                    var compareFailed = info.Comparison < compareLimit;
-                    var diffFailed = info.Diff > engine.MaxDiff;
-                    if (chbDefective.Checked && !diffFailed && !compareFailed)
-                        continue;
-                    if (lastInterval == null || lastFrame.FrameNumber != info.FrameNumber - 1 || !lastFrame.NearlyEquals(info, overSize, maxDeviation))
-                    {
-                        if (initial && Intervals.Count == 1000)
-                        {
-                            nudMaxFrame.ValueChanged -= Reset;
-                            nudMaxFrame.Value = lastInterval.Frames.Last().FrameNumber;
-                            nudMaxFrame.ValueChanged += Reset;
-                            break;
-                        }
-                        lastInterval = new FrameInterval();
-                        Intervals.Add(lastInterval);
-
-                    }
-                    lastInterval.Frames.Add(info);
-                    lastFrame = info;
-                }
-            Intervals.RaiseListChangedEvents = true;
-            Interval = Intervals.FirstOrDefault(p => p.Contains(CurrentFrame));
-            Intervals.ResetBindings();
-            nudCurrentFrame.ValueChanged -= nudCurrentFrame_ValueChanged;
-            nudCurrentFrame.Minimum = trackBar.Minimum = (int) nudMinFrame.Value;
-            nudCurrentFrame.Maximum = trackBar.Maximum = (int) nudMaxFrame.Value;
-            CurrentFrame = (int) nudCurrentFrame.Value;
-            Interval = Intervals.FirstOrDefault(p => p.Contains(CurrentFrame));
-            nudCurrentFrame.ValueChanged += nudCurrentFrame_ValueChanged;
-
-            UpdateControls(Interval);
-            grid.Refresh();
-            Cursor.Current = Cursors.Default;
-        }
-
         private void OverlayEditorForm_Load(object sender, EventArgs e)
         {
             LoadStat(true);
@@ -318,41 +299,165 @@ namespace AutoOverlay
 
         private void OverlayEditorForm_FormClosed(object sender, FormClosedEventArgs e)
         {
-            engine.CurrentFrameChanged -= OnCurrentFrameChanged;
+            Engine.CurrentFrameChanged -= OnCurrentFrameChanged;
             pictureBox.Image?.Dispose();
         }
 
         private void OnCurrentFrameChanged(object sender, FrameEventArgs args)
         {
-            CurrentFrame = args.FrameNumber;
+            BeginInvoke((Action)(() => CurrentFrame = args.FrameNumber));
+        }
+
+        private void grid_CellValueNeeded(object sender, DataGridViewCellValueEventArgs e)
+        {
+            var interval = Intervals[e.RowIndex];
+            var fieldName = grid.Columns[e.ColumnIndex].Name;
+            e.Value = interval.GetType().GetProperty(fieldName).GetValue(interval);
+        }
+
+        private void chbEditor_CheckedChanged(object sender, EventArgs e)
+        {
+            panelManage.Visible = chbEditor.Checked;
+            pictureBox.SizeMode = chbEditor.Checked ? PictureBoxSizeMode.Zoom : PictureBoxSizeMode.CenterImage;
+        }
+
+        private void SuppressKeyPress(object sender, KeyEventArgs e)
+        {
+            e.Handled = true;
+        }
+
+        private void btnResetCrop_Click(object sender, EventArgs e)
+        {
+            nudCropLeft.Value = nudCropTop.Value = nudCropRight.Value = nudCropBottom.Value = 0;
+        }
+        #endregion
+
+        #region Stat
+        private void LoadStat(bool initial = false)
+        {
+            Cursor.Current = Cursors.WaitCursor;
+            Intervals.RaiseListChangedEvents = false;
+            Intervals.Clear();
+            if (Engine?.OverlayStat == null) return;
+            FrameInterval lastInterval = null;
+            OverlayInfo lastFrame = null;
+            var min = (int)nudMinFrame.Value;
+            var max = (int)nudMaxFrame.Value;
+            var overSize = Engine.OverInfo.Size;
+            var compareLimit = (double)nudCompare.Value;
+            using (var refStat = compareFilename == null ? null : new FileOverlayStat(compareFilename, Engine.SrcInfo.Size, Engine.OverInfo.Size))
+                foreach (var info in Engine.OverlayStat.Frames.Where(p => p.FrameNumber >= min && p.FrameNumber <= max))
+                {
+                    info.Comparison = refStat?[info.FrameNumber]?.Compare(info, Engine.SrcInfo.Size) ?? 2;
+                    var compareFailed = info.Comparison < compareLimit;
+                    var diffFailed = info.Diff > Engine.MaxDiff;
+                    if (chbDefective.Checked && !diffFailed && !compareFailed)
+                        continue;
+                    if (lastInterval == null
+                        || lastFrame.FrameNumber != info.FrameNumber - 1
+                        || !lastFrame.NearlyEquals(info, overSize, MaxDeviation)
+                        || Engine.KeyFrames.Contains(info.FrameNumber))
+                    {
+                        if (initial && Intervals.Count == 2000)
+                        {
+                            nudMaxFrame.ValueChanged -= Reset;
+                            nudMaxFrame.Value = lastInterval.Last;
+                            nudMaxFrame.ValueChanged += Reset;
+                            break;
+                        }
+                        lastInterval = new FrameInterval(info);
+                        Intervals.Add(lastInterval);
+
+                    }
+                    lastInterval.Add(info);
+                    lastFrame = info;
+                }
+            Intervals.RaiseListChangedEvents = true;
+            Interval = Intervals.FirstOrDefault(p => p.Contains(CurrentFrame));
+            Intervals.ResetBindings();
+            nudCurrentFrame.ValueChanged -= nudCurrentFrame_ValueChanged;
+            nudCurrentFrame.Minimum = trackBar.Minimum = (int)nudMinFrame.Value;
+            nudCurrentFrame.Maximum = trackBar.Maximum = (int)nudMaxFrame.Value;
+            _currentFrame = -1;
+            CurrentFrame = (int)nudCurrentFrame.Value;
+            Interval = Intervals.FirstOrDefault(p => p.Contains(CurrentFrame));
+            nudCurrentFrame.ValueChanged += nudCurrentFrame_ValueChanged;
+
+            UpdateControls(Interval?[CurrentFrame]);
+            grid.Refresh();
+            Cursor.Current = Cursors.Default;
+        }
+
+        private void SaveStat(object sender = null, EventArgs e = null)
+        {
+            var watch = new Stopwatch();
+            watch.Start();
+            Cursor.Current = Cursors.WaitCursor;
+            CheckChanges();
+            watch.Stop();
+            Debug.WriteLine($"Check changes: {watch.ElapsedMilliseconds}");
+            watch.Restart();
+            var frames = Intervals.Where(p => p.Modified).SelectMany(p => p).ToArray();
+            Engine.OverlayStat.Save(frames);
+            watch.Stop();
+            Debug.WriteLine($"Save changes: {watch.ElapsedMilliseconds}");
+            watch.Restart();
+            foreach (var interval in Intervals)
+                interval.Modified = false;
+            Intervals.ResetBindings();
+            grid.Refresh();
+            watch.Stop();
+            Debug.WriteLine($"Refresh: {watch.ElapsedMilliseconds}");
+            Cursor.Current = Cursors.Default;
+        }
+
+        private void btnCompare_Click(object sender, EventArgs e)
+        {
+            if (openFileDialog1.ShowDialog(this) != DialogResult.OK) return;
+            compareFilename = openFileDialog1.FileName;
+            Compare();
+        }
+
+        private void Compare(object sender = null, EventArgs e = null)
+        {
+            if (compareFilename == null) return;
+            Cursor.Current = Cursors.WaitCursor;
+            try
+            {
+                using (var refStat = new FileOverlayStat(compareFilename, Engine.SrcInfo.Size, Engine.OverInfo.Size))
+                    foreach (var frame in Intervals.SelectMany(p => p))
+                    {
+                        var refFrame = refStat[frame.FrameNumber];
+                        if (refFrame == null) continue;
+                        frame.Comparison = refFrame.Compare(frame, Engine.OverInfo.Size);
+                    }
+                grid.Refresh();
+            }
+            finally
+            {
+                Cursor.Current = Cursors.Default;
+            }
         }
         #endregion
 
         #region Frame management
-        private volatile object sync;
-
         private void Render(object sender = null, EventArgs e = null)
         {
-            if (update || FrameInfo == null) return;
+            if (update || CurrentFrameInfo == null) return;
             if ((sender == chbOverlaySizeSync || sender == nudOverlayWidth) && chbOverlaySizeSync.Checked)
             {
                 nudOverlayHeight.ValueChanged -= Render;
-                nudOverlayHeight.Value = Round((double)nudOverlayWidth.Value / FrameInfo.GetAspectRatio(engine.OverInfo.Size));
+                nudOverlayHeight.Value = Round((double)nudOverlayWidth.Value / CurrentFrameInfo.GetAspectRatio(Engine.OverInfo.Size));
                 nudOverlayHeight.ValueChanged += Render;
             }
             else if (sender == nudOverlayHeight && chbOverlaySizeSync.Checked)
             {
                 nudOverlayWidth.ValueChanged -= Render;
-                nudOverlayWidth.Value = Round((double)nudOverlayHeight.Value * FrameInfo.GetAspectRatio(engine.OverInfo.Size));
+                nudOverlayWidth.Value = Round((double)nudOverlayHeight.Value * CurrentFrameInfo.GetAspectRatio(Engine.OverInfo.Size));
                 nudOverlayWidth.ValueChanged += Render;
             }
-            Task.Factory.StartNew(() =>
-            {
-                var obj = sync = new object();
-                Thread.Sleep(500);
-                if (obj == sync)
-                    pictureBox.SafeInvoke(p => RenderImpl());
-            });
+
+            RenderImpl();
         }
 
         private OverlayInfo GetOverlayInfo()
@@ -364,121 +469,174 @@ namespace AutoOverlay
                 X = (int) nudX.Value,
                 Y = (int) nudY.Value,
                 Angle = (int) (nudAngle.Value*100),
+                Warp = Warp.Parse(tbWarp.Text),
                 Width = (int) nudOverlayWidth.Value,
                 Height = (int) nudOverlayHeight.Value,
                 CropLeft = crop(nudCropLeft.Value),
                 CropTop = crop(nudCropTop.Value),
                 CropRight = crop(nudCropRight.Value),
                 CropBottom = crop(nudCropBottom.Value),
-                SourceWidth = FrameInfo?.SourceWidth ?? engine.SrcInfo.Width,
-                SourceHeight = FrameInfo?.SourceHeight ?? engine.SrcInfo.Height,
-                BaseWidth = FrameInfo?.BaseWidth ?? engine.OverInfo.Width,
-                BaseHeight = FrameInfo?.BaseHeight ?? engine.OverInfo.Height,
-                Diff = FrameInfo?.Diff ?? -1
+                SourceWidth = CurrentFrameInfo?.SourceWidth ?? Engine.SrcInfo.Width,
+                SourceHeight = CurrentFrameInfo?.SourceHeight ?? Engine.SrcInfo.Height,
+                BaseWidth = CurrentFrameInfo?.BaseWidth ?? Engine.OverInfo.Width,
+                BaseHeight = CurrentFrameInfo?.BaseHeight ?? Engine.OverInfo.Height,
+                Diff = CurrentFrameInfo?.Diff ?? -1
             };
         }
 
-        private void RenderImpl()
+        public void RenderImpl()
         {
-            using (dynamic invoker = new DynamicEnvironment(env))
-            using (new VideoFrameCollector())
+            var request = new RenderRequest
             {
-                var info = GetOverlayInfo();
-                var outSize = new Size((int) nudOutputWidth.Value, (int) nudOutputHeight.Value);
-                var crop = info.GetCrop();
-                {
-                    var outClip = chbPreview.Checked
+                info = GetOverlayInfo(),
+                env = Env,
+                outSize = new Size((int) nudOutputWidth.Value, (int) nudOutputHeight.Value),
+                preview = chbPreview.Checked,
+                engine = Engine,
+                pictureBox = pictureBox,
+                rgb = chbRGB.Checked,
+                matrix = cbMatrix.Enabled
+                    ? cbMatrix.SelectedIndex > 0 ? cbMatrix.SelectedItem.ToString() : string.Empty
+                    : null,
+                gradient = (int) nudGradientSize.Value,
+                noise = (int) nudNoiseSize.Value,
+                mode = (int) cbMode.SelectedItem,
+                overlayMode = cbOverlayMode.SelectedItem.ToString(),
+                opacity = tbOpacity.Value / 100.0,
+                colorAdjust = chbColorAdjust.Checked ? tbColorAdjust.Value / 100.0 : -1,
+                debug = chbDebug.Checked
+            };
+            Post(request, RenderInternal, (_, image) =>
+            {
+                pictureBox.SuspendLayout();
+                pictureBox.Image?.Dispose();
+                pictureBox.Image = image;
+                pictureBox.ResumeLayout();
+            });
+        }
+
+        class RenderRequest
+        {
+            public OverlayInfo info;
+            public ScriptEnvironment env;
+            public Size outSize;
+            public bool preview;
+            public OverlayEngine engine;
+            public PictureBox pictureBox;
+            public bool rgb;
+            public string matrix;
+            public int gradient, noise;
+            public int mode;
+            public string overlayMode;
+            public double opacity;
+            public double colorAdjust;
+            public bool debug;
+        }
+
+        private static Bitmap RenderInternal(RenderRequest request)
+        {
+            var info = request.info;
+            using dynamic invoker = new DynamicEnvironment(request.env);
+            using var collector = new VideoFrameCollector();
+            var engine = request.engine;
+            var crop = info.GetCrop();
+            var outClip = request.preview
                         ? invoker.StaticOverlayRender(
                             engine.Source, engine.Overlay,
                             info.X, info.Y, info.Angle / 100.0,
                             info.Width, info.Height,
                             crop.Left, crop.Top, crop.Right, crop.Bottom,
+                            warpPoints: info.Warp.ToString(),
                             diff: info.Diff,
                             sourceMask: engine.SourceMask,
                             overlayMask: engine.OverlayMask,
-                            width: outSize.Width,
-                            height: outSize.Height,
-                            gradient: (int) nudGradientSize.Value,
-                            noise: (int) nudNoiseSize.Value,
+                            width: request.outSize.Width,
+                            height: request.outSize.Height,
+                            gradient: request.gradient,
+                            noise: request.noise,
                             dynamicNoise: true,
-                            mode: (int) cbMode.SelectedItem,
-                            overlayMode: cbOverlayMode.SelectedItem,
-                            opacity: tbOpacity.Value / 100.0,
-                            colorAdjust: chbColorAdjust.Checked ? tbColorAdjust.Value / 100.0 : -1,
-                            matrix: chbRGB.Checked && cbMatrix.Enabled && cbMatrix.SelectedIndex > 0
-                                ? cbMatrix.SelectedItem.ToString()
-                                : string.Empty,
+                            mode: request.mode,
+                            overlayMode: request.overlayMode,
+                            opacity: request.opacity,
+                            colorAdjust: request.colorAdjust,
+                            matrix: (request.rgb ? request.matrix : null) ?? string.Empty,
                             upsize: engine.Resize,
                             downsize: engine.Resize,
                             rotate: engine.Rotate,
-                            debug: chbDebug.Checked,
+                            debug: request.debug,
                             invert: false)
-                        : engine.ResizeRotate(engine.Source, engine.Resize, engine.Rotate, outSize.Width, outSize.Height);
-                    if (cbMatrix.Enabled)
-                    {
-                        outClip = cbMatrix.SelectedItem.Equals(AvsMatrix.Default)
-                            ? outClip.ConvertToRGB24()
-                            : outClip.ConvertToRGB24(matrix: cbMatrix.SelectedItem.ToString());
-                    }
-                    VideoFrame frame = outClip[CurrentFrame];
-                    var res = new Bitmap(frame.ToBitmap(PixelFormat.Format24bppRgb));
-                    pictureBox.SuspendLayout();
-                    pictureBox.Image?.Dispose();
-                    pictureBox.Image = res;
-                    pictureBox.ResumeLayout();
-                }
-            }
-        }
-        #endregion
-
-        #region Trackbar
-        private void trackBar_Scroll(object sender, EventArgs e)
-        {
-            if (captured) return;
-            Application.DoEvents();
-            CurrentFrame = trackBar.Value;
-        }
-
-        private void trackBar_MouseDown(object sender, MouseEventArgs e)
-        {
-            captured = true;
-        }
-
-        private void trackBar_MouseUp(object sender, MouseEventArgs e)
-        {
-            if (captured)
+                        : engine.ResizeRotate(engine.Source, 
+                            engine.Resize, engine.Rotate, 
+                            request.outSize.Width, request.outSize.Height);
+            if (request.matrix != null)
             {
-                captured = false;
-                Application.DoEvents();
-                CurrentFrame = trackBar.Value;
+                outClip = string.Empty.Equals(request.matrix)
+                    ? outClip.ConvertToRGB24()
+                    : outClip.ConvertToRGB24(matrix: request.matrix);
             }
+            VideoFrame frame = outClip[info.FrameNumber];
+            return new Bitmap(frame.ToBitmap(PixelFormat.Format24bppRgb));
         }
         #endregion
 
-        private void chbEditor_CheckedChanged(object sender, EventArgs e)
+        #region Scene management
+        private void btnFix_Click(object sender, EventArgs e)
         {
-            panelManage.Visible = chbEditor.Checked;
-            pictureBox.SizeMode = chbEditor.Checked ? PictureBoxSizeMode.Zoom : PictureBoxSizeMode.CenterImage;
+            if (CurrentFrameInfo != null)
+                Interval.CopyFrom(GetOverlayInfo());
+            grid.Refresh();
         }
 
-        private void grid_RowPrePaint(object sender, DataGridViewRowPrePaintEventArgs e)
+        private void InsertInterval(FrameInterval interval)
         {
-            var compareLimit = (double) nudCompare.Value;
-            if (e.RowIndex < 1) return;
-            var item = Intervals[e.RowIndex];
-            if (item.Modified)
-                grid.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.LightYellow;
-            else if (item.Comparison < compareLimit)
-                grid.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.SkyBlue;
-            else if (item.Diff > engine.MaxDiff)
-                grid.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.LightCoral;
-            else if (item.Frames.Any(p => p.Diff > engine.MaxDiff))
-                grid.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.LightPink;
+            var index = Intervals.Count(p => p.First < interval.First);
+            Intervals.Insert(index, interval);
+        }
+
+        private void UpdateInterval(object sender = null, EventArgs e = null)
+        {
+            if (Interval != null && !Interval.Contains(CurrentFrame))
+                CurrentFrame = Interval.First;
+            prevInterval = Interval;
+        }
+
+        private void btnSeparate_Click(object sender, EventArgs e)
+        {
+            if (CurrentFrameInfo == null || Interval.Length <= 1) return;
+            CheckChanges();
+            var parent = Interval;
+            Intervals.RaiseListChangedEvents = false;
+            var current = new FrameInterval(CurrentFrameInfo)
+            {
+                Modified = true
+            };
+            Intervals.Remove(parent);
+            if (CurrentFrame != parent.First)
+            {
+                var prev = new FrameInterval(parent.Where(p => p.FrameNumber < CurrentFrame))
+                {
+                    Modified = true
+                };
+                InsertInterval(prev);
+            }
+            InsertInterval(current);
+            if (CurrentFrame != parent.Last)
+            {
+                var next = new FrameInterval(parent.Where(p => p.FrameNumber > CurrentFrame))
+                {
+                    Modified = true
+                };
+                InsertInterval(next);
+            }
+            Intervals.RaiseListChangedEvents = true;
+            Intervals.ResetBindings();
+            Interval = current;
+            grid.Refresh();
         }
 
         private void ResetCurrent(object sender = null, EventArgs e = null)
         {
-            var info = engine.OverlayStat[CurrentFrame];
+            var info = Engine.OverlayStat[CurrentFrame];
             Interval[CurrentFrame].Diff = info.Diff;
             UpdateControls(info);
             RenderImpl();
@@ -509,97 +667,6 @@ namespace AutoOverlay
             LoadStat();
         }
 
-        private void SaveStat(object sender = null, EventArgs e = null)
-        {
-            var watch = new Stopwatch();
-            watch.Start();
-            Cursor.Current = Cursors.WaitCursor;
-            CheckChanges(Interval);
-            watch.Stop();
-            Debug.WriteLine($"Check changes: {watch.ElapsedMilliseconds}");
-            watch.Restart();
-            var frames = Intervals.Where(p => p.Modified).SelectMany(p => p.Frames);
-            engine.OverlayStat.Save(frames.ToArray());
-            watch.Stop();
-            Debug.WriteLine($"Save changes: {watch.ElapsedMilliseconds}");
-            watch.Restart();
-            foreach (var interval in Intervals)
-                interval.Modified = false;
-            Intervals.ResetBindings();
-            grid.Refresh();
-            watch.Stop();
-            Debug.WriteLine($"Refresh: {watch.ElapsedMilliseconds}");
-            Cursor.Current = Cursors.Default;
-        }
-
-        private void btnAutoOverlaySingleFrame_Click(object sender, EventArgs e)
-        {
-            if (Interval == null) return;
-            Cursor.Current = Cursors.WaitCursor;
-            using (new DynamicEnvironment(env))
-            using (new VideoFrameCollector())
-            {
-                var info = engine.AutoOverlayImpl(CurrentFrame);
-                Interval[CurrentFrame].Diff = info.Diff;
-                UpdateControls(info);
-            }
-            RenderImpl();
-            Cursor.Current = Cursors.Default;
-        }
-
-        private void btnSeparate_Click(object sender, EventArgs e)
-        {
-            if (FrameInfo == null || Interval.Length <= 1) return;
-            CheckChanges(Interval);
-            var parent = Interval;
-            Intervals.RaiseListChangedEvents = false;
-            var current = new FrameInterval
-            {
-                Modified = true,
-                Frames = { FrameInfo }
-            };
-            Intervals.Remove(parent);
-            if (CurrentFrame != parent.First)
-            {
-                var prev = new FrameInterval
-                {
-                    Modified = true
-                };
-                prev.Frames.AddRange(parent.Frames.Where(p => p.FrameNumber < CurrentFrame));
-                InsertInterval(prev);
-            }
-            InsertInterval(current);
-            if (CurrentFrame != parent.Last)
-            {
-                var next = new FrameInterval
-                {
-                    Modified = true
-                };
-                next.Frames.AddRange(parent.Frames.Where(p => p.FrameNumber > CurrentFrame));
-                InsertInterval(next);
-            }
-            Intervals.RaiseListChangedEvents = true;
-            Intervals.ResetBindings();
-            Interval = current;
-            grid.Refresh();
-        }
-
-        private void nudCurrentFrame_ValueChanged(object sender, EventArgs e)
-        {
-            CurrentFrame = (int) nudCurrentFrame.Value;
-        }
-
-        private void nudCurrentFrame_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.KeyCode == Keys.Enter)
-                nudCurrentFrame.Value = int.Parse(nudCurrentFrame.Text);
-        }
-
-        private void SuppressKeyPress(object sender, KeyEventArgs e)
-        {
-            e.Handled = true;
-        }
-
         private void btnJoinNext_Click(object sender, EventArgs e)
         {
             JoinNext();
@@ -620,7 +687,7 @@ namespace AutoOverlay
             var prev = Intervals[prevIndex];
             if (prev.Last != Interval.First - 1) return;
             prev.CopyFrom(Interval);
-            Interval.Frames.AddRange(prev.Frames);
+            Interval.AddRange(prev);
             Interval.Modified = true;
             Intervals.Remove(prev);
         }
@@ -634,8 +701,7 @@ namespace AutoOverlay
             if (next.First != Interval.Last + 1) return;
             Intervals.Remove(next);
             next.CopyFrom(Interval);
-            Interval.Frames.AddRange(next.Frames);
-            Interval.Modified = true;
+            Interval.AddRange(next);
         }
 
         private void btnJoinTo_Click(object sender, EventArgs e)
@@ -645,7 +711,7 @@ namespace AutoOverlay
             {
                 Dock = DockStyle.Fill,
                 Minimum = 0,
-                Maximum = engine.GetVideoInfo().num_frames - 1,
+                Maximum = Engine.GetVideoInfo().num_frames - 1,
                 Value = CurrentFrame
             };
             var form = new Form
@@ -688,251 +754,213 @@ namespace AutoOverlay
             grid.Refresh();
         }
 
+        private void btnDelete_Click(object sender, EventArgs e)
+        {
+            if (Interval == null || MessageBox.Show(
+                "Selected frames will be deleted. Continue?", "Warning",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation) == DialogResult.No) return;
+            for (var frame = Interval.First; frame <= Interval.Last; frame++)
+                Engine.OverlayStat[frame] = null;
+            Intervals.Remove(Interval);
+            grid.Refresh();
+        }
+        #endregion
+
+        #region Frame position manamegment
+        private void nudCurrentFrame_ValueChanged(object sender, EventArgs e)
+        {
+            CurrentFrame = (int)nudCurrentFrame.Value;
+        }
+
+        private void nudCurrentFrame_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode == Keys.Enter)
+                nudCurrentFrame.Value = int.Parse(nudCurrentFrame.Text);
+        }
+
+        private void trackBar_Scroll(object sender, EventArgs e)
+        {
+            if (captured) return;
+            Application.DoEvents();
+            CurrentFrame = trackBar.Value;
+        }
+
+        private void trackBar_MouseDown(object sender, MouseEventArgs e)
+        {
+            captured = true;
+        }
+
+        private void trackBar_MouseUp(object sender, MouseEventArgs e)
+        {
+            if (captured)
+            {
+                captured = false;
+                Application.DoEvents();
+                CurrentFrame = trackBar.Value;
+            }
+        }
+        #endregion
+
+        #region Autoalign
+        private void btnAutoOverlaySingleFrame_Click(object sender, EventArgs e)
+        {
+            if (Interval == null) return;
+            Post(CurrentFrame, frame => Engine.AutoOverlayImpl(frame), (frame, info) =>
+            {
+                Interval[frame].Diff = info.Diff;
+                UpdateControls(info);
+                RenderImpl();
+            });
+        }
+
+
         private void btnAutoOverlayScene_Click(object sender, EventArgs e)
         {
-            if (autoOverlay)
-            {
-                autoOverlay = false;
-                return;
-            }
-
-            if (Interval == null) return;
-            Cursor.Current = Cursors.WaitCursor;
-            Intervals.RaiseListChangedEvents = false;
-            var lastInterval = Interval;
-            var text = Text;
-            var btnText = btnAutoOverlayScene.Text;
-            btnAutoOverlayScene.Text = "Cancel";
-            var first = Interval.First;
-            var length = Interval.Length;
-            var startTime = DateTime.Now;
-            autoOverlay = true;
-            for (int frame = Interval.First, last = Interval.Last; frame <= last; frame++)
-            {
-                if (!autoOverlay)
-                    break;
-                var processed = frame - first + 1;
-                var timeRemaining = TimeSpan.FromTicks(DateTime.Now.Subtract(startTime).Ticks * (length - processed) / processed);
-                Text = $"{text}: {processed}/{length} {(processed * 100.0) / length:F2}% ETA: {timeRemaining:T}";
-                Application.DoEvents();
-                using (new DynamicEnvironment(env))
-                using (new VideoFrameCollector())
-                {
-                    var info = engine.AutoOverlayImpl(frame);
-                    info.FrameNumber = frame;
-                    if (frame == CurrentFrame)
-                        UpdateControls(info);
-                    if (!info.Equals(lastInterval))
-                    {
-                        var newInterval = new FrameInterval
-                        {
-                            Frames = { info },
-                            Modified = true
-                        };
-                        lastInterval.Modified = true;
-                        newInterval.Frames.AddRange(lastInterval.Frames.Where(p => p.FrameNumber > frame)
-                            .OrderBy(p => p.FrameNumber));
-                        lastInterval.Frames.RemoveAll(p => p.FrameNumber >= frame);
-                        var newIndex = Intervals.IndexOf(lastInterval) + 1;
-                        Intervals.Insert(newIndex, newInterval);
-                        if (lastInterval.Frames.Count == 0)
-                            Intervals.Remove(lastInterval);
-                        lastInterval = newInterval;
-                    }
-                    else
-                    {
-                        var oldInfo = lastInterval.Frames.First(p => p.FrameNumber == frame);
-                        oldInfo.CopyFrom(info);
-                        oldInfo.Diff = info.Diff;
-                    }
-                }
-            }
-            autoOverlay = false;
-            Text = text;
-            btnAutoOverlayScene.Text = btnText;
-            Interval = Intervals.First(p => p.Contains(CurrentFrame));
-            Intervals.RaiseListChangedEvents = true;
-            Intervals.ResetBindings();
-            RenderImpl();
-            Cursor.Current = Cursors.Default;
+            new ProgressDialog(this, new[] { Interval }, (frame, interval) => Engine.AutoOverlayImpl(frame)).ShowDialog(this);
         }
 
         private void btnAutoOverlaySeparatedFrame_Click(object sender, EventArgs e)
         {
             if (Interval == null) return;
-            Cursor.Current = Cursors.WaitCursor;
-            using (new DynamicEnvironment(env))
-            using (new VideoFrameCollector())
+            Post(CurrentFrame, frame => Engine.AutoOverlayImpl(frame), (frame, info) =>
             {
-                var info = engine.AutoOverlayImpl(CurrentFrame);
                 Interval[CurrentFrame].Diff = info.Diff;
-                if (!info.Equals(Interval))
+                if (Interval.Contains(CurrentFrame - 1) && !info.NearlyEquals(Interval[CurrentFrame - 1], Engine.OverInfo.Size, MaxDeviation))
                 {
                     btnSeparate_Click(sender, e);
                     UpdateControls(info);
                 }
-            }
-            RenderImpl();
-            Cursor.Current = Cursors.Default;
+                RenderImpl();
+            });
+        }
+        #endregion
+
+        #region Scan/Adjust
+        private void btnAdjustFrame_Click(object sender, EventArgs e)
+        {
+            AdjustOrScanOne(GetOverlayInfo);
         }
 
-        private void btnResetCrop_Click(object sender, EventArgs e)
+        private void btnAdjust_Click(object sender, EventArgs e)
         {
-            nudCropLeft.Value = nudCropTop.Value = nudCropRight.Value = nudCropBottom.Value = 0;
+            Adjust(new[] { Interval }, $"Adjust scene {Interval.Interval}");
+        }
+
+        private void btnAdjustClip_Click(object sender, EventArgs e)
+        {
+            Adjust(Intervals, "Adjust whole clip");
+        }
+
+        private void btnScanFrame_Click(object sender, EventArgs e)
+        {
+            AdjustOrScanOne(() => Interval?[CurrentFrame - 1] ?? GetOverlayInfo());
         }
 
         private void brnPanScan_Click(object sender, EventArgs e)
         {
             if (Interval == null) return;
-            PanScan(new List<FrameInterval> {Interval}, btnPanScan);
+            PanScan(new List<FrameInterval> { Interval }, $"Scan scene {Interval.Interval}");
         }
 
         private void btnPanScanFull_Click(object sender, EventArgs e)
         {
-            PanScan(Intervals.Where(p => p.Length >= engine.BackwardFrames).ToList(), btnPanScanFull);
+            PanScan(Intervals.Where(p => p.Length >= Engine.BackwardFrames).ToList(), "Scan whole clip");
         }
 
-        private void PanScan(ICollection<FrameInterval> intervals, Button button)
+        private void AdjustOrScanOne(Func<OverlayInfo> keyFrame)
         {
-            if (panscan)
-            {
-                panscan = false;
-                return;
-            }
-
-            if (!intervals.Any() || intervals.Count > 1
-                && MessageBox.Show("Are you sure?", "Warning", MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation) ==
-                DialogResult.No) return;
-
-            panscan = true;
-
-            var textOld = button.Text;
-            button.Text = "Cancel";
-            Cursor.Current = Cursors.WaitCursor;
-            Intervals.RaiseListChangedEvents = false;
-            CheckChanges(Interval);
-            var text = Text;
-            var length = intervals.Sum(p => p.Length);
-            var processed = 0;
-            var startTime = DateTime.Now;
-            foreach (var interval in intervals)
-            {
-                var lastInterval = interval;
-
-                for (int frame = interval.First, last = interval.Last; frame <= last; frame++)
+            if (Interval == null) return;
+            Post(new
                 {
-                    if (!panscan)
-                        break;
-                    processed++;
-                    var timeRemaining = TimeSpan.FromTicks(DateTime.Now.Subtract(startTime).Ticks * (length - processed) / processed);
-                    Text = $"{text}: {processed}/{length} {(processed * 100.0) / length:F2}% ETA: {timeRemaining:T}";
-                    Application.DoEvents();
-                    using (new DynamicEnvironment(env))
-                    using (new VideoFrameCollector())
-                    {
-                        var delta = (int)nudDistance.Value;
-                        var scale = (double)nudScale.Value / 1000;
-                        var info = engine.PanScanImpl(lastInterval, frame, delta, scale, false);
-                        var oldInfo = lastInterval.Frames.First(p => p.FrameNumber == frame);
-                        //if (oldInfo.Diff < info.Diff)
-                        //    continue;
-                        //engine.OverlayStat[info.FrameNumber] = info;
-                        if (frame == CurrentFrame)
-                            UpdateControls(info);
-                        if (!info.Equals(lastInterval))
+                    Frame = CurrentFrame,
+                    KeyInfo = keyFrame(),
+                    Delta = (int)nudDistance.Value,
+                    Scale = (double)nudScale.Value / 1000
+                },
+                tuple => Engine.PanScanImpl(tuple.KeyInfo, tuple.Frame, tuple.Delta, tuple.Scale, false),
+                (tuple, info) =>
+                {
+                    Interval[tuple.Frame].Diff = info.Diff;
+                    UpdateControls(info);
+                    RenderImpl();
+                });
+        }
+
+        private void Adjust(ICollection<FrameInterval> intervals, string operationName)
+        {
+            var currentFrame = CurrentFrame;
+            new ProgressDialog(this, intervals, (frame, interval) =>
+            {
+                var delta = (int) nudDistance.Value;
+                var scale = (double) nudScale.Value / 1000;
+                var keyFrame = interval == Interval ? Interval[currentFrame] : interval.First();
+                return Engine.PanScanImpl(keyFrame, frame, delta, scale, false);
+            })
+            {
+                Text = operationName
+            }.ShowDialog(this);
+        }
+
+        private void PanScan(ICollection<FrameInterval> intervals, string operationName)
+        {
+            var currentFrame = CurrentFrame;
+            new ProgressDialog(this, intervals, (frame, interval) =>
+            {
+                var delta = (int) nudDistance.Value;
+                var scale = (double) nudScale.Value / 1000;
+                var keyFrame = interval[frame - 1] ?? interval[frame];
+                if (interval == Interval)
+                    keyFrame.Warp = Interval[currentFrame].Warp;
+                return Engine.PanScanImpl(keyFrame, frame, delta, scale, false);
+            })
+            {
+                Text = operationName
+            }.ShowDialog(this);
+        }
+        #endregion
+
+        #region Multithreading
+        public void Post<T, V>(T param, Func<T, V> evaluator, Action<T, V> callback)
+        {
+            Post(() => evaluator(param), res => callback(param, res));
+        }
+
+        public void Post<T>(T param, Action<T> action)
+        {
+            Post<object>(() =>
+            {
+                action(param);
+                return null;
+            }, p => { });
+        }
+
+        public void Post<V>(Func<V> evaluator, Action<V> callback)
+        {
+            Cursor = Cursors.WaitCursor;
+            activeOperationId = Guid.NewGuid().ToString();
+            context.Post(operationId =>
+            {
+                try
+                {
+                    if (!operationId.Equals(this.SafeInvoke(p => activeOperationId)))
+                        return;
+                    var res = evaluator.Invoke();
+                    if (callback != null)
+                        this.SafeInvoke(p =>
                         {
-                            var newInterval = new FrameInterval
+                            if (operationId.Equals(activeOperationId))
                             {
-                                Frames = { info },
-                                Modified = true
-                            };
-                            lastInterval.Modified = true;
-                            newInterval.Frames.AddRange(lastInterval.Frames.Where(p => p.FrameNumber > frame).OrderBy(p => p.FrameNumber));
-                            lastInterval.Frames.RemoveAll(p => p.FrameNumber >= frame);
-                            var newIndex = Intervals.IndexOf(lastInterval) + 1;
-                            Intervals.Insert(newIndex, newInterval);
-                            if (lastInterval.Frames.Count == 0)
-                                Intervals.Remove(lastInterval);
-                            lastInterval = newInterval;
-                        }
-                        else
-                        {
-                            oldInfo.CopyFrom(info);
-                            oldInfo.Diff = info.Diff;
-                        }
-                    }
+                                callback.Invoke(res);
+                            }
+                        });
                 }
-            }
-            panscan = false;
-            button.Text = textOld;
-            Text = text;
-            Interval = Intervals.First(p => p.Contains(CurrentFrame));
-            Intervals.RaiseListChangedEvents = true;
-            Intervals.ResetBindings();
-            RenderImpl();
-            Cursor.Current = Cursors.Default;
-        }
-
-        private void btnDelete_Click(object sender, EventArgs e)
-        {
-            if (Interval == null || MessageBox.Show(
-                    "Selected frames will be deleted. Continue?", "Warning",
-                    MessageBoxButtons.YesNo, MessageBoxIcon.Exclamation) == DialogResult.No) return;
-            for (var frame = Interval.First; frame <= Interval.Last; frame++)
-                engine.OverlayStat[frame] = null;
-            Intervals.Remove(Interval);
-            grid.Refresh();
-        }
-
-        private void grid_CellValueNeeded(object sender, DataGridViewCellValueEventArgs e)
-        {
-            var interval = Intervals[e.RowIndex];
-            var fieldName = grid.Columns[e.ColumnIndex].Name;
-            e.Value = interval.GetType().GetField(fieldName).GetValue(interval);
-        }
-
-        private void btnCompare_Click(object sender, EventArgs e)
-        {
-            if (openFileDialog1.ShowDialog() != DialogResult.OK) return;
-            compareFilename = openFileDialog1.FileName;
-            Compare();
-        }
-
-        private void Compare(object sender = null, EventArgs e = null)
-        {
-            if (compareFilename == null) return;
-            Cursor.Current = Cursors.WaitCursor;
-            try
-            {
-                using (var refStat = new FileOverlayStat(compareFilename, engine.SrcInfo.Size, engine.OverInfo.Size))
-                    foreach (var frame in Intervals.SelectMany(p => p.Frames))
-                    {
-                        var refFrame = refStat[frame.FrameNumber];
-                        if (refFrame == null) continue;
-                        frame.Comparison = refFrame.Compare(frame, engine.OverInfo.Size);
-                    }
-                grid.Refresh();
-            }
-            finally
-            {
-                Cursor.Current = Cursors.Default;
-            }
-        }
-
-        private void OverlayEditor_FormClosing(object sender, FormClosingEventArgs e)
-        {
-            if (NeedSave)
-            {
-                var answer = MessageBox.Show("Save changes before exit?", "Warning",
-                    MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question, MessageBoxDefaultButton.Button3);
-                if (answer == DialogResult.Cancel)
+                finally
                 {
-                    e.Cancel = true;
-                    return;
+                    this.SafeInvoke(p => p.Cursor = Cursors.Default);
                 }
-                if (answer == DialogResult.Yes)
-                    SaveStat();
-            }
+            }, activeOperationId);
         }
+
+        #endregion
     }
 }

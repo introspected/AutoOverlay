@@ -1,9 +1,10 @@
 # AutoOverlay AviSynth plugin
 
 ### Requirements
-- AviSynth+ 3.6+: https://github.com/AviSynth/AviSynthPlus/releases/
+- AviSynth+ 3.7+: https://github.com/AviSynth/AviSynthPlus/releases/
 - AvsFilterNet plugin https://github.com/Asd-g/AvsFilterNet (included)
 - SIMD Library https://github.com/ermig1979/Simd (included)
+- warp plugin v0.1b by wonkey_monkey https://forum.doom9.org/showthread.php?t=176031 (included)
 - Math.NET Numerics (included)
 - .NET framework 4.6.1+
 - Windows 7+
@@ -43,7 +44,8 @@ AviSynth+ supports plugin auto loading, if .NET plugin filename includes suffix 
 ## Filters
 ### OverlayConfig
     OverlayConfig(float minOverlayArea, float minSourceArea, float aspectRatio1, float aspectRatio2, 
-                  float angle1, float angle2, int minSampleArea, int requiredSampleArea, float maxSampleDiff, 
+                  float angle1, float angle2, clip warpPoints, int warpSteps, int warpOffset, 
+				  int minSampleArea, int requiredSampleArea, float maxSampleDiff, 
                   int subpixel, float scaleBase, int branches, float branchMaxDiff, float acceptableDiff, 
                   int correction, int minX, int maxX, int minY, int maxY, int minArea, int maxArea, 
                   bool fixedAspectRatio, bool debug)
@@ -57,6 +59,9 @@ It is possible to add some clips to config chain with regular splice operator: O
 - **minSourceArea** - minimum intersection part of source image in percent. By default: max value if source image will be completely contain overlay image (pan&scan). For example, if source clip is 1440x1080 and overlaid one is 1920x1080 then value will be 1440/1920 = 75%.
 - **aspectRatio1** and **aspectRatio2** - range of acceptable aspect ratio of overlaid image. By default – overlay clip aspect ratio. Can be specified in any order: `aspectRatio1=2.35, aspectRatio2=2.45` is the same as `aspectRatio1=2.45, aspectRatio2=2.35`.
 - **angle1** и **angle2** (default 0) - range of acceptable rotation angle if overlaid image. Can be specified in any order. Negative values – clockwise rotation, positive – counter.
+- **warpPoints** (default empty) – Rect clip series which describes warp transformation source points and max X and Y offsets that will be passed to the warp filter. Example: Rect(0,0,3,3) + Rect(1920,800,3,3) + Rect(1920,0,3,3) + Rect(0,800,3,3) + Rect(960,400,3,3). It describes warp transformations 3px around corners and center of overlay image (1920x800).
+- **warpSteps** (default 3) – warp transformation iteration count. Greater is better but slower. 
+- **warpOffset** (default 0) – warp transformation step offset from last step (to process in low resolution). Lower is better but slower. 
 - **minSampleArea** (default 1500) – minimum area in pixels of downsized source clip at first scale stage. The smaller, the faster, but also the greater risk of getting an incorrect result. Recommended range: 500-3000. 
 - **requiredSampleArea** (default 3000) - maximum area in pixels of downscaled source clip at first scale stage. The smaller, the faster, but also the greater risk of getting an incorrect result. Recommended range: 1000-5000. 
 - **maxSampleDiff** (default 5) – max allowed DIFF between downscaled source clip at previous and current scale iteration. If it is too high then previous iteration will not be processed.  
@@ -75,7 +80,8 @@ It is possible to add some clips to config chain with regular splice operator: O
     OverlayEngine(clip source, clip overlay, string statFile, int backwardFrames, int forwardFrames, 
                   clip sourceMask, clip overlayMask, float maxDiff, float maxDiffIncrease, float maxDeviation, 
                   int panScanDistance, float panScanScale, bool stabilize, clip configs, string presize, 
-                  string resize, string rotate, bool editor, string mode, float colorAdjust, bool simd, bool debug)
+                  string resize, string rotate, bool editor, string mode, float colorAdjust, 
+				  string sceneFile, bool simd, bool debug)
 
 Filter takes two clips: source and overlay. It performs auto-align by resizing, rotation and shifting an overlay clip to find the best diff value. Best align settings are encoded into output frame so it could be read by another filter. The sequence of these align settings frame-by-frame (statistics) could be written to in-memory cache or file for reuse and manual editing via built-in visual editor. 
 #### Parameters
@@ -102,6 +108,7 @@ ERASE – erase statistics
 READONLY – use only existing align statistics
 PROCESSED – include only processed frames from stat file
 - **colorAdjust** - not implemented yet
+- **sceneFile** - scene file path with keyframes to separate scenes during auto-align process 
 - **simd** (default true) - SIMD Library using to increase performance in some cases
 - **debug** (default false) - output align values, slower.
 
@@ -150,9 +157,12 @@ The scenes that were changed by user are highlighted with yellow color in grid. 
 ### OverlayRender
     OverlayRender(clip engine, clip source, clip overlay, clip sourceMask, clip overlayMask, string overlayMode, 
                   int width, int height, string pixelType, int gradient, int noise, bool dynamicNoise, 
-                  clip borderOffset, clip srcColorBorderOffset, clip overColorBorderOffset, int mode, float opacity, 
-                  float colorAdjust, string adjustChannels, string matrix, string upsize, string downsize, string rotate, 
-                  bool simd, bool debug, bool invert, bool extrapolation, int blankColor, float background, int backBlur)
+				  int borderControl, float borderMaxDeviation, clip borderOffset, 
+				  clip srcColorBorderOffset, clip overColorBorderOffset, int mode, float opacity, 
+                  float colorAdjust, int colorFramesCount, float colorFramesDiff, float colorMaxDeviation, 
+				  string adjustChannels, string matrix, string upsize, string downsize, string rotate, 
+                  bool simd, bool debug, bool invert, bool extrapolation, int blankColor, float background, 
+				  int backBlur, int bitDepth)
                   
 This filter preforms rendering of the result clip using align values from the engine. 
 
@@ -165,8 +175,10 @@ This filter preforms rendering of the result clip using align values from the en
 - **width** и **height** - output width and height. By default are taken from source clip.
 - **pixelType** - not implemented yet. The color space of source clip will be used for output. 
 - **gradient** (default 0) – length of gradient at the overlay mask to make borders between images smoother. Useful when clips are scientifically differ in colors or align is not very good.
-- **noise** (default 0) - length of "noise gradient" at the overlay mask to make borders between images smoother. Useful when clips are in the same color and align is very good.
+- **noise** (default 0) - length of "noise gradient" at the overlay mask to make borders between images smoother. Useful when clips are in the same color and align is very good. Combine this with gradient to adjust more accurate align. 
 - **dynamicNoise** (default true) – use dynamic noise gradient if *noise* > 0.
+- **borderControl** (default 0) – backward and forward frame count to analyze which side of overlay mask should be used for current frame according to borderOffset parameter.
+- **borderMaxDeviation** (default 0.5) – max deviation of total area between current and adjacent frame to include frame to the scene for border control. 
 - **borderOffset** (default empty) - *Rect* type clip to specify offsets from borders (left, top, right, bottom) that will be ignored for gradient mask.
 - **srcColorBorderOffset** (default empty) - *Rect* type clip to specify offsets from source clip borders (left, top, right, bottom) that will be ignored for color adjustment.
 - **overColorBorderOffset** (default empty) - *Rect* type clip to specify offsets from overlay clip borders (left, top, right, bottom) that will be ignored for color adjustment.
@@ -179,6 +191,9 @@ This filter preforms rendering of the result clip using align values from the en
 6 – as 3 but with pure white clips. Useful to combine the result clip with another one.  
 - **opacity** (default 1) – opacity of overlaid image from 0 to 1.
 - **colorAdjust** (default -1, disabled) - value between 0 and 1. 0 - color adjusts to source clip. 1 - to overlay clip. 0.5 - average. Color adjustment performs by histogram matching in the intersection area.
+- **colorFramesCount** (default 0) - forward and backward frames count that include to the color transition map for color adjustment 
+- **colorFramesDiff** (default 1) -  max RMSE of difference between sample and reference histogram for current and adjacent frame for color adjustment 
+- **colorMaxDeviation** (default 1) -  max deviation of total area between current and adjacent frame to include frame to the scene for color adjustment 
 - **adjustChannels** (default empty) - which channels to adjust. Examples: "yuv", "y", "rgb", "rg".
 - **matrix** (default empty). If specified YUV image converts to RGB with given matrix for color adjustment and then back to YV24. 
 - **downsize** и **upsize** (default *BicubicResize*) - downsize and upsize functions. It’s recommended to use functions with high quality interpolation. 
@@ -190,9 +205,11 @@ This filter preforms rendering of the result clip using align values from the en
 - **blankColor** (default black) - blank color in hex format `0xFF8080` to fill empty areas of image in 3 and 4 modes.
 - **background** (default 0) - value between -1 and 1 to set what clip will be used as blurred background in 2,4,5 modes. -1 - source, 1 - overlay clips.
 - **backBlur** (default 15) - blur intensity in 2,4,5 modes.
+- **bitDepth** (default unused) - target bit depth of output clip and input clips after transformations but before color adjustment to improve it
 
 ### ColorAdjust
     ColorAdjust(clip sample, clip reference, clip sampleMask, clip referenceMask, float intensity, 
+				int adjacentFramesCount, float adjacentFramesDiff, 
 	            bool limitedRange, string channels, float dither, float exclude, string interpolation, 
 				bool extrapolation, bool dynamicNoise, bool simd, bool debug)
     
@@ -204,6 +221,8 @@ Color matching. Input clip, sample clip and reference clip must be in the same t
 - **reference** (required) - reference clip (usually the same time and area from different master)
 - **sampleMask** and **referenceMask** (default empty) - 8 bit planar mask clips to exclude some parts from sample or reference clips. Only Y plane is used. Used only pixels with 255 value (white color). 
 - **intensity** (default 1) - intensity of color adjustment.
+- **adjacentFramesCount** (default 0) - forward and backward frames count that include to the color transition map
+- **adjacentFramesDiff** (default 1) - max RMSE of difference between sample and reference histogram for current and adjacent frame
 - **limitedRange** (default true) - TV or PC range for YUV clips
 - **channels** (default yuv or rgb) - planes to process for YUV clips or channels for RGB. Any combination of y,u,v and r,g,b supported (ex: y, uv, r, br).
 - **dither** (default 0.95) - dither level from 0 (disable) to 1 (aggressive). 
@@ -321,6 +340,15 @@ Support filter which provides mask clip for overlay with gradient or noise at bo
 - **gradient** - gradient borders.
 - **seed** - seed for noise generation.
 
+### ExtractScenes
+	ExtractScenes(string statFile, string sceneFile, int sceneMinLength, float maxDiffIncrease)
+Filter to extract and save scene key frames to text file based on stat file of aligning target clip to the target.Trim(1,0) clip. 
+
+#### Parameters
+- **statFile** - stat file path
+- **sceneFile** - scene file path
+- **sceneMinLength** (default 10) - scene minimal length
+- **maxDiffIncrease** (default 15) - scene detection DIFF value
 
 ## Examples
 #### Simple script 
@@ -341,6 +369,28 @@ Support filter which provides mask clip for overlay with gradient or noise at bo
     ConvertToYV12()
 
 ## Changelist
+### 17.01.2021 v0.4.0
+1. Fix internal clip cache (speed improvement especially with "hard" input clips).
+2. ColorAdjust: adjacent frames analyzing for better color matching (AdjacentFramesCount and AdjacentFramesDiff params) + speed improvement.
+3. ColorAdjust: fix blank frame processsing. 
+4. OverlayRender: new overlay mask algorithm on borders when gradient and noise are used at the same time: more accurate frame intersection. Both 50-100 values are optimal to use.  
+5. OverlayRender: BorderControl and BorderMaxDeviation params for adjacent frames analyzing to stablize overlay mask on borders during the scene.
+6. OverlayRender: ColorFramesCount, ColorFramesDiff and ColorMaxDeviation params for better color matching during the scene.
+7. OverlayRender: experimanetal BitDepth param to change bit depth of output clip and input clip after transformation for better color adjustment. 
+8. ExtractScenes: new filter for scene detection by stat file analyzing.
+9. OverlayConfig: WarpPoints, WarpSteps and WarpOffset params for "warp" (similar to quadrilateral but more flexible) transformations with warp filter by wonkey_monkey. Only 8 bit clips support. 
+10. OverlayEngine: SceneFile param to use a text file with keyframes to separate scenes during adjacent frames analyzing. 
+11. Fix exception visualization. 
+12. OverlayEditor: asynchronous rendering, new scene processing dialog.
+13. OverlayEditor: new "Frame processing" section.
+14. OverlayEditor: large stat file speed up.
+15. OverlayEditor: default maximum of records in grid changed to 2000.
+16. OverlayEditor: more intuitive scene processing. Frames are grouped to scenes with max deviation parameter. 
+17. OverlayEditor: new "adjust" scene processing mode. Selected scene frames are adjusted around current frame using Distance and Scale values.
+18. OverlayEditor: "Scan" mode works different: from first to last frame of the scene taking warp from selected frame.
+19. OverlayEditor: "warp" field with list of points for warp transformation. 
+20. OverlayEngine: new stat file format version with warp points (max 16 allowed).
+
 ### 29.08.2020 v0.3.1
 1. Fix first frame x264 encoding.
 2. ColorAdjust: HDR extrapolation fix, dynamicNoise parameter.

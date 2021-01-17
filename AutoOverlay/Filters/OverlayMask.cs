@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using AutoOverlay;
+using AutoOverlay.AviSynth;
 using AvsFilterNet;
 
 [assembly: AvisynthFilterClass(typeof(OverlayMask),

@@ -46,5 +46,11 @@ namespace AutoOverlayTests
             };
             Assert.AreEqual(target, shrinked);
         }
+
+        [Test]
+        public void TestInterval()
+        {
+            Assert.IsNotNull(typeof(FrameInterval).GetProperty("Fixed"));
+        }
     }
 }

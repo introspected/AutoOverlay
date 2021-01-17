@@ -1,14 +1,19 @@
-﻿using System.Drawing;
+﻿using System.Collections.Generic;
+using System.Drawing;
+using System.IO;
 using System.Threading.Tasks;
 using AutoOverlay;
+using AutoOverlay.AviSynth;
 using AvsFilterNet;
 
 [assembly: AvisynthFilterClass(typeof(DynamicOverlayRender),
     nameof(OverlayRender),
     "ccc[SourceMask]c[OverlayMask]c" +
-    "[OverlayMode]s[Width]i[Height]i[PixelType]s[Gradient]i[Noise]i[DynamicNoise]b[BorderOffset]c[SrcColorBorderOffset]c[OverColorBorderOffset]c" +
-    "[Mode]i[Opacity]f[ColorAdjust]f[AdjustChannels]s[Matrix]s[Upsize]s[Downsize]s[Rotate]s[SIMD]b[Debug]b[Invert]b[Extrapolation]b[BlankColor]i" +
-    "[Background]f[BackBlur]i",
+    "[OverlayMode]s[Width]i[Height]i[PixelType]s[Gradient]i[Noise]i[DynamicNoise]b" +
+    "[BorderControl]i[BorderMaxDeviation]f[BorderOffset]c[SrcColorBorderOffset]c[OverColorBorderOffset]c" +
+    "[Mode]i[Opacity]f[ColorAdjust]f[ColorFramesCount]i[ColorFramesDiff]f[ColorMaxDeviation]f[AdjustChannels]s[Matrix]s" +
+    "[Upsize]s[Downsize]s[Rotate]s[SIMD]b[Debug]b[Invert]b[Extrapolation]b[BlankColor]i" +
+    "[Background]f[BackBlur]i[BitDepth]i",
     OverlayUtils.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
@@ -50,6 +55,12 @@ namespace AutoOverlay
         [AvsArgument]
         public override bool DynamicNoise { get; protected set; } = true;
 
+        [AvsArgument(Min = 0, Max = OverlayUtils.ENGINE_HISTORY_LENGTH)]
+        public override int BorderControl { get; protected set; } = 0;
+
+        [AvsArgument(Min = 0)]
+        public override double BorderMaxDeviation { get; protected set; } = 0.5;
+
         [AvsArgument(Min = 0)]
         public override Rectangle BorderOffset { get; protected set; } = Rectangle.Empty;
 
@@ -67,6 +78,15 @@ namespace AutoOverlay
 
         [AvsArgument(Min = -1, Max = 1)]
         public override double ColorAdjust { get; protected set; } = -1;
+
+        [AvsArgument(Min = 0, Max = OverlayUtils.ENGINE_HISTORY_LENGTH)]
+        public override int ColorFramesCount { get; protected set; } = 0;
+
+        [AvsArgument(Min = 0)]
+        public override double ColorFramesDiff { get; protected set; } = 1;
+
+        [AvsArgument(Min = 0)]
+        public override double ColorMaxDeviation { get; protected set; } = 0.5;
 
         [AvsArgument]
         public override string AdjustChannels { get; protected set; }
@@ -104,10 +124,13 @@ namespace AutoOverlay
         [AvsArgument(Min = 0, Max = 100)]
         public override int BackBlur { get; protected set; } = 15;
 
-        protected override OverlayInfo GetOverlayInfo(int n)
+        [AvsArgument(Min = 8, Max = 16)]
+        public override int BitDepth { get; protected set; }
+
+        protected override List<OverlayInfo> GetOverlayInfo(int n)
         {
-            using (var infoFrame = Child.GetFrame(n, StaticEnv))
-                return OverlayInfo.FromFrame(infoFrame);
+            using var frame = Child.GetFrame(n, StaticEnv);
+            return OverlayInfo.FromFrame(frame);
         }
     }
 }

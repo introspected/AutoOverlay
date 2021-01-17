@@ -1,4 +1,4 @@
-﻿namespace AutoOverlay
+﻿namespace AutoOverlay.Forms
 {
     partial class OverlayEditor
     {
@@ -47,17 +47,27 @@
             this.grid = new System.Windows.Forms.DataGridView();
             this.Resolution = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Crop = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.Fixed = new System.Windows.Forms.DataGridViewCheckBoxColumn();
             this.panel2 = new System.Windows.Forms.Panel();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
-            this.btnPanScanFull = new System.Windows.Forms.Button();
+            this.gbScan = new System.Windows.Forms.GroupBox();
+            this.btnScanClip = new System.Windows.Forms.Button();
+            this.btnScanScene = new System.Windows.Forms.Button();
+            this.btnScanFrame = new System.Windows.Forms.Button();
+            this.gbAlign = new System.Windows.Forms.GroupBox();
+            this.btnAlignScene = new System.Windows.Forms.Button();
+            this.btnAlignSingle = new System.Windows.Forms.Button();
+            this.btnAlignFrame = new System.Windows.Forms.Button();
+            this.gbAdjust = new System.Windows.Forms.GroupBox();
+            this.btnAdjustClip = new System.Windows.Forms.Button();
+            this.btnAdjustScene = new System.Windows.Forms.Button();
+            this.btnAdjustFrame = new System.Windows.Forms.Button();
             this.label18 = new System.Windows.Forms.Label();
             this.label17 = new System.Windows.Forms.Label();
             this.nudScale = new System.Windows.Forms.NumericUpDown();
             this.nudDistance = new System.Windows.Forms.NumericUpDown();
-            this.btnPanScan = new System.Windows.Forms.Button();
-            this.btnAutoOverlayScene = new System.Windows.Forms.Button();
-            this.btnAutoOverlaySeparatedFrame = new System.Windows.Forms.Button();
-            this.btnAutoOverlaySingleFrame = new System.Windows.Forms.Button();
+            this.nudDeviation = new System.Windows.Forms.NumericUpDown();
+            this.label27 = new System.Windows.Forms.Label();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
             this.label25 = new System.Windows.Forms.Label();
             this.chbColorAdjust = new System.Windows.Forms.CheckBox();
@@ -84,6 +94,9 @@
             this.label22 = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.btnFix = new System.Windows.Forms.Button();
+            this.tbWarp = new System.Windows.Forms.TextBox();
+            this.label29 = new System.Windows.Forms.Label();
             this.nudCompare = new System.Windows.Forms.NumericUpDown();
             this.btnCompare = new System.Windows.Forms.Button();
             this.btnResetCrop = new System.Windows.Forms.Button();
@@ -104,6 +117,7 @@
             this.label10 = new System.Windows.Forms.Label();
             this.label14 = new System.Windows.Forms.Label();
             this.label7 = new System.Windows.Forms.Label();
+            this.label28 = new System.Windows.Forms.Label();
             this.label4 = new System.Windows.Forms.Label();
             this.label13 = new System.Windows.Forms.Label();
             this.label12 = new System.Windows.Forms.Label();
@@ -118,9 +132,6 @@
             this.btnDelete = new System.Windows.Forms.ToolStripButton();
             this.pictureBox = new System.Windows.Forms.PictureBox();
             this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
-            this.nudDeviation = new System.Windows.Forms.NumericUpDown();
-            this.label27 = new System.Windows.Forms.Label();
-            this.label28 = new System.Windows.Forms.Label();
             this.intervalDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.xDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.yDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
@@ -137,8 +148,12 @@
             ((System.ComponentModel.ISupportInitialize)(this.grid)).BeginInit();
             this.panel2.SuspendLayout();
             this.groupBox3.SuspendLayout();
+            this.gbScan.SuspendLayout();
+            this.gbAlign.SuspendLayout();
+            this.gbAdjust.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.nudScale)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudDistance)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudDeviation)).BeginInit();
             this.groupBox2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.tbColorAdjust)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.tbOpacity)).BeginInit();
@@ -159,7 +174,6 @@
             ((System.ComponentModel.ISupportInitialize)(this.nudOverlayWidth)).BeginInit();
             this.toolStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudDeviation)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.frameIntervalBindingSource)).BeginInit();
             this.SuspendLayout();
             // 
@@ -169,7 +183,7 @@
             this.panel1.Controls.Add(this.trackBar);
             this.panel1.Controls.Add(this.panel3);
             this.panel1.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.panel1.Location = new System.Drawing.Point(0, 575);
+            this.panel1.Location = new System.Drawing.Point(0, 615);
             this.panel1.Name = "panel1";
             this.panel1.Size = new System.Drawing.Size(1184, 26);
             this.panel1.TabIndex = 0;
@@ -179,7 +193,7 @@
             this.trackBar.Dock = System.Windows.Forms.DockStyle.Fill;
             this.trackBar.LargeChange = 500;
             this.trackBar.Location = new System.Drawing.Point(0, 0);
-            this.trackBar.Maximum = 100;
+            this.trackBar.Maximum = 999999;
             this.trackBar.Name = "trackBar";
             this.trackBar.Size = new System.Drawing.Size(753, 45);
             this.trackBar.TabIndex = 0;
@@ -276,7 +290,7 @@
             this.nudCurrentFrame.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.nudCurrentFrame.Location = new System.Drawing.Point(300, 2);
             this.nudCurrentFrame.Maximum = new decimal(new int[] {
-            1000000,
+            999999,
             0,
             0,
             0});
@@ -316,9 +330,9 @@
             this.panelManage.Controls.Add(this.grid);
             this.panelManage.Controls.Add(this.panel2);
             this.panelManage.Dock = System.Windows.Forms.DockStyle.Right;
-            this.panelManage.Location = new System.Drawing.Point(774, 0);
+            this.panelManage.Location = new System.Drawing.Point(744, 0);
             this.panelManage.Name = "panelManage";
-            this.panelManage.Size = new System.Drawing.Size(410, 575);
+            this.panelManage.Size = new System.Drawing.Size(440, 615);
             this.panelManage.TabIndex = 1;
             // 
             // grid
@@ -336,7 +350,8 @@
             this.Resolution,
             this.Crop,
             this.Angle,
-            this.diffDataGridViewTextBoxColumn});
+            this.diffDataGridViewTextBoxColumn,
+            this.Fixed});
             this.grid.DataSource = this.frameIntervalBindingSource;
             dataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle2.BackColor = System.Drawing.SystemColors.Window;
@@ -352,7 +367,7 @@
             this.grid.ReadOnly = true;
             this.grid.RowHeadersVisible = false;
             this.grid.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.grid.Size = new System.Drawing.Size(408, 185);
+            this.grid.Size = new System.Drawing.Size(438, 132);
             this.grid.TabIndex = 1;
             this.grid.VirtualMode = true;
             this.grid.CellValueNeeded += new System.Windows.Forms.DataGridViewCellValueEventHandler(this.grid_CellValueNeeded);
@@ -376,6 +391,14 @@
             this.Crop.ReadOnly = true;
             this.Crop.Width = 54;
             // 
+            // Fixed
+            // 
+            this.Fixed.DataPropertyName = "Fixed";
+            this.Fixed.HeaderText = "Fixed";
+            this.Fixed.Name = "Fixed";
+            this.Fixed.ReadOnly = true;
+            this.Fixed.Width = 38;
+            // 
             // panel2
             // 
             this.panel2.Controls.Add(this.groupBox3);
@@ -383,43 +406,168 @@
             this.panel2.Controls.Add(this.groupBox1);
             this.panel2.Controls.Add(this.toolStrip1);
             this.panel2.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.panel2.Location = new System.Drawing.Point(0, 185);
+            this.panel2.Location = new System.Drawing.Point(0, 132);
             this.panel2.Name = "panel2";
-            this.panel2.Size = new System.Drawing.Size(408, 388);
+            this.panel2.Size = new System.Drawing.Size(438, 481);
             this.panel2.TabIndex = 2;
             // 
             // groupBox3
             // 
-            this.groupBox3.Controls.Add(this.btnPanScanFull);
+            this.groupBox3.Controls.Add(this.gbScan);
+            this.groupBox3.Controls.Add(this.gbAlign);
+            this.groupBox3.Controls.Add(this.gbAdjust);
             this.groupBox3.Controls.Add(this.label18);
             this.groupBox3.Controls.Add(this.label17);
             this.groupBox3.Controls.Add(this.nudScale);
             this.groupBox3.Controls.Add(this.nudDistance);
-            this.groupBox3.Controls.Add(this.btnPanScan);
-            this.groupBox3.Controls.Add(this.btnAutoOverlayScene);
-            this.groupBox3.Controls.Add(this.btnAutoOverlaySeparatedFrame);
-            this.groupBox3.Controls.Add(this.btnAutoOverlaySingleFrame);
-            this.groupBox3.Location = new System.Drawing.Point(5, 111);
+            this.groupBox3.Controls.Add(this.nudDeviation);
+            this.groupBox3.Controls.Add(this.label27);
+            this.groupBox3.Location = new System.Drawing.Point(5, 155);
             this.groupBox3.Name = "groupBox3";
-            this.groupBox3.Size = new System.Drawing.Size(394, 78);
+            this.groupBox3.Size = new System.Drawing.Size(422, 130);
             this.groupBox3.TabIndex = 18;
             this.groupBox3.TabStop = false;
-            this.groupBox3.Text = "AutoOverlay";
+            this.groupBox3.Text = "Frame processing";
             // 
-            // btnPanScanFull
+            // gbScan
             // 
-            this.btnPanScanFull.Location = new System.Drawing.Point(321, 48);
-            this.btnPanScanFull.Name = "btnPanScanFull";
-            this.btnPanScanFull.Size = new System.Drawing.Size(67, 23);
-            this.btnPanScanFull.TabIndex = 8;
-            this.btnPanScanFull.Text = "Full clip";
-            this.btnPanScanFull.UseVisualStyleBackColor = true;
-            this.btnPanScanFull.Click += new System.EventHandler(this.btnPanScanFull_Click);
+            this.gbScan.Controls.Add(this.btnScanClip);
+            this.gbScan.Controls.Add(this.btnScanScene);
+            this.gbScan.Controls.Add(this.btnScanFrame);
+            this.gbScan.Location = new System.Drawing.Point(143, 19);
+            this.gbScan.Name = "gbScan";
+            this.gbScan.Size = new System.Drawing.Size(63, 106);
+            this.gbScan.TabIndex = 3;
+            this.gbScan.TabStop = false;
+            this.gbScan.Text = "Scan";
+            // 
+            // btnScanClip
+            // 
+            this.btnScanClip.BackColor = System.Drawing.SystemColors.MenuBar;
+            this.btnScanClip.Location = new System.Drawing.Point(6, 78);
+            this.btnScanClip.Name = "btnScanClip";
+            this.btnScanClip.Size = new System.Drawing.Size(51, 23);
+            this.btnScanClip.TabIndex = 0;
+            this.btnScanClip.Text = "Clip";
+            this.btnScanClip.UseVisualStyleBackColor = false;
+            this.btnScanClip.Click += new System.EventHandler(this.btnPanScanFull_Click);
+            // 
+            // btnScanScene
+            // 
+            this.btnScanScene.BackColor = System.Drawing.SystemColors.Info;
+            this.btnScanScene.Location = new System.Drawing.Point(6, 49);
+            this.btnScanScene.Name = "btnScanScene";
+            this.btnScanScene.Size = new System.Drawing.Size(51, 23);
+            this.btnScanScene.TabIndex = 0;
+            this.btnScanScene.Text = "Scene";
+            this.btnScanScene.UseVisualStyleBackColor = false;
+            this.btnScanScene.Click += new System.EventHandler(this.brnPanScan_Click);
+            // 
+            // btnScanFrame
+            // 
+            this.btnScanFrame.BackColor = System.Drawing.SystemColors.InactiveBorder;
+            this.btnScanFrame.Location = new System.Drawing.Point(6, 20);
+            this.btnScanFrame.Name = "btnScanFrame";
+            this.btnScanFrame.Size = new System.Drawing.Size(51, 23);
+            this.btnScanFrame.TabIndex = 0;
+            this.btnScanFrame.Text = "Frame";
+            this.btnScanFrame.UseVisualStyleBackColor = false;
+            this.btnScanFrame.Click += new System.EventHandler(this.btnScanFrame_Click);
+            // 
+            // gbAlign
+            // 
+            this.gbAlign.Controls.Add(this.btnAlignScene);
+            this.gbAlign.Controls.Add(this.btnAlignSingle);
+            this.gbAlign.Controls.Add(this.btnAlignFrame);
+            this.gbAlign.Location = new System.Drawing.Point(5, 19);
+            this.gbAlign.Name = "gbAlign";
+            this.gbAlign.Size = new System.Drawing.Size(63, 106);
+            this.gbAlign.TabIndex = 3;
+            this.gbAlign.TabStop = false;
+            this.gbAlign.Text = "Align";
+            // 
+            // btnAlignScene
+            // 
+            this.btnAlignScene.BackColor = System.Drawing.SystemColors.MenuBar;
+            this.btnAlignScene.Location = new System.Drawing.Point(6, 78);
+            this.btnAlignScene.Name = "btnAlignScene";
+            this.btnAlignScene.Size = new System.Drawing.Size(51, 23);
+            this.btnAlignScene.TabIndex = 0;
+            this.btnAlignScene.Text = "Scene";
+            this.btnAlignScene.UseVisualStyleBackColor = false;
+            this.btnAlignScene.Click += new System.EventHandler(this.btnAutoOverlayScene_Click);
+            // 
+            // btnAlignSingle
+            // 
+            this.btnAlignSingle.BackColor = System.Drawing.SystemColors.Info;
+            this.btnAlignSingle.Location = new System.Drawing.Point(6, 49);
+            this.btnAlignSingle.Name = "btnAlignSingle";
+            this.btnAlignSingle.Size = new System.Drawing.Size(51, 23);
+            this.btnAlignSingle.TabIndex = 0;
+            this.btnAlignSingle.Text = "Single";
+            this.btnAlignSingle.UseVisualStyleBackColor = false;
+            this.btnAlignSingle.Click += new System.EventHandler(this.btnAutoOverlaySeparatedFrame_Click);
+            // 
+            // btnAlignFrame
+            // 
+            this.btnAlignFrame.BackColor = System.Drawing.SystemColors.InactiveBorder;
+            this.btnAlignFrame.Location = new System.Drawing.Point(6, 20);
+            this.btnAlignFrame.Name = "btnAlignFrame";
+            this.btnAlignFrame.Size = new System.Drawing.Size(51, 23);
+            this.btnAlignFrame.TabIndex = 0;
+            this.btnAlignFrame.Text = "Frame";
+            this.btnAlignFrame.UseVisualStyleBackColor = false;
+            this.btnAlignFrame.Click += new System.EventHandler(this.btnAutoOverlaySingleFrame_Click);
+            // 
+            // gbAdjust
+            // 
+            this.gbAdjust.Controls.Add(this.btnAdjustClip);
+            this.gbAdjust.Controls.Add(this.btnAdjustScene);
+            this.gbAdjust.Controls.Add(this.btnAdjustFrame);
+            this.gbAdjust.Location = new System.Drawing.Point(74, 19);
+            this.gbAdjust.Name = "gbAdjust";
+            this.gbAdjust.Size = new System.Drawing.Size(63, 106);
+            this.gbAdjust.TabIndex = 3;
+            this.gbAdjust.TabStop = false;
+            this.gbAdjust.Text = "Adjust";
+            // 
+            // btnAdjustClip
+            // 
+            this.btnAdjustClip.BackColor = System.Drawing.SystemColors.MenuBar;
+            this.btnAdjustClip.Location = new System.Drawing.Point(6, 78);
+            this.btnAdjustClip.Name = "btnAdjustClip";
+            this.btnAdjustClip.Size = new System.Drawing.Size(51, 23);
+            this.btnAdjustClip.TabIndex = 0;
+            this.btnAdjustClip.Text = "Clip";
+            this.btnAdjustClip.UseVisualStyleBackColor = false;
+            this.btnAdjustClip.Click += new System.EventHandler(this.btnAdjustClip_Click);
+            // 
+            // btnAdjustScene
+            // 
+            this.btnAdjustScene.BackColor = System.Drawing.SystemColors.Info;
+            this.btnAdjustScene.Location = new System.Drawing.Point(6, 49);
+            this.btnAdjustScene.Name = "btnAdjustScene";
+            this.btnAdjustScene.Size = new System.Drawing.Size(51, 23);
+            this.btnAdjustScene.TabIndex = 0;
+            this.btnAdjustScene.Text = "Scene";
+            this.btnAdjustScene.UseVisualStyleBackColor = false;
+            this.btnAdjustScene.Click += new System.EventHandler(this.btnAdjust_Click);
+            // 
+            // btnAdjustFrame
+            // 
+            this.btnAdjustFrame.BackColor = System.Drawing.SystemColors.InactiveBorder;
+            this.btnAdjustFrame.Location = new System.Drawing.Point(6, 20);
+            this.btnAdjustFrame.Name = "btnAdjustFrame";
+            this.btnAdjustFrame.Size = new System.Drawing.Size(51, 23);
+            this.btnAdjustFrame.TabIndex = 0;
+            this.btnAdjustFrame.Text = "Frame";
+            this.btnAdjustFrame.UseVisualStyleBackColor = false;
+            this.btnAdjustFrame.Click += new System.EventHandler(this.btnAdjustFrame_Click);
             // 
             // label18
             // 
             this.label18.AutoSize = true;
-            this.label18.Location = new System.Drawing.Point(227, 54);
+            this.label18.Location = new System.Drawing.Point(245, 51);
             this.label18.Name = "label18";
             this.label18.Size = new System.Drawing.Size(51, 13);
             this.label18.TabIndex = 2;
@@ -428,7 +576,7 @@
             // label17
             // 
             this.label17.AutoSize = true;
-            this.label17.Location = new System.Drawing.Point(212, 24);
+            this.label17.Location = new System.Drawing.Point(230, 25);
             this.label17.Name = "label17";
             this.label17.Size = new System.Drawing.Size(66, 13);
             this.label17.TabIndex = 2;
@@ -436,14 +584,14 @@
             // 
             // nudScale
             // 
-            this.nudScale.Location = new System.Drawing.Point(280, 52);
+            this.nudScale.Location = new System.Drawing.Point(302, 49);
             this.nudScale.Maximum = new decimal(new int[] {
             999,
             0,
             0,
             0});
             this.nudScale.Name = "nudScale";
-            this.nudScale.Size = new System.Drawing.Size(38, 20);
+            this.nudScale.Size = new System.Drawing.Size(45, 20);
             this.nudScale.TabIndex = 1;
             this.nudScale.Value = new decimal(new int[] {
             3,
@@ -453,9 +601,9 @@
             // 
             // nudDistance
             // 
-            this.nudDistance.Location = new System.Drawing.Point(280, 22);
+            this.nudDistance.Location = new System.Drawing.Point(302, 23);
             this.nudDistance.Name = "nudDistance";
-            this.nudDistance.Size = new System.Drawing.Size(38, 20);
+            this.nudDistance.Size = new System.Drawing.Size(45, 20);
             this.nudDistance.TabIndex = 1;
             this.nudDistance.Value = new decimal(new int[] {
             2,
@@ -463,45 +611,33 @@
             0,
             0});
             // 
-            // btnPanScan
+            // nudDeviation
             // 
-            this.btnPanScan.Location = new System.Drawing.Point(321, 19);
-            this.btnPanScan.Name = "btnPanScan";
-            this.btnPanScan.Size = new System.Drawing.Size(67, 23);
-            this.btnPanScan.TabIndex = 0;
-            this.btnPanScan.Text = "Pan&&Scan";
-            this.btnPanScan.UseVisualStyleBackColor = true;
-            this.btnPanScan.Click += new System.EventHandler(this.brnPanScan_Click);
+            this.nudDeviation.DecimalPlaces = 2;
+            this.nudDeviation.Increment = new decimal(new int[] {
+            1,
+            0,
+            0,
+            65536});
+            this.nudDeviation.Location = new System.Drawing.Point(302, 75);
+            this.nudDeviation.Maximum = new decimal(new int[] {
+            99,
+            0,
+            0,
+            0});
+            this.nudDeviation.Name = "nudDeviation";
+            this.nudDeviation.Size = new System.Drawing.Size(45, 20);
+            this.nudDeviation.TabIndex = 11;
+            this.nudDeviation.ValueChanged += new System.EventHandler(this.Reset);
             // 
-            // btnAutoOverlayScene
+            // label27
             // 
-            this.btnAutoOverlayScene.Location = new System.Drawing.Point(115, 19);
-            this.btnAutoOverlayScene.Name = "btnAutoOverlayScene";
-            this.btnAutoOverlayScene.Size = new System.Drawing.Size(58, 53);
-            this.btnAutoOverlayScene.TabIndex = 0;
-            this.btnAutoOverlayScene.Text = "Scene";
-            this.btnAutoOverlayScene.UseVisualStyleBackColor = true;
-            this.btnAutoOverlayScene.Click += new System.EventHandler(this.btnAutoOverlayScene_Click);
-            // 
-            // btnAutoOverlaySeparatedFrame
-            // 
-            this.btnAutoOverlaySeparatedFrame.Location = new System.Drawing.Point(6, 49);
-            this.btnAutoOverlaySeparatedFrame.Name = "btnAutoOverlaySeparatedFrame";
-            this.btnAutoOverlaySeparatedFrame.Size = new System.Drawing.Size(103, 23);
-            this.btnAutoOverlaySeparatedFrame.TabIndex = 0;
-            this.btnAutoOverlaySeparatedFrame.Text = "Separated frame";
-            this.btnAutoOverlaySeparatedFrame.UseVisualStyleBackColor = true;
-            this.btnAutoOverlaySeparatedFrame.Click += new System.EventHandler(this.btnAutoOverlaySeparatedFrame_Click);
-            // 
-            // btnAutoOverlaySingleFrame
-            // 
-            this.btnAutoOverlaySingleFrame.Location = new System.Drawing.Point(6, 19);
-            this.btnAutoOverlaySingleFrame.Name = "btnAutoOverlaySingleFrame";
-            this.btnAutoOverlaySingleFrame.Size = new System.Drawing.Size(103, 23);
-            this.btnAutoOverlaySingleFrame.TabIndex = 0;
-            this.btnAutoOverlaySingleFrame.Text = "Single frame";
-            this.btnAutoOverlaySingleFrame.UseVisualStyleBackColor = true;
-            this.btnAutoOverlaySingleFrame.Click += new System.EventHandler(this.btnAutoOverlaySingleFrame_Click);
+            this.label27.AutoSize = true;
+            this.label27.Location = new System.Drawing.Point(223, 77);
+            this.label27.Name = "label27";
+            this.label27.Size = new System.Drawing.Size(73, 13);
+            this.label27.TabIndex = 3;
+            this.label27.Text = "Max deviation";
             // 
             // groupBox2
             // 
@@ -519,7 +655,6 @@
             this.groupBox2.Controls.Add(this.label24);
             this.groupBox2.Controls.Add(this.label6);
             this.groupBox2.Controls.Add(this.nudNoiseSize);
-            this.groupBox2.Controls.Add(this.nudDeviation);
             this.groupBox2.Controls.Add(this.nudGradientSize);
             this.groupBox2.Controls.Add(this.label1);
             this.groupBox2.Controls.Add(this.label2);
@@ -528,12 +663,11 @@
             this.groupBox2.Controls.Add(this.label5);
             this.groupBox2.Controls.Add(this.nudOutputHeight);
             this.groupBox2.Controls.Add(this.label26);
-            this.groupBox2.Controls.Add(this.label27);
             this.groupBox2.Controls.Add(this.label22);
             this.groupBox2.Controls.Add(this.label3);
-            this.groupBox2.Location = new System.Drawing.Point(5, 195);
+            this.groupBox2.Location = new System.Drawing.Point(5, 293);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(394, 165);
+            this.groupBox2.Size = new System.Drawing.Size(422, 157);
             this.groupBox2.TabIndex = 17;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Display settings";
@@ -541,7 +675,7 @@
             // label25
             // 
             this.label25.AutoSize = true;
-            this.label25.Location = new System.Drawing.Point(193, 130);
+            this.label25.Location = new System.Drawing.Point(375, 130);
             this.label25.Name = "label25";
             this.label25.Size = new System.Drawing.Size(41, 13);
             this.label25.TabIndex = 3;
@@ -550,7 +684,7 @@
             // chbColorAdjust
             // 
             this.chbColorAdjust.AutoSize = true;
-            this.chbColorAdjust.Location = new System.Drawing.Point(68, 130);
+            this.chbColorAdjust.Location = new System.Drawing.Point(188, 130);
             this.chbColorAdjust.Name = "chbColorAdjust";
             this.chbColorAdjust.Size = new System.Drawing.Size(15, 14);
             this.chbColorAdjust.TabIndex = 9;
@@ -566,14 +700,15 @@
             this.chbRGB.TabIndex = 9;
             this.chbRGB.Text = "RGB";
             this.chbRGB.UseVisualStyleBackColor = true;
+            this.chbRGB.CheckedChanged += new System.EventHandler(this.Render);
             // 
             // tbColorAdjust
             // 
             this.tbColorAdjust.LargeChange = 25;
-            this.tbColorAdjust.Location = new System.Drawing.Point(120, 124);
+            this.tbColorAdjust.Location = new System.Drawing.Point(257, 124);
             this.tbColorAdjust.Maximum = 100;
             this.tbColorAdjust.Name = "tbColorAdjust";
-            this.tbColorAdjust.Size = new System.Drawing.Size(74, 45);
+            this.tbColorAdjust.Size = new System.Drawing.Size(113, 45);
             this.tbColorAdjust.SmallChange = 10;
             this.tbColorAdjust.TabIndex = 8;
             this.tbColorAdjust.TickFrequency = 50;
@@ -583,10 +718,10 @@
             // tbOpacity
             // 
             this.tbOpacity.LargeChange = 25;
-            this.tbOpacity.Location = new System.Drawing.Point(284, 124);
+            this.tbOpacity.Location = new System.Drawing.Point(252, 73);
             this.tbOpacity.Maximum = 100;
             this.tbOpacity.Name = "tbOpacity";
-            this.tbOpacity.Size = new System.Drawing.Size(110, 45);
+            this.tbOpacity.Size = new System.Drawing.Size(118, 45);
             this.tbOpacity.SmallChange = 10;
             this.tbOpacity.TabIndex = 8;
             this.tbOpacity.TickFrequency = 50;
@@ -598,7 +733,7 @@
             this.chbDebug.AutoSize = true;
             this.chbDebug.Checked = true;
             this.chbDebug.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.chbDebug.Location = new System.Drawing.Point(307, 19);
+            this.chbDebug.Location = new System.Drawing.Point(284, 19);
             this.chbDebug.Name = "chbDebug";
             this.chbDebug.Size = new System.Drawing.Size(80, 17);
             this.chbDebug.TabIndex = 7;
@@ -612,7 +747,7 @@
             this.chbPreview.AutoSize = true;
             this.chbPreview.Checked = true;
             this.chbPreview.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.chbPreview.Location = new System.Drawing.Point(307, 0);
+            this.chbPreview.Location = new System.Drawing.Point(219, 19);
             this.chbPreview.Name = "chbPreview";
             this.chbPreview.Size = new System.Drawing.Size(64, 17);
             this.chbPreview.TabIndex = 3;
@@ -666,7 +801,7 @@
             // label23
             // 
             this.label23.AutoSize = true;
-            this.label23.Location = new System.Drawing.Point(6, 130);
+            this.label23.Location = new System.Drawing.Point(119, 130);
             this.label23.Name = "label23";
             this.label23.Size = new System.Drawing.Size(63, 13);
             this.label23.TabIndex = 3;
@@ -675,7 +810,7 @@
             // label24
             // 
             this.label24.AutoSize = true;
-            this.label24.Location = new System.Drawing.Point(87, 130);
+            this.label24.Location = new System.Drawing.Point(212, 130);
             this.label24.Name = "label24";
             this.label24.Size = new System.Drawing.Size(39, 13);
             this.label24.TabIndex = 3;
@@ -684,7 +819,7 @@
             // label6
             // 
             this.label6.AutoSize = true;
-            this.label6.Location = new System.Drawing.Point(240, 130);
+            this.label6.Location = new System.Drawing.Point(208, 79);
             this.label6.Name = "label6";
             this.label6.Size = new System.Drawing.Size(43, 13);
             this.label6.TabIndex = 3;
@@ -837,6 +972,9 @@
             // 
             // groupBox1
             // 
+            this.groupBox1.Controls.Add(this.btnFix);
+            this.groupBox1.Controls.Add(this.tbWarp);
+            this.groupBox1.Controls.Add(this.label29);
             this.groupBox1.Controls.Add(this.nudCompare);
             this.groupBox1.Controls.Add(this.btnCompare);
             this.groupBox1.Controls.Add(this.btnResetCrop);
@@ -863,10 +1001,38 @@
             this.groupBox1.Controls.Add(this.label12);
             this.groupBox1.Location = new System.Drawing.Point(5, 6);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(394, 99);
+            this.groupBox1.Size = new System.Drawing.Size(422, 143);
             this.groupBox1.TabIndex = 16;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Overlay settings";
+            // 
+            // btnFix
+            // 
+            this.btnFix.Location = new System.Drawing.Point(257, 17);
+            this.btnFix.Name = "btnFix";
+            this.btnFix.Size = new System.Drawing.Size(80, 23);
+            this.btnFix.TabIndex = 18;
+            this.btnFix.Text = "Fix";
+            this.btnFix.UseVisualStyleBackColor = true;
+            this.btnFix.Click += new System.EventHandler(this.btnFix_Click);
+            // 
+            // tbWarp
+            // 
+            this.tbWarp.Location = new System.Drawing.Point(50, 99);
+            this.tbWarp.Multiline = true;
+            this.tbWarp.Name = "tbWarp";
+            this.tbWarp.Size = new System.Drawing.Size(366, 36);
+            this.tbWarp.TabIndex = 17;
+            this.tbWarp.TextChanged += new System.EventHandler(this.Render);
+            // 
+            // label29
+            // 
+            this.label29.AutoSize = true;
+            this.label29.Location = new System.Drawing.Point(4, 102);
+            this.label29.Name = "label29";
+            this.label29.Size = new System.Drawing.Size(33, 13);
+            this.label29.TabIndex = 16;
+            this.label29.Text = "Warp";
             // 
             // nudCompare
             // 
@@ -876,14 +1042,14 @@
             0,
             0,
             196608});
-            this.nudCompare.Location = new System.Drawing.Point(316, 45);
+            this.nudCompare.Location = new System.Drawing.Point(343, 45);
             this.nudCompare.Maximum = new decimal(new int[] {
             1,
             0,
             0,
             0});
             this.nudCompare.Name = "nudCompare";
-            this.nudCompare.Size = new System.Drawing.Size(75, 20);
+            this.nudCompare.Size = new System.Drawing.Size(73, 20);
             this.nudCompare.TabIndex = 15;
             this.nudCompare.Value = new decimal(new int[] {
             999,
@@ -894,9 +1060,9 @@
             // 
             // btnCompare
             // 
-            this.btnCompare.Location = new System.Drawing.Point(313, 17);
+            this.btnCompare.Location = new System.Drawing.Point(343, 17);
             this.btnCompare.Name = "btnCompare";
-            this.btnCompare.Size = new System.Drawing.Size(75, 23);
+            this.btnCompare.Size = new System.Drawing.Size(73, 23);
             this.btnCompare.TabIndex = 14;
             this.btnCompare.Text = "Compare";
             this.btnCompare.UseVisualStyleBackColor = true;
@@ -906,7 +1072,7 @@
             // 
             this.btnResetCrop.Location = new System.Drawing.Point(343, 70);
             this.btnResetCrop.Name = "btnResetCrop";
-            this.btnResetCrop.Size = new System.Drawing.Size(44, 23);
+            this.btnResetCrop.Size = new System.Drawing.Size(73, 23);
             this.btnResetCrop.TabIndex = 13;
             this.btnResetCrop.Text = "Reset";
             this.btnResetCrop.UseVisualStyleBackColor = true;
@@ -1185,6 +1351,15 @@
             this.label7.TabIndex = 9;
             this.label7.Text = "L";
             // 
+            // label28
+            // 
+            this.label28.AutoSize = true;
+            this.label28.Location = new System.Drawing.Point(301, 47);
+            this.label28.Name = "label28";
+            this.label28.Size = new System.Drawing.Size(39, 13);
+            this.label28.TabIndex = 9;
+            this.label28.Text = "Min eq";
+            // 
             // label4
             // 
             this.label4.AutoSize = true;
@@ -1224,9 +1399,9 @@
             this.btnJoinPrev,
             this.btnSeparate,
             this.btnDelete});
-            this.toolStrip1.Location = new System.Drawing.Point(0, 363);
+            this.toolStrip1.Location = new System.Drawing.Point(0, 456);
             this.toolStrip1.Name = "toolStrip1";
-            this.toolStrip1.Size = new System.Drawing.Size(408, 25);
+            this.toolStrip1.Size = new System.Drawing.Size(438, 25);
             this.toolStrip1.TabIndex = 14;
             this.toolStrip1.Text = "toolStrip1";
             // 
@@ -1325,47 +1500,10 @@
             this.pictureBox.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pictureBox.Location = new System.Drawing.Point(0, 0);
             this.pictureBox.Name = "pictureBox";
-            this.pictureBox.Size = new System.Drawing.Size(774, 575);
+            this.pictureBox.Size = new System.Drawing.Size(744, 615);
             this.pictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.pictureBox.TabIndex = 2;
             this.pictureBox.TabStop = false;
-            // 
-            // nudDeviation
-            // 
-            this.nudDeviation.DecimalPlaces = 2;
-            this.nudDeviation.Increment = new decimal(new int[] {
-            1,
-            0,
-            0,
-            65536});
-            this.nudDeviation.Location = new System.Drawing.Point(295, 72);
-            this.nudDeviation.Maximum = new decimal(new int[] {
-            99,
-            0,
-            0,
-            0});
-            this.nudDeviation.Name = "nudDeviation";
-            this.nudDeviation.Size = new System.Drawing.Size(60, 20);
-            this.nudDeviation.TabIndex = 11;
-            this.nudDeviation.ValueChanged += new System.EventHandler(this.Reset);
-            // 
-            // label27
-            // 
-            this.label27.AutoSize = true;
-            this.label27.Location = new System.Drawing.Point(216, 74);
-            this.label27.Name = "label27";
-            this.label27.Size = new System.Drawing.Size(73, 13);
-            this.label27.TabIndex = 3;
-            this.label27.Text = "Max deviation";
-            // 
-            // label28
-            // 
-            this.label28.AutoSize = true;
-            this.label28.Location = new System.Drawing.Point(274, 47);
-            this.label28.Name = "label28";
-            this.label28.Size = new System.Drawing.Size(39, 13);
-            this.label28.TabIndex = 9;
-            this.label28.Text = "Min eq";
             // 
             // intervalDataGridViewTextBoxColumn
             // 
@@ -1417,10 +1555,12 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1184, 601);
+            this.ClientSize = new System.Drawing.Size(1184, 641);
             this.Controls.Add(this.pictureBox);
             this.Controls.Add(this.panelManage);
             this.Controls.Add(this.panel1);
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            this.MinimumSize = new System.Drawing.Size(1000, 680);
             this.Name = "OverlayEditor";
             this.Text = "Overlay Editor";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.OverlayEditor_FormClosing);
@@ -1440,8 +1580,12 @@
             this.panel2.PerformLayout();
             this.groupBox3.ResumeLayout(false);
             this.groupBox3.PerformLayout();
+            this.gbScan.ResumeLayout(false);
+            this.gbAlign.ResumeLayout(false);
+            this.gbAdjust.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.nudScale)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudDistance)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudDeviation)).EndInit();
             this.groupBox2.ResumeLayout(false);
             this.groupBox2.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.tbColorAdjust)).EndInit();
@@ -1465,7 +1609,6 @@
             this.toolStrip1.ResumeLayout(false);
             this.toolStrip1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudDeviation)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.frameIntervalBindingSource)).EndInit();
             this.ResumeLayout(false);
 
@@ -1525,9 +1668,6 @@
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Button btnResetCrop;
         private System.Windows.Forms.GroupBox groupBox3;
-        private System.Windows.Forms.Button btnAutoOverlayScene;
-        private System.Windows.Forms.Button btnAutoOverlaySeparatedFrame;
-        private System.Windows.Forms.Button btnAutoOverlaySingleFrame;
         private System.Windows.Forms.ToolStripButton btnJoinTo;
         private System.Windows.Forms.ToolStripButton btnJoinNext;
         private System.Windows.Forms.ToolStripButton btnJoinPrev;
@@ -1536,8 +1676,6 @@
         private System.Windows.Forms.Label label17;
         private System.Windows.Forms.NumericUpDown nudScale;
         private System.Windows.Forms.NumericUpDown nudDistance;
-        private System.Windows.Forms.Button btnPanScan;
-        private System.Windows.Forms.Button btnPanScanFull;
         private System.Windows.Forms.ToolStripButton btnDelete;
         private System.Windows.Forms.NumericUpDown nudMinFrame;
         private System.Windows.Forms.NumericUpDown nudMaxFrame;
@@ -1556,6 +1694,13 @@
         private System.Windows.Forms.Button btnCompare;
         private System.Windows.Forms.OpenFileDialog openFileDialog1;
         private System.Windows.Forms.NumericUpDown nudCompare;
+        private System.Windows.Forms.ComboBox cbOverlayMode;
+        private System.Windows.Forms.Label label26;
+        private System.Windows.Forms.NumericUpDown nudDeviation;
+        private System.Windows.Forms.Label label27;
+        private System.Windows.Forms.Label label28;
+        private System.Windows.Forms.TextBox tbWarp;
+        private System.Windows.Forms.Label label29;
         private System.Windows.Forms.DataGridViewTextBoxColumn intervalDataGridViewTextBoxColumn;
         private System.Windows.Forms.DataGridViewTextBoxColumn xDataGridViewTextBoxColumn;
         private System.Windows.Forms.DataGridViewTextBoxColumn yDataGridViewTextBoxColumn;
@@ -1563,10 +1708,19 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn Crop;
         private System.Windows.Forms.DataGridViewTextBoxColumn Angle;
         private System.Windows.Forms.DataGridViewTextBoxColumn diffDataGridViewTextBoxColumn;
-        private System.Windows.Forms.ComboBox cbOverlayMode;
-        private System.Windows.Forms.Label label26;
-        private System.Windows.Forms.NumericUpDown nudDeviation;
-        private System.Windows.Forms.Label label27;
-        private System.Windows.Forms.Label label28;
+        private System.Windows.Forms.DataGridViewCheckBoxColumn Fixed;
+        private System.Windows.Forms.Button btnFix;
+        private System.Windows.Forms.Button btnAdjustFrame;
+        private System.Windows.Forms.GroupBox gbAdjust;
+        private System.Windows.Forms.Button btnAdjustClip;
+        private System.Windows.Forms.Button btnAdjustScene;
+        private System.Windows.Forms.GroupBox gbScan;
+        private System.Windows.Forms.Button btnScanClip;
+        private System.Windows.Forms.Button btnScanScene;
+        private System.Windows.Forms.Button btnScanFrame;
+        private System.Windows.Forms.GroupBox gbAlign;
+        private System.Windows.Forms.Button btnAlignScene;
+        private System.Windows.Forms.Button btnAlignSingle;
+        private System.Windows.Forms.Button btnAlignFrame;
     }
 }

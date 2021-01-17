@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Drawing;
 
-namespace AutoOverlay
+namespace AutoOverlay.Overlay
 {
     public struct SizeD
     {

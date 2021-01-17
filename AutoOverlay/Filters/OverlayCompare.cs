@@ -1,4 +1,5 @@
 ﻿using AutoOverlay;
+using AutoOverlay.AviSynth;
 using AvsFilterNet;
 
 [assembly: AvisynthFilterClass(typeof(OverlayCompare),

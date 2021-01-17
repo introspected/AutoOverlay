@@ -52,6 +52,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="WarpTest.cs" />
+    <Compile Include="DynamicEnvironmentTest.cs" />
     <Compile Include="ColorAdjustTest.cs" />
     <Compile Include="EnumTests.cs" />
     <Compile Include="FilterDescGenerator.cs" />

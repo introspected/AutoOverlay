@@ -1,5 +1,6 @@
 ﻿using AutoOverlay;
 using AutoOverlay.Filters;
+using AutoOverlay.Histogram;
 using AvsFilterNet;
 using NUnit.Framework;
 

@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace AutoOverlay
+namespace AutoOverlay.AviSynth
 {
     public class FrameEventArgs : EventArgs
     {

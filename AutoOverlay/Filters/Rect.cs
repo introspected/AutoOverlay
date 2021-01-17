@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using AutoOverlay;
+using AutoOverlay.AviSynth;
 using AvsFilterNet;
 
 [assembly: AvisynthFilterClass(typeof(Rect), nameof(Rect), "iiii[Debug]b", MtMode.NICE_FILTER)]

@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
 using AutoOverlay;
+using AutoOverlay.AviSynth;
 using AvsFilterNet;
 
 [assembly: AvisynthFilterClass(

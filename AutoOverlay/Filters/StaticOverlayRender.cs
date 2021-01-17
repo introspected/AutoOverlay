@@ -1,14 +1,18 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Threading.Tasks;
 using AutoOverlay;
+using AutoOverlay.AviSynth;
+using AutoOverlay.Overlay;
 using AvsFilterNet;
 
 [assembly: AvisynthFilterClass(typeof(StaticOverlayRender),
     nameof(StaticOverlayRender),
-    "cc[X]i[Y]i[Angle]f[OverlayWidth]i[OverlayHeight]i[CropLeft]f[CropTop]f[CropRight]f[CropBottom]f[Diff]f" +
+    "cc[X]i[Y]i[Angle]f[OverlayWidth]i[OverlayHeight]i[CropLeft]f[CropTop]f[CropRight]f[CropBottom]f[WarpPoints]s[Diff]f" +
     "[SourceMask]c[OverlayMask]c[OverlayMode]s[Width]i[Height]i[PixelType]s[Gradient]i[Noise]i[DynamicNoise]b[BorderOffset]c[SrcColorBorderOffset]c[OverColorBorderOffset]c" +
-    "[Mode]i[Opacity]f[ColorAdjust]f[AdjustChannels]s[Matrix]s[Upsize]s[Downsize]s[Rotate]s[SIMD]b[Debug]b[Invert]b[Extrapolation]b[BlankColor]i[Background]f[BackBlur]i",
+    "[Mode]i[Opacity]f[ColorAdjust]f[ColorFramesCount]i[ColorFramesDiff]f[AdjustChannels]s[Matrix]s[Upsize]s[Downsize]s[Rotate]s[SIMD]b[Debug]b" +
+    "[Invert]b[Extrapolation]b[BlankColor]i[Background]f[BackBlur]i[BitDepth]i",
     OverlayUtils.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
@@ -46,6 +50,9 @@ namespace AutoOverlay
 
         [AvsArgument(Min = 0)]
         public double CropBottom { get; private set; }
+
+        [AvsArgument]
+        public string WarpPoints { get; private set; }
 
         [AvsArgument]
         public double Diff { get; private set; }
@@ -95,6 +102,12 @@ namespace AutoOverlay
         [AvsArgument(Min = -1, Max = 1)]
         public override double ColorAdjust { get; protected set; } = -1;
 
+        [AvsArgument(Min = 0, Max = OverlayUtils.ENGINE_HISTORY_LENGTH)]
+        public override int ColorFramesCount { get; protected set; } = 0;
+
+        [AvsArgument(Min = 0)]
+        public override double ColorFramesDiff { get; protected set; } = 2;
+
         [AvsArgument]
         public override string AdjustChannels { get; protected set; }
 
@@ -131,6 +144,13 @@ namespace AutoOverlay
         [AvsArgument(Min = 0, Max = 100)]
         public override int BackBlur { get; protected set; } = 15;
 
+        [AvsArgument(Min = 8, Max = 16)]
+        public override int BitDepth { get; protected set; }
+
+        public override int BorderControl { get; protected set; }
+        public override double BorderMaxDeviation { get; protected set; }
+        public override double ColorMaxDeviation { get; protected set; } = 1;
+
         private OverlayInfo overlaySettings;
 
         protected override void Initialize(AVSValue args)
@@ -149,7 +169,8 @@ namespace AutoOverlay
                 BaseWidth = overInfo.width,
                 BaseHeight = overInfo.height,
                 SourceWidth = srcInfo.width,
-                SourceHeight = srcInfo.height
+                SourceHeight = srcInfo.height,
+                Warp = Warp.Parse(WarpPoints)
             };
             overlaySettings.SetCrop(RectangleF.FromLTRB(
                 (float) CropLeft,
@@ -158,11 +179,11 @@ namespace AutoOverlay
                 (float) CropBottom));
         }
 
-        protected override OverlayInfo GetOverlayInfo(int n)
+        protected override List<OverlayInfo> GetOverlayInfo(int n)
         {
             var info = overlaySettings.Clone();
             info.FrameNumber = n;
-            return info;
+            return new List<OverlayInfo> {info};
         }
     }
 }

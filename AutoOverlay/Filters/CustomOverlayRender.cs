@@ -1,5 +1,7 @@
-﻿using System.Threading.Tasks;
+﻿using System.Linq;
+using System.Threading.Tasks;
 using AutoOverlay;
+using AutoOverlay.AviSynth;
 using AvsFilterNet;
 
 [assembly: AvisynthFilterClass(typeof(CustomOverlayRender),
@@ -46,7 +48,7 @@ namespace AutoOverlay
             OverlayInfo info;
             lock (Child)
                 using (var infoFrame = Child.GetFrame(n, StaticEnv))
-                    info = OverlayInfo.FromFrame(infoFrame);
+                    info = OverlayInfo.FromFrame(infoFrame).First();
             var crop = info.GetCrop();
             var hybrid = DynamicEnv.Invoke(Function,
                 Engine, Source, Overlay, info.X, info.Y, info.Angle / 100.0, info.Width, info.Height, 

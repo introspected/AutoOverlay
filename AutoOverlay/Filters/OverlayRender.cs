@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Linq;
 using System.Threading.Tasks;
+using AutoOverlay.Filters;
+using AutoOverlay.Histogram;
 using AutoOverlay.Overlay;
 using AvsFilterNet;
 
@@ -23,6 +26,8 @@ namespace AutoOverlay
         public abstract int Gradient { get; protected set; }
         public abstract int Noise { get; protected set; }
         public abstract bool DynamicNoise { get; protected set; }
+        public abstract int BorderControl { get; protected set; }
+        public abstract double BorderMaxDeviation { get; protected set; }
         public abstract Rectangle BorderOffset { get; protected set; }
         public abstract Rectangle SrcColorBorderOffset { get; protected set; }
         public abstract Rectangle OverColorBorderOffset { get; protected set; }
@@ -32,12 +37,16 @@ namespace AutoOverlay
         public abstract string Downsize { get; protected set; }
         public abstract string Rotate { get; protected set; }
         public abstract double ColorAdjust { get; protected set; }
+        public abstract int ColorFramesCount { get; protected set; }
+        public abstract double ColorFramesDiff { get; protected set; }
+        public abstract double ColorMaxDeviation { get; protected set; }
         public abstract string Matrix { get; protected set; }
         public abstract bool Invert { get; protected set; }
         public abstract bool Extrapolation { get; protected set; }
         public abstract int BlankColor { get; protected set; }
         public abstract double Background { get; protected set; }
         public abstract int BackBlur { get; protected set; }
+        public abstract int BitDepth { get; protected set; }
         public abstract bool SIMD { get; protected set; }
         #endregion
 
@@ -47,7 +56,7 @@ namespace AutoOverlay
 
         private readonly List<OverlayContext> contexts = new List<OverlayContext>();
 
-        protected abstract OverlayInfo GetOverlayInfo(int n);
+        protected abstract List<OverlayInfo> GetOverlayInfo(int n);
 
         protected override void Initialize(AVSValue args)
         {
@@ -62,6 +71,13 @@ namespace AutoOverlay
             {
                 Initialize(Source, Overlay);
             }
+            var cacheSize = ColorFramesCount * 2 + 1;
+            var cacheKey = StaticEnv.GetEnv2() == null ? CacheType.CACHE_25_ALL : CacheType.CACHE_GENERIC;
+            Child.SetCacheHints(cacheKey, cacheSize);
+            Source.SetCacheHints(cacheKey, cacheSize);
+            Overlay.SetCacheHints(cacheKey, cacheSize);
+            SourceMask?.SetCacheHints(cacheKey, cacheSize);
+            OverlayMask?.SetCacheHints(cacheKey, cacheSize);
         }
 
         private void Initialize(Clip src, Clip over)
@@ -76,9 +92,11 @@ namespace AutoOverlay
                 vi.height = Height;
             var srcBitDepth = srcInfo.pixel_type.GetBitDepth();
             var overBitDepth = overInfo.pixel_type.GetBitDepth();
+            if (vi.pixel_type.HasFlag(ColorSpaces.CS_UPlaneFirst))
+                vi.pixel_type = (vi.pixel_type ^ ColorSpaces.CS_UPlaneFirst) | ColorSpaces.CS_VPlaneFirst;
             if (srcBitDepth != overBitDepth && ColorAdjust > 0 && ColorAdjust < 1)
                 throw new AvisynthException("ColorAdjust -1, 0, 1 only allowed when video bit depth is different");
-            var targetBitDepth = ColorAdjust >= 1 - double.Epsilon ? overBitDepth : srcBitDepth;
+            var targetBitDepth = BitDepth > 0 ? BitDepth : ColorAdjust >= 1 - double.Epsilon ? overBitDepth : srcBitDepth;
             vi.pixel_type = vi.pixel_type.ChangeBitDepth(targetBitDepth);
             vi.num_frames = Child.GetVideoInfo().num_frames;
             planes = OverlayUtils.GetPlanes(vi.pixel_type);
@@ -88,6 +106,8 @@ namespace AutoOverlay
 
         protected override void AfterInitialize()
         {
+            BorderMaxDeviation /= 100.0;
+            ColorMaxDeviation /= 100.0;
             var withoutSubSample = GetVideoInfo().pixel_type.WithoutSubSample() &&
                              Source.GetVideoInfo().pixel_type.WithoutSubSample() &&
                              Overlay.GetVideoInfo().pixel_type.WithoutSubSample();
@@ -103,13 +123,14 @@ namespace AutoOverlay
 
         protected override VideoFrame GetFrame(int n)
         {
-            var info = GetOverlayInfo(n);//.Resize(Source.GetSize(), Overlay.GetSize());
+            var history = GetOverlayInfo(n);
             if (Invert)
-                info = info.Invert();
+                history.ForEach(p => p.Invert());
+            var info = history.First();//.Resize(Source.GetSize(), Overlay.GetSize());
 
             var res = NewVideoFrame(StaticEnv);
 
-            var outClips = contexts.Select(ctx => RenderFrame(ctx, info));
+            var outClips = contexts.Select(ctx => RenderFrame(ctx, history));
 
             //outClips = contexts.Select(ctx => ctx.Source);
 
@@ -142,94 +163,84 @@ namespace AutoOverlay
             return res;
         }
 
-        protected dynamic RenderFrame(OverlayContext ctx, OverlayInfo info)
+        protected dynamic RenderFrame(OverlayContext ctx, List<OverlayInfo> history)
         {
-            info = info.Resize(ctx.SourceInfo.Size, ctx.OverlayInfo.Size);
+            var frameCtx = new FrameContext(ctx, history.First());
+            var currentFrame = frameCtx.Info.FrameNumber;
 
-            var src = ctx.Source;
-            var over = ctx.Overlay;
-            var srcSize = ctx.SourceInfo.Size;
-            var overSize = ctx.OverlayInfo.Size;
-
-            if (Mode == FramingMode.Fit && srcSize != ctx.TargetInfo.Size)
+            if (ctx.AdjustColor && Mode != FramingMode.Mask)
             {
-                info = info.Resize(ctx.TargetInfo.Size, overSize);
-                src = src.Invoke(srcSize.GetArea() < ctx.TargetInfo.Size.GetArea() ? Upsize : Downsize, ctx.TargetInfo.Width, ctx.TargetInfo.Height);
-                srcSize = ctx.TargetInfo.Size;
-            }
+                frameCtx.Source = AdjustClip(ColorAdjust, p => p.Source, p => p.SourceTest, p => p.OverlayTest, p => p.MaskTest, ctx.SourceCache);
+                frameCtx.Overlay = AdjustClip(1 - ColorAdjust, p => p.Overlay, p => p.OverlayTest, p => p.SourceTest, p => p.MaskTest, ctx.OverlayCache);
 
-            if (Mode == FramingMode.Fit)
-            {
-               info = info.Shrink(srcSize, overSize);
-            }
-
-            var resizeFunc = info.Width > overSize.Width ? Upsize : Downsize;
-
-            var crop = info.GetCrop();
-
-            if (!crop.IsEmpty || info.Width != overSize.Width || info.Height != overSize.Height)
-            {
-                over = ResizeRotate(over, resizeFunc, null, info.Width, info.Height, 0, crop);
-            }
-            var overMask = ctx.OverlayMask?.Dynamic().BicubicResize(info.Width, info.Height);
-
-
-            if (ColorAdjust > -double.Epsilon && Mode != FramingMode.Mask)
-            {
-                Func<dynamic, bool, dynamic> adjCrop = (clp, invert) =>
+                dynamic AdjustClip(double intensity, Func<FrameContext, dynamic> source, Func<FrameContext, dynamic> sample, 
+                    Func<FrameContext, dynamic> reference, Func<FrameContext, dynamic> mask, HistogramCache cache)
                 {
-                    var sign = invert ? -1 : 1;
-                    return clp?.Crop(
-                        Math.Max(SrcColorBorderOffset.Left, sign*(info.X + OverColorBorderOffset.Left)),
-                        Math.Max(SrcColorBorderOffset.Top, sign*(info.Y + OverColorBorderOffset.Top)),
-                        -Math.Max(SrcColorBorderOffset.Right, sign * (srcSize.Width - info.X - info.Width + OverColorBorderOffset.Right)),
-                        -Math.Max(SrcColorBorderOffset.Bottom, sign * (srcSize.Height - info.Y - info.Height + OverColorBorderOffset.Bottom)));
-                };
-
-                var srcTest = adjCrop(src, false);
-                var overTest = adjCrop(over, true);
-                var maskTest = adjCrop(ctx.SourceMask, false);
-                if (overMask != null)
-                {
-                    var input = (maskTest ?? GetBlankClip(src, true).Dynamic())
-                        .Overlay(overMask, info.X, info.Y, mode: "darken");
-                    maskTest = adjCrop(input, true);
-                }
-                if (!GetVideoInfo().IsRGB() && !string.IsNullOrEmpty(Matrix))
-                {
-                    srcTest = srcTest.ConvertToRgb24(matrix: Matrix);
-                    overTest = overTest.ConvertToRgb24(matrix: Matrix);
-                    maskTest = maskTest?.ConvertToRgb24(matrix: Matrix);
-                    if (ColorAdjust > double.Epsilon)
-                        src = src.ConvertToRgb24(matrix: Matrix);
-                    if (ColorAdjust < 1 - double.Epsilon)
-                        over = over.ConvertToRgb24(matrix: Matrix);
-                }
-                if (ColorAdjust > double.Epsilon)
-                {
-                    src = src.ColorAdjust(srcTest, overTest, maskTest, maskTest, intensity: ColorAdjust, 
-                        channels: AdjustChannels, debug: Debug, SIMD: SIMD, extrapolation: Extrapolation, dynamicNoise: DynamicNoise);
+                    if (intensity <= double.Epsilon || intensity - 1 >= double.Epsilon)
+                        return source(frameCtx);
+                    if (ColorFramesCount > 0)
+                        using (new VideoFrameCollector())
+                        {
+                            var frames = new SortedSet<int>();
+                            foreach (var nearInfo in new[] {-1, 0, 1}.SelectMany(sign =>
+                                history
+                                    .Where(p => Math.Abs(p.FrameNumber - currentFrame) <= ColorFramesCount)
+                                    .Where(p => p.FrameNumber.CompareTo(currentFrame) == sign)
+                                    .OrderBy(p => sign * p.FrameNumber)
+                                    .TakeWhile((p, i) =>
+                                        p.FrameNumber == (currentFrame + i * sign + sign) &&
+                                        (!p.KeyFrame || p.FrameNumber == currentFrame) &&
+                                        p.NearlyEquals(history.First(), ColorMaxDeviation))))
+                            {
+                                var nearCtx = new FrameContext(ctx, nearInfo);
+                                var nearFrame = nearInfo.FrameNumber;
+                                var colorMask = new Lazy<VideoFrame>(() => mask?.Invoke(nearCtx)?[nearFrame]);
+                                cache.GetFrame(nearFrame,
+                                    () => Extrapolation ? source(nearCtx)[nearFrame] : null,
+                                    () => sample(nearCtx)[nearFrame],
+                                    () => reference(nearCtx)[nearFrame],
+                                    () => colorMask.Value,
+                                    () => colorMask.Value);
+                                frames.Add(nearInfo.FrameNumber);
+                            }
+                            cache = cache.SubCache(frames.First(), frames.Last());
+                        }
+                    var res = source(frameCtx).ColorAdjust(sample(frameCtx), reference(frameCtx), mask(frameCtx), mask(frameCtx), 
+                        intensity: intensity, channels: ctx.AdjustChannels, debug: Debug, SIMD: SIMD, extrapolation: Extrapolation, 
+                        cacheId: cache?.Id, adjacentFramesCount: ColorFramesCount, adjacentFramesDiff: ColorFramesDiff, dynamicNoise: DynamicNoise);
                     if (!GetVideoInfo().IsRGB() && !string.IsNullOrEmpty(Matrix))
-                        src = src.ConvertToYV24(matrix: Matrix);
-                }
-                if (ColorAdjust < 1 - double.Epsilon)
-                {
-                    over = over.ColorAdjust(overTest, srcTest, maskTest, maskTest, intensity: 1 - ColorAdjust, 
-                        channels: AdjustChannels, debug: Debug, SIMD: SIMD, extrapolation: Extrapolation, dynamicNoise: DynamicNoise);
-                    if (!GetVideoInfo().IsRGB() && !string.IsNullOrEmpty(Matrix))
-                        over = over.ConvertToYV24(matrix: Matrix);
+                        res = res.ConvertToYV24(matrix: Matrix);
+                    return res;
                 }
             }
+
+            var info = frameCtx.Info;
+            var src = frameCtx.Source;
+            var over = frameCtx.Overlay;
+            var overMask = frameCtx.OverlayMask;
+            var srcSize = frameCtx.SourceSize;
 
             dynamic GetOverMask(int length, bool gradientMask, bool noiseMask)
             {
+                var checkFrames = new[] {-1, 0, 1}.SelectMany(sign =>
+                    history
+                        .Where(p => Math.Abs(p.FrameNumber - info.FrameNumber) <= BorderControl)
+                        .Where(p => p.FrameNumber.CompareTo(info.FrameNumber) == sign)
+                        .OrderBy(p => sign * p.FrameNumber)
+                        .TakeWhile((p, i) => 
+                            p.FrameNumber == (info.FrameNumber + i * sign + sign) &&
+                            (!p.KeyFrame || p.FrameNumber == currentFrame) &&
+                            p.NearlyEquals(history.First(), BorderMaxDeviation))).ToList();
+
+                int GetLength(Func<OverlayInfo, bool> func) => checkFrames.Any(func) ? length : 0;
+
                 return over.OverlayMask(
-                    left: info.X > BorderOffset.Left ? length : 0,
-                    top: info.Y > BorderOffset.Top ? length : 0,
-                    right: srcSize.Width - info.X - info.Width > BorderOffset.Right ? length : 0,
-                    bottom: srcSize.Height - info.Y - info.Height > BorderOffset.Bottom ? length : 0,
+                    left: GetLength(p => p.X > BorderOffset.Left),
+                    top: GetLength(p => p.Y > BorderOffset.Top),
+                    right: GetLength(p => p.SourceWidth - p.X - p.Width > BorderOffset.Right),
+                    bottom: GetLength(p => p.SourceHeight - p.Y - p.Height > BorderOffset.Bottom),
                     gradient: gradientMask, noise: noiseMask,
-                    seed: DynamicNoise ? info.FrameNumber : 0);
+                    seed: DynamicNoise ? info.FrameNumber + (int) ctx.Plane : 0);
             }
 
             dynamic GetSourceMask(int length, bool gradientMask, bool noiseMask)
@@ -245,15 +256,15 @@ namespace AutoOverlay
 
             dynamic GetMask(Func<int, bool, bool, dynamic> func)
             {
-                if (Gradient > 0 && Gradient == Noise)
-                    return func(Gradient, true, true);
+                //if (Gradient > 0 && Gradient == Noise)
+                //    return func(Gradient, true, true);
                 dynamic mask = null;
                 if (Gradient > 0)
                     mask = func(Gradient, true, false);
                 if (Noise > 0)
                 {
                     var noiseMask = func(Noise, false, true);
-                    mask = mask == null ? noiseMask : mask.Overlay(noiseMask, mode: "darken");
+                    mask = mask == null ? noiseMask : noiseMask.Overlay(mask, mode: "lighten").Overlay(mask, mask: mask.Invert()); //mask.Overlay(noiseMask, mode: "darken");
                 }
                 return mask;
             }
@@ -286,7 +297,7 @@ namespace AutoOverlay
                             mask = mask.Overlay(Rotate(ctx.SourceMask.Invert(), true), -info.X, -info.Y, mode: "lighten");
                         if (mask == null && info.Angle != 0)
                             mask = ((Clip) GetBlankClip(over, true)).Dynamic();
-                        return Opacity < double.Epsilon ? src : src.Overlay(Rotate(over, false), info.X, info.Y, mask: Rotate(mask, false), opacity: Opacity, mode: OverlayMode);
+                        return Opacity <= double.Epsilon ? src : src.Overlay(Rotate(over, false), info.X, info.Y, mask: Rotate(mask, false), opacity: Opacity, mode: OverlayMode);
                     }
                 case FramingMode.Fill:
                     {

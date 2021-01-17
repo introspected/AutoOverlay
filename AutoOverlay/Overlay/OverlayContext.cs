@@ -1,5 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using AutoOverlay.AviSynth;
+using AutoOverlay.Histogram;
 using AvsFilterNet;
 
 namespace AutoOverlay.Overlay
@@ -11,6 +14,8 @@ namespace AutoOverlay.Overlay
         public dynamic SourceMask { get; }
         public dynamic OverlayMask { get; }
 
+        public OverlayRender Render { get; }
+
         public StaticContext Static { get; }
 
         public ExtraVideoInfo SourceInfo { get; }
@@ -21,16 +26,26 @@ namespace AutoOverlay.Overlay
 
         public YUVPlanes Plane { get; }
 
+        public bool AdjustColor { get; }
+        public string AdjustChannels { get; }
+
         public FramingMode Mode { get; }
         public int DefaultColor { get; }
         public int BlankColor { get; }
+
+        public HistogramCache SourceCache { get; }
+        public HistogramCache OverlayCache { get; }
 
         private readonly HashSet<IDisposable> disposables = new HashSet<IDisposable>();
 
         public OverlayContext(OverlayRender render, YUVPlanes plane)
         {
+            Render = render;
             Plane = plane;
             Mode = render.Mode;
+            AdjustColor = render.ColorAdjust > -double.Epsilon &&
+                          (string.IsNullOrEmpty(render.AdjustChannels) || 
+                           (render.AdjustChannels.ToUpper() + default(YUVPlanes).GetLetter()).Contains(plane.GetLetter()));
 
             Static = render.Invert
                 ? new StaticContext(render.Overlay, render.Source, render.OverlayMask, render.SourceMask, plane)
@@ -70,6 +85,25 @@ namespace AutoOverlay.Overlay
                 BlankColor <<= 16;
             BlankColor &= 0xFFFFFF;
 
+            if (AdjustColor)
+            {
+                AdjustChannels = plane == default ? render.AdjustChannels : YUVPlanes.PLANAR_Y.GetLetter();
+
+                if (render.ColorFramesCount > 0)
+                {
+                    var planes = TargetInfo.ColorSpace.HasFlag(ColorSpaces.CS_INTERLEAVED)
+                        ? new[] { default(YUVPlanes) }
+                        : (AdjustChannels ?? "yuv").ToCharArray()
+                        .Select(p => Enum.Parse(typeof(YUVPlanes), "PLANAR_" + p, true))
+                        .Cast<YUVPlanes>().ToArray();
+                    var channels = TargetInfo.ColorSpace.HasFlag(ColorSpaces.CS_PLANAR)
+                        ? new[] { 0 }
+                        : (AdjustChannels ?? "rgb").ToLower().ToCharArray().Select(p => "bgr".IndexOf(p)).ToArray();
+                    SourceCache = new HistogramCache(planes, channels, 0, render.SIMD, true, SourceInfo.ColorSpace, OverlayInfo.ColorSpace, SourceInfo.ColorSpace, render.ColorFramesCount);
+                    OverlayCache = new HistogramCache(planes, channels, 0, render.SIMD, true, OverlayInfo.ColorSpace, SourceInfo.ColorSpace, OverlayInfo.ColorSpace, render.ColorFramesCount);
+                }
+            }
+
             dynamic PrepareMask(Clip mask, ExtraVideoInfo target)
             {
                 if (mask != null)
@@ -83,8 +117,6 @@ namespace AutoOverlay.Overlay
 
                 return mask?.Dynamic();
             }
-
-            int Round(double val) => (int) Math.Round(val);
         }
 
         public FrameParams CalcFrame(OverlayInfo info)
@@ -116,6 +148,10 @@ namespace AutoOverlay.Overlay
             {
                 disposable?.Dispose();
             }
+            if (SourceCache != null)
+                HistogramCache.Dispose(SourceCache.Id);
+            if (OverlayCache != null)
+                HistogramCache.Dispose(OverlayCache.Id);
         }
 
         public class StaticContext

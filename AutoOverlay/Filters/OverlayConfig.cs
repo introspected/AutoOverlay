@@ -1,13 +1,17 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
+using System.Linq;
 using AutoOverlay;
+using AutoOverlay.AviSynth;
 using AvsFilterNet;
 
 [assembly: AvisynthFilterClass(typeof(OverlayConfig),
     nameof(OverlayConfig),
     "[MinOverlayArea]f[MinSourceArea]f[AspectRatio1]f[AspectRatio2]f[Angle1]f[Angle2]f" +
-    "[MinSampleArea]i[RequiredSampleArea]i[MaxSampleDiff]f[Subpixel]i[ScaleBase]f" +
-    "[Branches]i[BranchMaxDiff]f[AcceptableDiff]f[Correction]i" +
+    "[WarpPoints]c[WarpSteps]i[WarpOffset]i[MinSampleArea]i[RequiredSampleArea]i[MaxSampleDiff]f" +
+    "[Subpixel]i[ScaleBase]f[Branches]i[BranchMaxDiff]f[AcceptableDiff]f[Correction]i" +
     "[MinX]i[MaxX]i[MinY]i[MaxY]i[MinArea]i[MaxArea]i[FixedAspectRatio]b[Debug]b",
     MtMode.SERIALIZED)]
 namespace AutoOverlay
@@ -32,6 +36,15 @@ namespace AutoOverlay
 
         [AvsArgument(Min = -360, Max = 360)]
         public double Angle2 { get; set; }
+
+        [AvsArgument(Max = 16)]
+        public List<Rectangle> WarpPoints { get; set; } = new List<Rectangle>();
+
+        [AvsArgument(Min = 1, Max = 10)]
+        public int WarpSteps { get; set; } = 3;
+
+        [AvsArgument(Min = 0, Max = 5)]
+        public int WarpOffset { get; set; } = 0;
 
         [AvsArgument(Min = 1)]
         public int MinSampleArea { get; set; } = 1500;
@@ -59,6 +72,12 @@ namespace AutoOverlay
 
         [AvsArgument(Min = 0, Max = 100)]
         public int Correction { get; set; } = 1;
+
+        //[AvsArgument(Min = 0, Max = 10)]
+        //public double StickLevel { get; set; } = 0.05;
+
+        //[AvsArgument(Min = 0, Max = 10)]
+        //public double StickDistance { get; set; } = 1;
 
         [AvsArgument]
         public int MinX { get; set; } = short.MinValue;
@@ -116,6 +135,8 @@ namespace AutoOverlay
                     writer.Write(Branches);
                     writer.Write(AcceptableDiff);
                     writer.Write(Correction);
+                    //writer.Write(StickLevel);
+                    //writer.Write(StickDistance);
                     writer.Write(MinX);
                     writer.Write(MaxX);
                     writer.Write(MinY);
@@ -124,6 +145,16 @@ namespace AutoOverlay
                     writer.Write(MaxArea);
                     writer.Write(FixedAspectRatio);
                     writer.Write(BranchMaxDiff);
+                    writer.Write(WarpSteps);
+                    writer.Write(WarpOffset);
+                    writer.Write(WarpPoints.Count);
+                    foreach (var point in WarpPoints)
+                    {
+                        writer.Write(point.X);
+                        writer.Write(point.Y);
+                        writer.Write(point.Right);
+                        writer.Write(point.Bottom);
+                    }
                 }
             }
             return frame;
@@ -156,6 +187,8 @@ namespace AutoOverlay
                         Branches = reader.ReadInt32(),
                         AcceptableDiff = reader.ReadDouble(),
                         Correction = reader.ReadInt32(),
+                        //StickLevel = reader.ReadDouble(),
+                        //StickDistance = reader.ReadDouble(),
                         MinX = reader.ReadInt32(),
                         MaxX = reader.ReadInt32(),
                         MinY = reader.ReadInt32(),
@@ -163,7 +196,15 @@ namespace AutoOverlay
                         MinArea = reader.ReadInt32(),
                         MaxArea = reader.ReadInt32(),
                         FixedAspectRatio = reader.ReadBoolean(),
-                        BranchMaxDiff = reader.ReadDouble()
+                        BranchMaxDiff = reader.ReadDouble(),
+                        WarpSteps = reader.ReadInt32(),
+                        WarpOffset = reader.ReadInt32(),
+                        WarpPoints = new List<Rectangle>(Enumerable.Range(0, reader.ReadInt32())
+                            .Select(i => new Rectangle(
+                                reader.ReadInt32(),
+                                reader.ReadInt32(),
+                                reader.ReadInt32(),
+                                reader.ReadInt32())))
                     };
                 }
             }

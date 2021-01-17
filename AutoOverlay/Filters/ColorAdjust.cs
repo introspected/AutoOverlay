@@ -3,14 +3,17 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AutoOverlay;
+using AutoOverlay.AviSynth;
 using AutoOverlay.Filters;
+using AutoOverlay.Histogram;
 using AvsFilterNet;
 using MathNet.Numerics.Interpolation;
 
 [assembly: AvisynthFilterClass(
     typeof(ColorAdjust), nameof(ColorAdjust),
-    "c[Sample]c[Reference]c[SampleMask]c[ReferenceMask]c[Intensity]f[LimitedRange]b" +
-    "[Channels]s[Dither]f[Exclude]f[Interpolation]s[Extrapolation]b[DynamicNoise]b[SIMD]b[Debug]b",
+    "c[Sample]c[Reference]c[SampleMask]c[ReferenceMask]c[Intensity]f" +
+    "[AdjacentFramesCount]i[AdjacentFramesDiff]f[LimitedRange]b[Channels]s[Dither]f[Exclude]f" +
+    "[Interpolation]s[Extrapolation]b[DynamicNoise]b[SIMD]b[Debug]b[CacheId]s",
     OverlayUtils.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
@@ -31,6 +34,12 @@ namespace AutoOverlay
         [AvsArgument(Min = 0, Max = 1)]
         public double Intensity { get; set; } = 1;
 
+        [AvsArgument(Min = 0, Max = OverlayUtils.ENGINE_HISTORY_LENGTH)]
+        public int AdjacentFramesCount { get; set; } = 0;
+
+        [AvsArgument(Min = 0)]
+        public double AdjacentFramesDiff { get; set; } = 1;
+
         [AvsArgument]
         public bool LimitedRange { get; set; } = true;
 
@@ -44,7 +53,7 @@ namespace AutoOverlay
         public double Exclude { get; set; } = 0;
 
         [AvsArgument]
-        public ColorInterpolation Interpolation { get; set; } = ColorInterpolation.Spline;
+        public ColorInterpolation Interpolation { get; set; } = ColorInterpolation.Linear; //ColorInterpolation.Spline;
 
         [AvsArgument]
         public bool Extrapolation { get; protected set; } = false;
@@ -57,11 +66,15 @@ namespace AutoOverlay
 
         [AvsArgument]
         public override bool Debug { get; protected set; }
-        
-        private const int tr = 0;
+
+        [AvsArgument]
+        public string CacheId { get; protected set; }
+
         private YUVPlanes[] planes;
         private int[] realChannels;
         private int sampleBits, referenceBits;
+
+        private HistogramCache histogramCache;
 
         protected override void Initialize(AVSValue args)
         {
@@ -73,14 +86,14 @@ namespace AutoOverlay
             realChannels = GetVideoInfo().IsPlanar()
                 ? new[] {0}
                 : (Channels ?? "rgb").ToLower().ToCharArray().Select(p => "bgr".IndexOf(p)).ToArray();
-            if (!OverlayUtils.IsRealPlanar(Child))
+            if (!Child.IsRealPlanar())
                 planes = new[] { default(YUVPlanes) };
             sampleBits = Sample.GetVideoInfo().pixel_type.GetBitDepth();
             referenceBits = Reference.GetVideoInfo().pixel_type.GetBitDepth();
             var vi = GetVideoInfo();
             vi.pixel_type = vi.pixel_type.ChangeBitDepth(referenceBits);
             SetVideoInfo(ref vi);
-            var cacheSize = tr * 2 + 1;
+            var cacheSize = AdjacentFramesCount * 2 + 1;
             var cacheKey = StaticEnv.GetEnv2() == null ? CacheType.CACHE_25_ALL : CacheType.CACHE_GENERIC;
             Child.SetCacheHints(cacheKey, cacheSize);
             Sample.SetCacheHints(cacheKey, cacheSize);
@@ -89,6 +102,15 @@ namespace AutoOverlay
             ReferenceMask?.SetCacheHints(cacheKey, cacheSize);
             if (Intensity < 1 && sampleBits != referenceBits)
                 throw new AvisynthException("Intensity < 1 is not allowed when sample and reference bit depth are not equal");
+
+            histogramCache = !string.IsNullOrEmpty(CacheId)
+                ? HistogramCache.Get(CacheId)
+                : new HistogramCache(planes, realChannels, Exclude, SIMD, LimitedRange,
+                    Sample.GetVideoInfo().pixel_type, Reference.GetVideoInfo().pixel_type,
+                    Child.GetVideoInfo().pixel_type, AdjacentFramesCount);
+
+            if (histogramCache == null)
+                throw new AvisynthException($"$Histogram cache with ID: {CacheId} not found");
         }
 
         public int GetLowColor(int bits)
@@ -111,61 +133,134 @@ namespace AutoOverlay
             var input = Child.GetFrame(n, StaticEnv);
             if (Intensity <= double.Epsilon)
                 return input;
-            var sampleFrames = Enumerable.Range(n - tr, tr * 2 + 1).Select(p => Sample.GetFrame(p, StaticEnv)).ToList();
-            var referenceFrames = Enumerable.Range(n - tr, tr * 2 + 1).Select(p => Reference.GetFrame(p, StaticEnv)).ToList();
-            var inputFrames = tr == 0
-                ? new List<VideoFrame> {input}
-                : Enumerable.Range(n - tr, tr * 2 + 1).Select(p => Child.GetFrame(p, StaticEnv)).ToList();
             var writable = GetVideoInfo().pixel_type == Child.GetVideoInfo().pixel_type && StaticEnv.MakeWritable(input);
             var output = writable ? input : NewVideoFrame(StaticEnv);
-            using (var sampleMaskFrame = SampleMask?.GetFrame(n, StaticEnv))
-            using (var refMaskFrame = ReferenceMask?.GetFrame(n, StaticEnv))
+            var pixelSize = Sample.GetVideoInfo().IsRGB() ? 3 : 1;
+            var firstFrame = Math.Max(0, n - AdjacentFramesCount);
+            var lastFrame = Math.Min(Child.GetVideoInfo().num_frames - 1, n + AdjacentFramesCount);
+            var dimensions = new[]
             {
-                var pixelSize = Sample.GetVideoInfo().IsRGB() ? 3 : 1;
-                Parallel.ForEach(planes, plane =>
+                Enumerable.Range(n, lastFrame - n + 1),
+                Enumerable.Range(firstFrame, n - firstFrame)
+            }.SelectMany(range => range.Select(frame =>
+            {
+                using (new VideoFrameCollector())
+                    return string.IsNullOrEmpty(CacheId) || frame == n
+                        ? histogramCache.GetFrame(frame,
+                            () => Extrapolation ? (frame == n ? input : Child.GetFrame(frame, StaticEnv)) : null,
+                            () => Sample.GetFrame(frame, StaticEnv),
+                            () => Reference.GetFrame(frame, StaticEnv),
+                            () => SampleMask?.GetFrame(frame, StaticEnv),
+                            () => ReferenceMask?.GetFrame(frame, StaticEnv))
+                        : histogramCache[frame];
+            }).TakeWhile(dims =>
+            {
+                var current = histogramCache[n];
+                return dims != null && current.All(pair =>
+                    current == dims ||
+                    CompareHist(dims[pair.Key].DiffHist, pair.Value.DiffHist) < AdjacentFramesDiff);
+            }).SelectMany(p => p)).ToList();
+            Parallel.ForEach(planes, plane =>
+            {
+                Parallel.ForEach(realChannels, channel =>
                 {
-                    Parallel.ForEach(realChannels, channel =>
+                    var currentDimensions = dimensions
+                        .Where(p => p.Key.Equal(plane, channel))
+                        .Select(p => p.Value).ToArray();
+                    var sampleHist = AverageHist(sampleBits, currentDimensions.Select(p => p.SampleHist).ToArray());
+                    var referenceHist = AverageHist(referenceBits, currentDimensions.Select(p => p.ReferenceHist).ToArray());
+
+                    var map = GetTransitionMap(sampleHist, referenceHist, n, plane);
+
+                    if (Extrapolation)
                     {
-                        int[] sampleHist = null, referenceHist = null, srcHist = null;
+                        var srcHist = AverageHist(referenceBits, currentDimensions.Select(p => p.InputHist).ToArray());
+                        Extrapolate(map, srcHist, GetLowColor(referenceBits), GetHighColor(referenceBits, plane));
+                    }
 
-                        Parallel.Invoke(
-                            () => sampleHist = GetHistogram(sampleFrames, sampleMaskFrame, pixelSize, channel, plane, Sample.GetVideoInfo().pixel_type, sampleBits, false),
-                            () => referenceHist = GetHistogram(referenceFrames, refMaskFrame, pixelSize, channel, plane, Reference.GetVideoInfo().pixel_type, referenceBits, LimitedRange),
-                            () => srcHist = Extrapolation ? GetHistogram(inputFrames, null, pixelSize, channel, plane, Child.GetVideoInfo().pixel_type, sampleBits, LimitedRange) : null);
+                    Interpolate(map, GetLowColor(referenceBits), GetHighColor(referenceBits, plane), sampleBits, referenceBits);
 
-                        var map = GetTransitionMap(sampleHist, referenceHist, n, plane);
-
-                        if (Extrapolation)
-                            Extrapolate(map, srcHist, GetLowColor(referenceBits), GetHighColor(referenceBits, plane));
-
-                        Interpolate(map, GetLowColor(referenceBits), GetHighColor(referenceBits, plane), sampleBits, referenceBits);
-
-                        if (Intensity < 1)
+                    if (Intensity < 1)
+                    {
+                        var decreased = new ColorMap(sampleBits, n, Dither);
+                        for (var color = 0; color < 1 << sampleBits; color++)
                         {
-                            var decreased = new ColorMap(sampleBits, n, Dither);
-                            for (var color = 0; color < 1 << sampleBits; color++)
-                            {
-                                decreased.Add(color, map.Average(color) * Intensity + color * (1 - Intensity));
-                            }
-                            map = decreased;
+                            decreased.Add(color, map.Average(color) * Intensity + color * (1 - Intensity));
                         }
+                        map = decreased;
+                    }
 
-                        var tuple = map.GetColorsAndWeights();
+                    var tuple = map.GetColorsAndWeights();
 
-                        NativeUtils.ApplyColorMap(DynamicNoise ? n : 0,
-                            input.GetReadPtr(plane), input.GetPitch(plane), sampleBits > 8,
-                            output.GetWritePtr(plane), output.GetPitch(plane), referenceBits > 8,
-                            input.GetRowSize(plane), input.GetHeight(plane), pixelSize, channel,
-                            map.FixedMap, tuple.Item1, tuple.Item2);
-                    });
+                    NativeUtils.ApplyColorMap(DynamicNoise ? n : 0,
+                        input.GetReadPtr(plane), input.GetPitch(plane), sampleBits > 8,
+                        output.GetWritePtr(plane), output.GetPitch(plane), referenceBits > 8,
+                        input.GetRowSize(plane), input.GetHeight(plane), pixelSize, channel,
+                        map.FixedMap, tuple.Item1, tuple.Item2);
                 });
-            }
+            });
 
             if (!writable)
                 input.Dispose();
-            sampleFrames.ForEach(p => p.Dispose());
-            referenceFrames.ForEach(p => p.Dispose()) ;
             return output;
+        }
+
+        private int[] AverageHist(int bits, params int[][] histograms)
+        {
+            if (histograms.Length == 1)
+                return histograms[0];
+            var hist = new int[1 << bits];
+            var total = 0;
+            int max = -1;
+            int maxIndex = -1;
+            unsafe
+            {
+                fixed (int* buffer = hist)
+                {
+                    var length = hist.Length;
+                    for (var i = 0; i < length; i++)
+                    {
+                        var current = buffer[i] = histograms.Sum(hist => hist[i] / histograms.Length);
+                        total += current;
+                        if (current > max)
+                        {
+                            max = current;
+                            maxIndex = i;
+                        }
+                    }
+                }
+            }
+            hist[maxIndex] += int.MaxValue - total;
+            return hist;
+        }
+
+        private double CompareHist(int[] first, int[] second)
+        {
+            if (first.Length != second.Length)
+                throw new ArgumentException();
+            var squaredSum = 0.0;
+            var length = first.Length;
+            var divider = (double) int.MaxValue / first.Length;
+            unsafe
+            {
+                fixed (int* buffer1 = first)
+                fixed (int* buffer2 = second)
+                {
+                    for (var i = 0; i < length; i++)
+                    {
+                        var diff = (buffer1[i] - buffer2[i]) / divider;
+                        squaredSum += diff * diff;
+                    }
+                }
+            }
+            squaredSum /= length;
+            //var squaredSum = Enumerable.Range(0, first.Length)
+            //    .Select(i => first[i] - second[i])
+            //    .Select(diff => diff >> 23)
+            //    .Sum(diff => Math.Pow(diff, 2)) / first.Length;
+            var val = Math.Sqrt(squaredSum);
+            Log(() => $"HIST DIFF: {val}");
+            return val;
         }
 
         private void Extrapolate(ColorMap map, int[] srcHist, int minColor, int maxColor)
@@ -177,9 +272,9 @@ namespace AutoOverlay
             var last = map.Last();
 
             var sampleCount = last - first + 1;
-            var mappedColors = Enumerable.Range(first, sampleCount).Where(map.Contains);
+            var mappedColors = Enumerable.Range(first, sampleCount).Where(map.Contains);//.Where(p => srcHist[p] > 50);
             var mappedCount = mappedColors.Count();
-            var limit = Math.Max(mappedCount / 10, Math.Min(mappedCount, 10));
+            var limit = Math.Max(mappedCount / 5, Math.Min(mappedCount, 10));
 
 
             if (min < first)
@@ -293,81 +388,10 @@ namespace AutoOverlay
             return map;
         }
 
-        private int[] GetUniHistogram(uint[] hist)
+        protected override void Dispose(bool A_0)
         {
-            var uni = new int[hist.Length];
-            var total = (uint) hist.Cast<int>().Sum();
-            var newRest = int.MaxValue;
-            for (var color = 0; color < hist.Length; color++)
-            {
-                if (hist[color] / (double) total < Exclude)
-                {
-                    total -= hist[color];
-                    hist[color] = 0;
-                }
-            }
-            var mult = int.MaxValue / (double) total;
-            var rest = total;
-            var max = new
-            {
-                Color = -1,
-                Count = 0
-            };
-            for (var color = 0; color < hist.Length; color++)
-            {
-                var old = hist[color];
-                rest -= old;
-                var expanded = (int) Math.Round(old * mult);
-                //if (total == 0)
-                //    expanded = newTotal;
-                newRest -= expanded;
-                uni[color] = expanded;
-                if (expanded > max.Count)
-                {
-                    max = new
-                    {
-                        Color = color,
-                        Count = expanded
-                    };
-                }
-            }
-            uni[max.Color] += newRest;
-            if (uni.Sum() != int.MaxValue)
-                throw new InvalidOperationException();
-            return uni;
-        }
-
-        private int[] GetHistogram(IEnumerable<VideoFrame> frames, VideoFrame maskFrame, int pixelSize, int channel, YUVPlanes plane, ColorSpaces pixelType, int bits, bool limitedRange)
-        {
-            var hist = new uint[1 << bits];
-            var chroma = plane == YUVPlanes.PLANAR_U || plane == YUVPlanes.PLANAR_V;
-            var widthMult = chroma ? pixelType.GetWidthSubsample() : 1;
-            var heightMult = chroma ? pixelType.GetHeightSubsample() : 1;
-            var maskPitch = maskFrame?.GetPitch() * heightMult ?? 0;
-            var maskPtr = maskFrame?.GetReadPtr() + channel ?? IntPtr.Zero;
-            foreach (var frame in frames)
-            {
-                NativeUtils.FillHistogram(hist,
-                    frame.GetRowSize(plane), frame.GetHeight(plane), channel,
-                    frame.GetReadPtr(plane), frame.GetPitch(plane), pixelSize,
-                    maskPtr, maskPitch, widthMult, SIMD);
-            }
-            if (limitedRange)
-            {
-                var min = GetLowColor(bits);
-                for (var color = 0; color < min ; color++)
-                {
-                    hist[min] += hist[color];
-                    hist[color] = 0;
-                }
-                var max = GetHighColor(bits, plane);
-                for (var color = max + 1; color < 1 << bits; color++)
-                {
-                    hist[max] += hist[color];
-                    hist[color] = 0;
-                }
-            }
-            return GetUniHistogram(hist);
+            base.Dispose(A_0);
+            HistogramCache.Dispose(histogramCache.Id);
         }
     }
 }

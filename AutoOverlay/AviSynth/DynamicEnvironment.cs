@@ -1,27 +1,29 @@
 ﻿using System;
 using System.Collections;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing;
 using System.Dynamic;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
+using AutoOverlay.Overlay;
 using AvsFilterNet;
 
-namespace AutoOverlay
+namespace AutoOverlay.AviSynth
 {
     public class DynamicEnvironment : DynamicObject, IDisposable
     {
+        public static string LastError { get; set; }
+
         static DynamicEnvironment()
         {
+            contexts = new ThreadLocal<Stack<DynamicEnvironment>>(() => new Stack<DynamicEnvironment>());
 #if DEBUG
             Thread.CurrentThread.CurrentUICulture = new CultureInfo("en-US");
 #endif
         }
 
-        private static readonly ThreadLocal<Stack<DynamicEnvironment>> contexts = new ThreadLocal<Stack<DynamicEnvironment>>(() => new Stack<DynamicEnvironment>());
+        private static readonly ThreadLocal<Stack<DynamicEnvironment>> contexts;
 
         private readonly Dictionary<Key, Tuple<AVSValue, Clip, object>> cache;
 
@@ -69,7 +71,7 @@ namespace AutoOverlay
 
         ~DynamicEnvironment()
         {
-            //DisposeImpl();
+            DisposeImpl();
         }
 
         public DynamicEnvironment Detach()
@@ -81,19 +83,19 @@ namespace AutoOverlay
 
         public void Dispose()
         {
-            //GC.SuppressFinalize(this);
+            GC.SuppressFinalize(this);
             DisposeImpl();
         }
 
         public void DisposeImpl()
         {
-            owner = null;
-            owners.Clear();
             if (Clip != null)
                 return;
             while (contexts.Value.Count > 0)
             {
                 var ctx = Detach();
+                ctx.owner = null;
+                ctx.owners.Clear();
                 foreach (var val in ctx.cache.Values)
                 {
                     val.Item1.Dispose();
@@ -126,7 +128,7 @@ namespace AutoOverlay
             Clip = clip;
         }
 
-        public VideoFrame this[int n] => Clip.GetFrame(n, Env);
+        public VideoFrame this[int n] => Clip?.GetFrame(n, Env);
 
         public VideoFrame GetFrame(int n, ScriptEnvironment env)
         {
@@ -147,7 +149,7 @@ namespace AutoOverlay
                 args = args.Skip(1).ToArray();
             }
 
-            args = PrepareArgs(args);
+            args = PrepareArgs(args).ToArray();
 
             if (Clip != null)
                 args = Enumerable.Repeat(Clip, 1).Concat(args).ToArray();
@@ -212,42 +214,38 @@ namespace AutoOverlay
             return true;
         }
 
-        private static object[] PrepareArgs(object[] args)
+        private static IEnumerable<object> PrepareArgs(object[] args)
         {
-            var realArgs = new List<object>();
             foreach (var arg in args)
             {
                 switch (arg)
                 {
                     case DynamicEnvironment dyn:
-                        realArgs.Add(dyn.Clip);
+                        yield return dyn.Clip;
                         break;
                     case IEnumerable<object> collection:
-                        realArgs.AddRange(collection);
+                        foreach (var o in collection)
+                            yield return o;
                         break;
                     case Point point:
-                        realArgs.Add(point.X);
-                        realArgs.Add(point.Y);
+                        yield return point.X;
+                        yield return point.Y;
                         break;
                     case RectangleD rect:
-                        realArgs.Add(rect.Left);
-                        realArgs.Add(rect.Top);
-                        realArgs.Add(rect.Right);
-                        realArgs.Add(rect.Bottom);
+                        yield return rect.Left;
+                        yield return rect.Top;
+                        yield return rect.Right;
+                        yield return rect.Bottom;
                         break;
                     case Size size:
-                        realArgs.Add(size.Width);
-                        realArgs.Add(size.Height);
-                        break;
-                    case Clip clip:
-                        realArgs.Add(clip);
+                        yield return size.Width;
+                        yield return size.Height;
                         break;
                     default:
-                        realArgs.Add(arg);
+                        yield return arg;
                         break;
                 }
             }
-            return realArgs.ToArray();
         }
 
         public static implicit operator Clip(DynamicEnvironment clip) => clip.Clip;

@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using AutoOverlay.AviSynth;
 using AutoOverlay.Overlay;
 using AvsFilterNet;
 
@@ -13,7 +15,7 @@ namespace AutoOverlay
         public virtual bool Debug { get; protected set; }
 
         public dynamic DynamicEnv => DynamicEnvironment.Env;
-        public ScriptEnvironment StaticEnv => DynamicEnvironment.Env;
+        public ScriptEnvironment StaticEnv => DynamicEnvironment.Env ?? topLevel;
 
         private static ISet<OverlayFilter> Filters { get; } = new HashSet<OverlayFilter>();
 
@@ -47,7 +49,10 @@ namespace AutoOverlay
                 }
                 finally
                 {
-                    throw ex;
+                    if (ex is SEHException)
+                        throw new AvisynthException("Runtime function call error: " + DynamicEnvironment.LastError);
+                    DynamicEnvironment.LastError = ex.Message;
+                    throw new AvisynthException(ex.Message);
                 }
             }
         }
@@ -86,7 +91,10 @@ namespace AutoOverlay
                     }
                     finally
                     {
-                        throw ex;
+                        if (ex is SEHException)
+                            throw new AvisynthException("Runtime function call error: " + DynamicEnvironment.LastError);
+                        DynamicEnvironment.LastError = ex.Message;
+                        throw new AvisynthException(ex.Message ?? "");
                     }
                 }
             }
@@ -104,7 +112,7 @@ namespace AutoOverlay
             return subtitled[0];
         }
 
-        protected Clip GetBlankClip(Clip clip, bool white)
+        public Clip GetBlankClip(Clip clip, bool white)
         {
             if (clip.GetVideoInfo().pixel_type.HasFlag(ColorSpaces.CS_PLANAR | ColorSpaces.CS_INTERLEAVED))
                 return DynamicEnv.BlankClip(clip, color_yuv: white ? 0xFF0000 : 0x000000);
@@ -112,6 +120,7 @@ namespace AutoOverlay
                 return DynamicEnv.BlankClip(clip, color_yuv: white ? 0xFF8080 : 0x008080);
             return DynamicEnv.BlankClip(clip, color: white ? 0xFFFFFF : 0);
         }
+
         protected dynamic InitClip(dynamic clip, int width, int height, int color, string pixelType = null)
         {
             var rgb = pixelType?.StartsWith("RGB") ?? ((Clip) clip).GetVideoInfo().IsRGB();
@@ -120,14 +129,26 @@ namespace AutoOverlay
                 clip.BlankClip(width: width, height: height, color_yuv: color, pixel_type: pixelType);
         }
 
+        public dynamic ResizeRotate(Clip clip, string resizeFunc, string rotateFunc, OverlayInfo info)
+        {
+            return ResizeRotate(clip, resizeFunc, rotateFunc, info.Width, info.Height, info.Angle, info.GetCrop(), info.Warp);
+        }
+
         public dynamic ResizeRotate(
             Clip clip, 
             string resizeFunc, string rotateFunc, 
             int width, int height, int angle = 0,
-            RectangleD crop = default)
+            RectangleD crop = default, Warp warp = default)
         {
-            if (clip == null || crop == RectangleD.Empty && width == clip.GetVideoInfo().width && height == clip.GetVideoInfo().height)
-                return clip.Dynamic();
+            if (clip == null)
+                return null;
+            var dynamic = clip.Dynamic();
+            if (warp != null && !warp.IsEmpty)
+                dynamic = dynamic.Warp(warp.ToArray(), relative: true, resample: OverlayUtils.GetWarpResampleMode(resizeFunc));
+
+            var vi = clip.GetVideoInfo();
+            if (crop.IsEmpty && width == vi.width && height == vi.height)
+                return dynamic;
 
             var intCrop = Rectangle.FromLTRB(
                 (int) Math.Floor(crop.Left),
@@ -137,7 +158,7 @@ namespace AutoOverlay
             );
             if (!intCrop.IsEmpty)
             {
-                clip = DynamicEnv.Crop(clip, intCrop.Left, intCrop.Top, -intCrop.Right, -intCrop.Bottom);
+                dynamic = dynamic.Crop(intCrop.Left, intCrop.Top, -intCrop.Right, -intCrop.Bottom);
                 crop = RectangleD.FromLTRB(
                     crop.Left - intCrop.Left,
                     crop.Top - intCrop.Top,
@@ -145,16 +166,12 @@ namespace AutoOverlay
                     crop.Bottom - intCrop.Bottom
                 );
             }
-
-            dynamic resized;
-            if (crop == RectangleD.Empty)
-                resized = clip.Dynamic().Invoke(resizeFunc, width, height);
-            else resized = clip.Dynamic().Invoke(resizeFunc, width, height,
+            if (crop.IsEmpty)
+                dynamic = dynamic.Invoke(resizeFunc, width, height);
+            else dynamic = dynamic.Invoke(resizeFunc, width, height,
                 src_left: crop.Left, src_top: crop.Top, 
                 src_width: -crop.Right, src_height: -crop.Bottom);
-            if (angle == 0)
-                return resized;
-            return resized.Invoke(rotateFunc, angle / 100.0);
+            return angle == 0 ? dynamic : dynamic.Invoke(rotateFunc, angle / 100.0);
         }
 
         protected void Log(Func<string> supplier)
@@ -168,6 +185,7 @@ namespace AutoOverlay
         protected void Log(string format, params object[] args)
         {
 #if DEBUG
+            if (!Debug) return;
             if (args.Length == 0)
                 System.Diagnostics.Debug.WriteLine(format);
             else
@@ -180,7 +198,7 @@ namespace AutoOverlay
             Filters.Remove(this);
             OverlayUtils.Dispose(this);
             base.Dispose(A_0);
-            topLevel.Dispose();
+            topLevel?.Dispose();
         }
 
         private static void DisposeAll()

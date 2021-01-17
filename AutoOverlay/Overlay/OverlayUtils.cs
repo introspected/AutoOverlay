@@ -3,14 +3,14 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using AutoOverlay.AviSynth;
+using AutoOverlay.Overlay;
 using AvsFilterNet;
-using Microsoft.VisualBasic.Logging;
 
 namespace AutoOverlay
 {
@@ -20,7 +20,11 @@ namespace AutoOverlay
         public const string DEFAULT_RESIZE_FUNCTION = "BicubicResize";
         public const string DEFAULT_ROTATE_FUNCTION = "BilinearRotate";
         public const MtMode DEFAULT_MT_MODE = MtMode.SERIALIZED;
-        public const int OVERLAY_FORMAT_VERSION = 3;
+        public const int OVERLAY_FORMAT_VERSION = 4;
+        public const int ENGINE_HISTORY_LENGTH = 10;
+        public const int ENGINE_TOTAL_FRAMES = ENGINE_HISTORY_LENGTH * 2 + 1;
+
+        public const double EPSILON = 0.000001;
 
         public static readonly Size NO_SUB_SAMPLE = new Size(1, 1);
 
@@ -29,6 +33,16 @@ namespace AutoOverlay
 
         [DllImport("msvcrt.dll", EntryPoint = "memset", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
         public static extern IntPtr MemSet(IntPtr dest, int c, int count);
+
+        public static bool NearlyZero(this double number)
+        {
+            return Math.Abs(number) < EPSILON;
+        }
+
+        public static bool NearlyEquals(this double a, double b)
+        {
+            return Math.Abs(a - b) < EPSILON;
+        }
 
         public static IEnumerable<T> Append<T>(this IEnumerable<T> e, T item)
         {
@@ -138,12 +152,23 @@ namespace AutoOverlay
             }
         }
 
-        public static void SafeInvoke<T>(this T control, Action<T> action) where T : ISynchronizeInvoke
+        public static void SafeInvoke<T>(this T control, Action<T> action, bool async = true)
+            where T : ISynchronizeInvoke
         {
             if (control.InvokeRequired)
-                control.Invoke(action, new object[] { control });
+                if (async)
+                    control.BeginInvoke(action, new object[] {control});
+                else control.Invoke(action, new object[] {control});
             else
                 action(control);
+        }
+
+        public static V SafeInvoke<T, V>(this T control, Func<T, V> func) where T : ISynchronizeInvoke
+        {
+            if (control.InvokeRequired)
+                return (V) control.Invoke(func, new object[] {control});
+            else
+                return func(control);
         }
 
         public static int GetWidthSubsample(this ColorSpaces colorSpace)
@@ -302,7 +327,7 @@ namespace AutoOverlay
                     tuple.Attribute.Values = Enum.GetNames(tuple.Property.PropertyType);
                 if (tuple.Property.PropertyType.IsEnum && value is int)
                     tuple.Attribute.Values = Enum.GetValues(tuple.Property.PropertyType).Cast<object>().Select(p => Convert.ToInt32(p).ToString()).ToArray();
-                if (tuple.Attribute.Values.Any() && tuple.Attribute.Values.Select(p => p.ToLower()).All(p => !p.Equals(value.ToString())))
+                if (tuple.Attribute.Values.Any() && tuple.Attribute.Values.Select(p => p.ToLower()).All(p => !p.Equals(value.ToString().ToLower())))
                     throw new AvisynthException($"{propertyName} is equal to '{value}' but allowed values are [{string.Join(", ", tuple.Attribute.Values)}]");
                 if (tuple.Property.PropertyType.IsEnum && value is string)
                     value = Enum.Parse(tuple.Property.PropertyType, value.ToString(), true);
@@ -420,6 +445,32 @@ namespace AutoOverlay
         public static double GetFraction(this double val)
         {
             return val - Math.Truncate(val);
+        }
+
+        public static int GetWarpResampleMode(string resizeFunction)
+        {
+            var lower = resizeFunction.ToLower();
+            if (lower.StartsWith("bilinear"))
+                return 1;
+            if (lower.StartsWith("point"))
+                return 0;
+            return 2;
+        }
+        public static double StdDev(IEnumerable<OverlayInfo> sample)
+        {
+            var mean = Mean(sample);
+            return Math.Sqrt(sample.Sum(p => Math.Pow(p.Diff - mean, 2)));
+        }
+
+        public static double Mean(IEnumerable<OverlayInfo> sample)
+        {
+            return sample.Sum(p => p.Diff) / sample.Count();
+        }
+
+        public static bool CheckDev(IEnumerable<OverlayInfo> sample, double maxDiffIncrease, bool abs)
+        {
+            var mean = Mean(sample);
+            return sample.All(p => (abs ? Math.Abs(p.Diff - mean) : p.Diff - mean) <= maxDiffIncrease);
         }
     }
 }

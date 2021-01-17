@@ -1,117 +1,127 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 
 namespace AutoOverlay
 {
-    public class FrameInterval : AbstractOverlayInfo, IEquatable<FrameInterval>
+    public class FrameInterval : IEquatable<FrameInterval>, IEnumerable<OverlayInfo>
     {
-        public List<OverlayInfo> Frames { get; } = new List<OverlayInfo>();
+        private readonly SortedDictionary<int, OverlayInfo> frames = new SortedDictionary<int, OverlayInfo>();
 
-        public bool Modified { get; set; }
+        private readonly Dictionary<object, string> cache = new Dictionary<object, string>();
 
-        public OverlayInfo this[int frame] => Frames.FirstOrDefault(p => p.FrameNumber == frame);
+        public FrameInterval(OverlayInfo frame)
+        {
+            if (frame == null)
+                throw new ArgumentException();
+            Add(frame);
+        }
 
-        public int First => Frames.Count == 0 ? -1 : Frames.Min(p => p.FrameNumber);
-        public int Last => Frames.Count == 0 ? -1 : Frames.Max(p => p.FrameNumber);
-        public int Length => Last - First + 1;
+        public FrameInterval(IEnumerable<OverlayInfo> frames)
+        {
+            AddRange(frames);
+            if (Length == 0)
+                throw new ArgumentException();
+        }
+
+        public void Add(OverlayInfo frame)
+        {
+            frames[frame.FrameNumber] = frame;
+            ClearCache();
+        }
+
+        public void AddRange(IEnumerable<OverlayInfo> frames)
+        {
+            foreach (var frame in frames)
+                this.frames[frame.FrameNumber] = frame;
+            ClearCache();
+        }
+
+        public OverlayInfo this[int frame]
+        {
+            get => Contains(frame) ? frames[frame] : null;
+            set
+            {
+                frames[frame] = value;
+                ClearCache();
+            }
+        }
+
+        public void ClearCache()
+        {
+            cache.Clear();
+        }
+
+        public void RemoveIf(Func<OverlayInfo, bool> info)
+        {
+            frames.Values.Where(info).Select(p => p.FrameNumber).ToList().ForEach(p => frames.Remove(p));
+            ClearCache();
+        }
+
+        public int First => frames.Keys.FirstOrDefault();
+        public int Last => frames.Keys.LastOrDefault();
+        public int Length => frames.Count;
+
+        public bool Fixed => CheckFixed(p => p) != "vary";
 
         public string Interval => First == Last ? First.ToString() : $"{First} ({Length})";
-        public string Size => $"{Width}x{Height}";
 
-        public string Crop => $"{CropLeft / (OverlayInfo.CROP_VALUE_COUNT / 100)}," +
-                              $"{CropTop / (OverlayInfo.CROP_VALUE_COUNT / 100)}," +
-                              $"{CropRight / (OverlayInfo.CROP_VALUE_COUNT / 100)}," +
-                              $"{CropBottom / (OverlayInfo.CROP_VALUE_COUNT / 100)}";
+        public string X => CheckFixed(p => p.X);
 
-        public override double Diff
+        public string Y => CheckFixed(p => p.Y);
+
+        public string Size => CheckFixed(p => new Size(p.Width, p.Height), p => $"{p.Width}x{p.Height}");
+
+        public string Warp => CheckFixed(p => p.Warp, p => "fixed");
+
+        public string Crop => CheckFixed(p => p.GetCrop().Scale(100), 
+            p => $"{p.Left:F0},{p.Top:F0},{p.Right:F0},{p.Bottom:F0}");
+
+        public string Angle => CheckFixed(p => p.Angle);
+
+        private string CheckFixed<T>(Func<OverlayInfo, T> read, Func<T, string> format = null)
         {
-            get => Frames.Sum(p => p.Diff) / Frames.Count;
-            set => throw new InvalidOperationException("Diff is unique for each frame");
+            if (cache.TryGetValue(read, out var res))
+                return res;
+            var value = read(frames.Values.First());
+            var isFixed = frames.Values.All(p => read(p).Equals(value));
+            format ??= p => p.ToString();
+            return cache[read] = isFixed ? format(value) : "vary";
         }
 
-        public override int X
+        public double Diff => frames.Values.Sum(p => p.Diff) / frames.Count;
+
+        public double Comparison => frames.Values.Sum(p => p.Comparison) / frames.Count;
+
+        public bool Modified
         {
-            get => Frames.FirstOrDefault()?.X ?? 0;
-            set => Frames.ForEach(p => p.X = value);
+            get => frames.Values.Any(p => p.Modified);
+            set
+            {
+                foreach (var frame in frames.Values)
+                    frame.Modified = value;
+            }
         }
 
-        public override int Y
+        public void CopyFrom(FrameInterval interval)
         {
-            get => Frames.FirstOrDefault()?.Y ?? 0;
-            set => Frames.ForEach(p => p.Y = value);
+            if (interval.Fixed)
+                CopyFrom(interval.frames.Values.First());
         }
 
-        public override int Width
+        public void CopyFrom(OverlayInfo info)
         {
-            get => Frames.FirstOrDefault()?.Width ?? 0;
-            set => Frames.ForEach(p => p.Width = value);
-        }
-
-        public override int Height
-        {
-            get => Frames.FirstOrDefault()?.Height ?? 0;
-            set => Frames.ForEach(p => p.Height = value);
-        }
-
-        public override int CropLeft
-        {
-            get => Frames.FirstOrDefault()?.CropLeft ?? 0;
-            set => Frames.ForEach(p => p.CropLeft = value);
-        }
-
-        public override int CropTop
-        {
-            get => Frames.FirstOrDefault()?.CropTop ?? 0;
-            set => Frames.ForEach(p => p.CropTop = value);
-        }
-
-        public override int CropRight
-        {
-            get => Frames.FirstOrDefault()?.CropRight ?? 0;
-            set => Frames.ForEach(p => p.CropRight = value);
-        }
-
-        public override int CropBottom
-        {
-            get => Frames.FirstOrDefault()?.CropBottom ?? 0;
-            set => Frames.ForEach(p => p.CropBottom = value);
-        }
-
-        public override int BaseWidth
-        {
-            get => Frames.FirstOrDefault()?.BaseWidth ?? 0;
-            set => Frames.ForEach(p => p.BaseWidth = value);
-        }
-
-        public override int BaseHeight
-        {
-            get => Frames.FirstOrDefault()?.BaseHeight ?? 0;
-            set => Frames.ForEach(p => p.BaseHeight = value);
-        }
-
-        public override int SourceWidth
-        {
-            get => Frames.FirstOrDefault()?.SourceWidth ?? 0;
-            set => Frames.ForEach(p => p.SourceWidth = value);
-        }
-
-        public override int SourceHeight
-        {
-            get => Frames.FirstOrDefault()?.SourceHeight ?? 0;
-            set => Frames.ForEach(p => p.SourceHeight = value);
-        }
-
-        public override int Angle
-        {
-            get => Frames.FirstOrDefault()?.Angle ?? 0;
-            set => Frames.ForEach(p => p.Angle = value);
-        }
-
-        public override double Comparison
-        {
-            get => Frames.Sum(p => p.Comparison) / Frames.Count;
-            set => throw new InvalidOperationException("Diff is unique for each frame");
+            foreach (var frame in frames.Values)
+            {
+                if (!frame.Equals(info))
+                {
+                    frame.Modified = true;
+                    frame.CopyFrom(info);
+                }
+            }
+            cache.Clear();
         }
 
         public bool Contains(int frame)
@@ -124,12 +134,15 @@ namespace AutoOverlay
             return Equals(this, other);
         }
 
+        public IEnumerator<OverlayInfo> GetEnumerator()
+        {
+            return frames.Values.GetEnumerator();
+        }
+
         public override bool Equals(object obj)
         {
-            if (!base.Equals(obj))
-                return false;
-            if (obj is FrameInterval)
-                return First == ((FrameInterval)obj).First && Last == ((FrameInterval)obj).Last;
+            if (obj is FrameInterval interval)
+                return First == interval.First && Last == interval.Last;
             return true;
         }
 
@@ -142,6 +155,11 @@ namespace AutoOverlay
                 hashCode = (hashCode * 397) ^ Last;
                 return hashCode;
             }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
         }
     }
 }
