@@ -111,7 +111,7 @@ namespace AutoOverlay.Overlay
                     if (!target.Info.IsRGB() && mask.IsRealPlanar())
                         mask = mask.Dynamic().ExtractY();
                     if (plane.IsChroma() && !target.ColorSpace.WithoutSubSample())
-                        mask = mask.Dynamic().BilinearResize(target.Chroma.Size);
+                        mask = mask.Dynamic().BicubicResize(target.Chroma.Size);
                     disposables.Add(mask);
                 }
 

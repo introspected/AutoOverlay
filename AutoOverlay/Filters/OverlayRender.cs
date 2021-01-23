@@ -291,8 +291,8 @@ namespace AutoOverlay
                 case FramingMode.Fit:
                     {
                         var mask = GetMask(GetOverMask);
-                        if (overMask != null && mask != null)
-                            mask = mask.Overlay(overMask, mode: "darken");
+                        if (overMask != null)
+                            mask = mask == null ? overMask : mask.Overlay(overMask, mode: "darken");
                         if (ctx.SourceMask != null && mask != null)
                             mask = mask.Overlay(Rotate(ctx.SourceMask.Invert(), true), -info.X, -info.Y, mode: "lighten");
                         if (mask == null && info.Angle != 0)

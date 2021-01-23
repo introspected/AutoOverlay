@@ -128,6 +128,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="NativeUtils.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="Stdafx.h" />
     <ClInclude Include="FastRandom.h" />
   </ItemGroup>
@@ -140,6 +141,9 @@
     <ProjectReference Include="..\simd\prj\vs2019\Simd.vcxproj">
       <Project>{c809d7a3-6c52-4e36-8582-00ced929317d}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="App.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -94,7 +94,8 @@ namespace AutoOverlay
 			params.width /= sizeof(TColor);
 
 			int pixelCount = params.width * params.height;
-
+			TColor max = (1 << sizeof(TColor) * 8) - 1;
+			
 			if (params.simd)
 			{
 				if (typeid(TColor) == typeid(unsigned char))
@@ -126,7 +127,7 @@ namespace AutoOverlay
 							params.overStride,
 							maskp,
 							hasSrcMask ? params.srcMaskStride : params.overMaskStride,
-							255,
+							max,
 							params.width,
 							params.height,
 							&sum);
@@ -153,8 +154,8 @@ namespace AutoOverlay
 				{
 					for (int col = 0; col < params.width; ++col)
 					{
-						if ((srcMask == nullptr || srcMask[col] > 0)
-							&& (overMask == nullptr || overMask[col] > 0))
+						if ((srcMask == nullptr || srcMask[col] == max)
+							&& (overMask == nullptr || overMask[col] == max))
 						{
 							auto diff = src[col] - over[col];
 							auto square = diff * diff;

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Drawing;
+using AutoOverlay.AviSynth;
 using AutoOverlay.Overlay;
 
 namespace AutoOverlay.Filters
@@ -56,7 +57,7 @@ namespace AutoOverlay.Filters
             MaskTest = AdjCrop(ctx.SourceMask, false);
             if (OverlayMask != null)
             {
-                var input = (MaskTest ?? ctx.Render.GetBlankClip(Source, true).Dynamic())
+                var input = (MaskTest ?? new DynamicEnvironment(ctx.Render.GetBlankClip(Source, true)))
                     .Overlay(OverlayMask, Info.X, Info.Y, mode: "darken");
                 MaskTest = AdjCrop(input, true);
             }
