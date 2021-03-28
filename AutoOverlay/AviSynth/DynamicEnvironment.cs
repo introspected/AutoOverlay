@@ -91,22 +91,32 @@ namespace AutoOverlay.AviSynth
         {
             if (Clip != null)
                 return;
+            if (detached)
+            {
+                DisposeInstance();
+                return;
+            }
             while (contexts.Value.Count > 0)
             {
                 var ctx = Detach();
-                ctx.owner = null;
-                ctx.owners.Clear();
-                foreach (var val in ctx.cache.Values)
-                {
-                    val.Item1.Dispose();
-                    val.Item2?.Dispose();
-                }
-                ctx.cache.Clear();
-                ctx.collector?.Dispose();
+                ctx.DisposeInstance();
 
                 if (ctx == this)
                     break;
             }
+        }
+
+        protected void DisposeInstance()
+        {
+            owner = null;
+            owners.Clear();
+            foreach (var val in cache.Values)
+            {
+                val.Item1.Dispose();
+                val.Item2?.Dispose();
+            }
+            cache.Clear();
+            collector?.Dispose();
         }
 
         public Clip Clip { get; }

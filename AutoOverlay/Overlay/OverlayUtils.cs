@@ -71,6 +71,8 @@ namespace AutoOverlay
         {
             if (val == null)
                 return new AVSValue();
+            if (val is AVSValue avs)
+                return avs;
             if (val is DynamicEnvironment)
                 val = ((DynamicEnvironment) val).Clip;
             if (val is Clip clip)
