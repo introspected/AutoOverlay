@@ -59,8 +59,8 @@ namespace AutoOverlay.Overlay
 
             TargetInfo = render.GetVideoInfo();
 
-            SourceMask = PrepareMask(Static.SourceMask, render.Source.GetVideoInfo());
-            OverlayMask = PrepareMask(Static.OverlayMask, render.Overlay.GetVideoInfo());
+            SourceMask = PrepareMask(Static.SourceMask, Static.SourceBase.GetVideoInfo());
+            OverlayMask = PrepareMask(Static.OverlayMask, Static.OverlayBase.GetVideoInfo());
 
             disposables.Add(render.Source);
             disposables.Add(render.Overlay);
@@ -156,6 +156,8 @@ namespace AutoOverlay.Overlay
 
         public class StaticContext
         {
+            public Clip SourceBase { get; }
+            public Clip OverlayBase { get; }
             public Clip Source { get; }
             public Clip Overlay { get; }
             public Clip SourceMask { get; }
@@ -163,8 +165,10 @@ namespace AutoOverlay.Overlay
 
             public StaticContext(Clip source, Clip overlay, Clip sourceMask, Clip overlayMask, YUVPlanes plane)
             {
-                Source = ExtractPlane(source, plane);
-                Overlay = ExtractPlane(overlay, plane);
+                SourceBase = source;
+                OverlayBase = overlay;
+                Source = ExtractPlane(SourceBase, plane);
+                Overlay = ExtractPlane(OverlayBase, plane);
                 SourceMask = sourceMask;
                 OverlayMask = overlayMask;
             }
