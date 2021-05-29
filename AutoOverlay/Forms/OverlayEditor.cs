@@ -33,7 +33,7 @@ namespace AutoOverlay.Forms
 
         private volatile object sync;
 
-        private volatile string activeOperationId;
+        private volatile object activeOperationId;
 
         public OverlayEngine Engine { get; }
 
@@ -937,28 +937,29 @@ namespace AutoOverlay.Forms
         public void Post<V>(Func<V> evaluator, Action<V> callback)
         {
             Cursor = Cursors.WaitCursor;
-            activeOperationId = Guid.NewGuid().ToString();
+            var id = new object();
+            Interlocked.Exchange(ref activeOperationId, id);
             context.Post(operationId =>
             {
-                try
+                Application.DoEvents();
+                if (!operationId.Equals(this.SafeInvoke(p => p.activeOperationId)))
+                    return;
+                V res;
+                lock (context)
                 {
-                    if (!operationId.Equals(this.SafeInvoke(p => activeOperationId)))
-                        return;
-                    var res = evaluator.Invoke();
-                    if (callback != null)
-                        this.SafeInvoke(p =>
+                    res = evaluator.Invoke();
+                }
+                if (callback != null)
+                    this.SafeInvoke(p =>
+                    {
+                        Application.DoEvents();
+                        if (operationId.Equals(activeOperationId))
                         {
-                            if (operationId.Equals(activeOperationId))
-                            {
-                                callback.Invoke(res);
-                            }
-                        });
-                }
-                finally
-                {
-                    this.SafeInvoke(p => p.Cursor = Cursors.Default);
-                }
-            }, activeOperationId);
+                            callback.Invoke(res);
+                            Cursor = Cursors.Default;
+                        }
+                    });
+            }, id);
         }
 
         #endregion

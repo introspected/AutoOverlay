@@ -369,6 +369,9 @@ Filter to extract and save scene key frames to text file based on stat file of a
     ConvertToYV12()
 
 ## Changelist
+### 29.05.2021 v0.4.2
+1. Fix editor async frame rendering.
+
 ### 28.03.2021 v0.4.1
 1. OverlayEngine: fix using sourceMask and overlayMask at the same time. The pixels with mask max value (255 or 65535) are taken to calculate DIFF value.
 2. OverlayRender: fix using overlayMask without gradient and noise.
