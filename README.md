@@ -132,11 +132,15 @@ Displayed when *OverlayEngine.editor* is true. It is useful after analysis pass 
 Preview from the left side. Below there is trackbar by total frame count and current frame input field. Grid with equal aligned frame sequences on the right. It is possible to move between scenes by row selection. Below grid there is a control panel.  
 *Overlay settings* contains controls to change align values of current scene.
 
-Below there is *AutoOverlay* section.  
-*Single frame* button performs auto-align based on the current frame. The result is applied to the full scene. 
-*Separated frame* button performs auto-align based on the current frame. If new align values is differ from the scene then current frame is separated.  *Scene* button performs auto-align for each frame in the scene independently. 
-*Scene* button process the whole scene. The progress will be displayed at the form caption.  
-On the right there are controls to process pan&scan scenes. Useful to realign defective pan&scan scenes. Before using it join pan&scan frame sequence into one scene (one row in grid) and press *Single frame* for the first frame in the sequence. After that set maximum *distance* in pixels of shifting and resizing limit in pro mil for each next frame according to previous one. 
+*Frame processing* section below.
+Align - frame auto-align without analyzing other frames
+Adjust - auto-align every choosen frame based on current frame (or first frame in scene if scene is not current) with parameters Distance (X and Y deviation), Scale (Width x Height deviation) and Max deviation of joined and intersection area. 
+Scan - auto-align based on previous frame in scene started from first one with parameters Distance, Scale and Max deviation.
+
+Frame - current frame processing (in Align mode when scene is fixed all frames will changed)
+Single - current frame processing. When scene is fixed and align params will changed current frame will seperated)
+Scene - current scene processing (current row in grid)
+Clip - whole clip processing (all rows in grid)
 
 Below there is *Display settings*. It includes the same settings as OverlayRender filter: output resolution, overlay mode, gradient and noise length, opacity in percent, *preview* and *display info* checkboxes. If preview is disabled then source clip is displayed.  
 *Max deviation* needs to regulate how frames joins into scenes in grid. 
