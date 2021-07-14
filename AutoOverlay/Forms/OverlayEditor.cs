@@ -43,6 +43,8 @@ namespace AutoOverlay.Forms
 
         public double MaxDeviation => (double) nudDeviation.Value / 100.0;
 
+        public double MaxDiff => (double) nudMaxDiff.Value;
+
         private bool NeedSave => Intervals.Any(p => p.Modified);
 
         private static int Round(double value) => (int) Math.Round(value);
@@ -99,6 +101,7 @@ namespace AutoOverlay.Forms
         {
             var interval = prevInterval;
             if (interval == null || !interval.Contains(CurrentFrame)) return;
+            if (interval == null || !interval.Contains(CurrentFrame)) return;
             var info = GetOverlayInfo();
             if (!info.Equals(interval[CurrentFrame]))
             {
@@ -139,6 +142,7 @@ namespace AutoOverlay.Forms
                 chbRGB.Checked = true;
                 cbMatrix.SelectedItem = AvsMatrix.Default;
             }
+            nudMaxDiff.Value = (decimal) engine.MaxDiff;
             nudOutputWidth.Value = engine.SrcInfo.Width;
             nudOutputHeight.Value = engine.SrcInfo.Height;
             nudDeviation.Value = engine.Stabilize ? 0 : new decimal(engine.MaxDeviation * 100.0);
@@ -181,9 +185,9 @@ namespace AutoOverlay.Forms
                 grid.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.LightYellow;
             else if (item.Comparison < compareLimit)
                 grid.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.SkyBlue;
-            else if (item.Diff > Engine.MaxDiff)
+            else if (item.Diff > MaxDiff)
                 grid.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.LightCoral;
-            else if (item.Any(p => p.Diff > Engine.MaxDiff))
+            else if (item.Any(p => p.Diff > MaxDiff))
                 grid.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.LightPink;
         }
 
@@ -342,16 +346,19 @@ namespace AutoOverlay.Forms
             FrameInterval lastInterval = null;
             OverlayInfo lastFrame = null;
             var min = (int)nudMinFrame.Value;
-            var max = (int)nudMaxFrame.Value;
+            var max = (int) nudMaxFrame.Value;
             var overSize = Engine.OverInfo.Size;
-            var compareLimit = (double)nudCompare.Value;
+            var compareLimit = (double) nudCompare.Value;
+            var minSceneLength = (int) nudMinSceneLength.Value;
             using (var refStat = compareFilename == null ? null : new FileOverlayStat(compareFilename, Engine.SrcInfo.Size, Engine.OverInfo.Size))
                 foreach (var info in Engine.OverlayStat.Frames.Where(p => p.FrameNumber >= min && p.FrameNumber <= max))
                 {
                     info.Comparison = refStat?[info.FrameNumber]?.Compare(info, Engine.SrcInfo.Size) ?? 2;
                     var compareFailed = info.Comparison < compareLimit;
-                    var diffFailed = info.Diff > Engine.MaxDiff;
-                    if (chbDefective.Checked && !diffFailed && !compareFailed)
+                    var diffFailed = info.Diff > MaxDiff;
+                    var valid = !diffFailed && !compareFailed;
+                    if (chbDefective.CheckState == CheckState.Checked && valid || 
+                        chbDefective.CheckState == CheckState.Unchecked && !valid)
                         continue;
                     if (lastInterval == null
                         || lastFrame.FrameNumber != info.FrameNumber - 1
@@ -365,9 +372,10 @@ namespace AutoOverlay.Forms
                             nudMaxFrame.ValueChanged += Reset;
                             break;
                         }
+                        if (lastInterval != null && lastInterval.Length < minSceneLength)
+                            Intervals.Remove(lastInterval);
                         lastInterval = new FrameInterval(info);
                         Intervals.Add(lastInterval);
-
                     }
                     lastInterval.Add(info);
                     lastFrame = info;
@@ -376,10 +384,10 @@ namespace AutoOverlay.Forms
             Interval = Intervals.FirstOrDefault(p => p.Contains(CurrentFrame));
             Intervals.ResetBindings();
             nudCurrentFrame.ValueChanged -= nudCurrentFrame_ValueChanged;
-            nudCurrentFrame.Minimum = trackBar.Minimum = (int)nudMinFrame.Value;
-            nudCurrentFrame.Maximum = trackBar.Maximum = (int)nudMaxFrame.Value;
+            nudCurrentFrame.Minimum = trackBar.Minimum = (int) nudMinFrame.Value;
+            nudCurrentFrame.Maximum = trackBar.Maximum = (int) nudMaxFrame.Value;
             _currentFrame = -1;
-            CurrentFrame = (int)nudCurrentFrame.Value;
+            CurrentFrame = (int) nudCurrentFrame.Value;
             Interval = Intervals.FirstOrDefault(p => p.Contains(CurrentFrame));
             nudCurrentFrame.ValueChanged += nudCurrentFrame_ValueChanged;
 

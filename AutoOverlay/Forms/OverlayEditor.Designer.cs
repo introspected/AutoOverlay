@@ -132,12 +132,16 @@
             this.btnDelete = new System.Windows.Forms.ToolStripButton();
             this.pictureBox = new System.Windows.Forms.PictureBox();
             this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
+            this.label30 = new System.Windows.Forms.Label();
+            this.nudMinSceneLength = new System.Windows.Forms.NumericUpDown();
             this.intervalDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.xDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.yDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Angle = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.diffDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.frameIntervalBindingSource = new System.Windows.Forms.BindingSource(this.components);
+            this.label31 = new System.Windows.Forms.Label();
+            this.nudMaxDiff = new System.Windows.Forms.NumericUpDown();
             this.panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trackBar)).BeginInit();
             this.panel3.SuspendLayout();
@@ -174,7 +178,9 @@
             ((System.ComponentModel.ISupportInitialize)(this.nudOverlayWidth)).BeginInit();
             this.toolStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudMinSceneLength)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.frameIntervalBindingSource)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudMaxDiff)).BeginInit();
             this.SuspendLayout();
             // 
             // panel1
@@ -195,7 +201,7 @@
             this.trackBar.Location = new System.Drawing.Point(0, 0);
             this.trackBar.Maximum = 999999;
             this.trackBar.Name = "trackBar";
-            this.trackBar.Size = new System.Drawing.Size(753, 45);
+            this.trackBar.Size = new System.Drawing.Size(472, 24);
             this.trackBar.TabIndex = 0;
             this.trackBar.TickStyle = System.Windows.Forms.TickStyle.None;
             this.trackBar.Scroll += new System.EventHandler(this.trackBar_Scroll);
@@ -207,35 +213,42 @@
             // panel3
             // 
             this.panel3.Controls.Add(this.chbDefective);
+            this.panel3.Controls.Add(this.nudMaxDiff);
+            this.panel3.Controls.Add(this.nudMinSceneLength);
             this.panel3.Controls.Add(this.nudMinFrame);
             this.panel3.Controls.Add(this.nudMaxFrame);
+            this.panel3.Controls.Add(this.label31);
+            this.panel3.Controls.Add(this.label30);
             this.panel3.Controls.Add(this.label21);
             this.panel3.Controls.Add(this.label19);
             this.panel3.Controls.Add(this.nudCurrentFrame);
             this.panel3.Controls.Add(this.chbEditor);
             this.panel3.Controls.Add(this.label20);
             this.panel3.Dock = System.Windows.Forms.DockStyle.Right;
-            this.panel3.Location = new System.Drawing.Point(753, 0);
+            this.panel3.Location = new System.Drawing.Point(472, 0);
             this.panel3.Name = "panel3";
-            this.panel3.Size = new System.Drawing.Size(429, 24);
+            this.panel3.Size = new System.Drawing.Size(710, 24);
             this.panel3.TabIndex = 1;
             // 
             // chbDefective
             // 
             this.chbDefective.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.chbDefective.AutoSize = true;
+            this.chbDefective.Checked = true;
+            this.chbDefective.CheckState = System.Windows.Forms.CheckState.Indeterminate;
             this.chbDefective.Location = new System.Drawing.Point(7, 3);
             this.chbDefective.Name = "chbDefective";
-            this.chbDefective.Size = new System.Drawing.Size(72, 17);
+            this.chbDefective.Size = new System.Drawing.Size(94, 17);
             this.chbDefective.TabIndex = 14;
-            this.chbDefective.Text = "Defective";
+            this.chbDefective.Text = "Defective only";
+            this.chbDefective.ThreeState = true;
             this.chbDefective.UseVisualStyleBackColor = true;
             this.chbDefective.CheckedChanged += new System.EventHandler(this.Reset);
             // 
             // nudMinFrame
             // 
             this.nudMinFrame.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.nudMinFrame.Location = new System.Drawing.Point(121, 2);
+            this.nudMinFrame.Location = new System.Drawing.Point(406, 2);
             this.nudMinFrame.Maximum = new decimal(new int[] {
             200000,
             0,
@@ -249,7 +262,7 @@
             // nudMaxFrame
             // 
             this.nudMaxFrame.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.nudMaxFrame.Location = new System.Drawing.Point(194, 2);
+            this.nudMaxFrame.Location = new System.Drawing.Point(479, 2);
             this.nudMaxFrame.Maximum = new decimal(new int[] {
             999999,
             0,
@@ -269,7 +282,7 @@
             // 
             this.label21.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.label21.AutoSize = true;
-            this.label21.Location = new System.Drawing.Point(76, 4);
+            this.label21.Location = new System.Drawing.Point(365, 4);
             this.label21.Name = "label21";
             this.label21.Size = new System.Drawing.Size(39, 13);
             this.label21.TabIndex = 5;
@@ -279,7 +292,7 @@
             // 
             this.label19.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.label19.AutoSize = true;
-            this.label19.Location = new System.Drawing.Point(258, 4);
+            this.label19.Location = new System.Drawing.Point(543, 4);
             this.label19.Name = "label19";
             this.label19.Size = new System.Drawing.Size(36, 13);
             this.label19.TabIndex = 5;
@@ -288,7 +301,7 @@
             // nudCurrentFrame
             // 
             this.nudCurrentFrame.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.nudCurrentFrame.Location = new System.Drawing.Point(300, 2);
+            this.nudCurrentFrame.Location = new System.Drawing.Point(581, 2);
             this.nudCurrentFrame.Maximum = new decimal(new int[] {
             999999,
             0,
@@ -306,7 +319,7 @@
             this.chbEditor.AutoSize = true;
             this.chbEditor.Checked = true;
             this.chbEditor.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.chbEditor.Location = new System.Drawing.Point(372, 3);
+            this.chbEditor.Location = new System.Drawing.Point(653, 3);
             this.chbEditor.Name = "chbEditor";
             this.chbEditor.Size = new System.Drawing.Size(53, 17);
             this.chbEditor.TabIndex = 3;
@@ -318,7 +331,7 @@
             // 
             this.label20.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.label20.AutoSize = true;
-            this.label20.Location = new System.Drawing.Point(182, 4);
+            this.label20.Location = new System.Drawing.Point(467, 4);
             this.label20.Name = "label20";
             this.label20.Size = new System.Drawing.Size(10, 13);
             this.label20.TabIndex = 7;
@@ -1505,6 +1518,40 @@
             this.pictureBox.TabIndex = 2;
             this.pictureBox.TabStop = false;
             // 
+            // label30
+            // 
+            this.label30.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.label30.AutoSize = true;
+            this.label30.Location = new System.Drawing.Point(221, 4);
+            this.label30.Name = "label30";
+            this.label30.Size = new System.Drawing.Size(88, 13);
+            this.label30.TabIndex = 5;
+            this.label30.Text = "Min scene length";
+            // 
+            // nudMinSceneLength
+            // 
+            this.nudMinSceneLength.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.nudMinSceneLength.Location = new System.Drawing.Point(311, 2);
+            this.nudMinSceneLength.Maximum = new decimal(new int[] {
+            99999,
+            0,
+            0,
+            0});
+            this.nudMinSceneLength.Minimum = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            this.nudMinSceneLength.Name = "nudMinSceneLength";
+            this.nudMinSceneLength.Size = new System.Drawing.Size(49, 20);
+            this.nudMinSceneLength.TabIndex = 14;
+            this.nudMinSceneLength.Value = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            this.nudMinSceneLength.ValueChanged += new System.EventHandler(this.Reset);
+            // 
             // intervalDataGridViewTextBoxColumn
             // 
             this.intervalDataGridViewTextBoxColumn.DataPropertyName = "Interval";
@@ -1550,6 +1597,36 @@
             // frameIntervalBindingSource
             // 
             this.frameIntervalBindingSource.DataSource = typeof(AutoOverlay.FrameInterval);
+            // 
+            // label31
+            // 
+            this.label31.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.label31.AutoSize = true;
+            this.label31.Location = new System.Drawing.Point(99, 4);
+            this.label31.Name = "label31";
+            this.label31.Size = new System.Drawing.Size(70, 13);
+            this.label31.TabIndex = 5;
+            this.label31.Text = "Defective diff";
+            // 
+            // nudMaxDiff
+            // 
+            this.nudMaxDiff.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.nudMaxDiff.DecimalPlaces = 1;
+            this.nudMaxDiff.Location = new System.Drawing.Point(171, 2);
+            this.nudMaxDiff.Maximum = new decimal(new int[] {
+            9999,
+            0,
+            0,
+            65536});
+            this.nudMaxDiff.Name = "nudMaxDiff";
+            this.nudMaxDiff.Size = new System.Drawing.Size(49, 20);
+            this.nudMaxDiff.TabIndex = 14;
+            this.nudMaxDiff.Value = new decimal(new int[] {
+            9999,
+            0,
+            0,
+            65536});
+            this.nudMaxDiff.ValueChanged += new System.EventHandler(this.Reset);
             // 
             // OverlayEditor
             // 
@@ -1609,7 +1686,9 @@
             this.toolStrip1.ResumeLayout(false);
             this.toolStrip1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudMinSceneLength)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.frameIntervalBindingSource)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudMaxDiff)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -1722,5 +1801,9 @@
         private System.Windows.Forms.Button btnAlignScene;
         private System.Windows.Forms.Button btnAlignSingle;
         private System.Windows.Forms.Button btnAlignFrame;
+        private System.Windows.Forms.NumericUpDown nudMinSceneLength;
+        private System.Windows.Forms.Label label30;
+        private System.Windows.Forms.NumericUpDown nudMaxDiff;
+        private System.Windows.Forms.Label label31;
     }
 }
