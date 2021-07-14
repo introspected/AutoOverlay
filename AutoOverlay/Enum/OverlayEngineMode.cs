@@ -6,6 +6,7 @@
         UPDATE,
         ERASE,
         READONLY,
-        PROCESSED
+        PROCESSED,
+        UNPROCESSED
     }
 }

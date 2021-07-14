@@ -112,7 +112,7 @@ namespace AutoOverlay
 
         private Form form;
 
-        public int[] ProccessedFrames { get; private set; }
+        public int[] SelectedFrames { get; private set; }
 
         public HashSet<int> KeyFrames { get; } = new HashSet<int>();
 
@@ -149,16 +149,28 @@ namespace AutoOverlay
 
             var vi = GetVideoInfo();
             vi.num_frames = Math.Min(SrcInfo.FrameCount, OverInfo.FrameCount);
-            if (Mode == OverlayEngineMode.PROCESSED)
+            if (Mode is OverlayEngineMode.PROCESSED or OverlayEngineMode.UNPROCESSED)
             {
-                ProccessedFrames = new int[vi.num_frames];
+                SelectedFrames = new int[vi.num_frames];
                 var index = 0;
+                var prev = 0;
                 foreach (var info in OverlayStat.Frames)
                 {
-                    if (ProccessedFrames.Length == index)
+                    if (SelectedFrames.Length == index)
                         break;
-                    ProccessedFrames[index++] = info.FrameNumber;
+                    var missed = info.FrameNumber - prev - 1;
+                    if (Mode is OverlayEngineMode.PROCESSED)
+                        SelectedFrames[index++] = info.FrameNumber;
+                    else if (missed > 0)
+                    {
+                        for (var i = 1; i <= missed; i++)
+                            SelectedFrames[index++] = prev + i;
+                    }
+                    prev = info.FrameNumber;
                 }
+                if (Mode is OverlayEngineMode.UNPROCESSED)
+                    for (var i = prev + 1; i < vi.num_frames; i++)
+                        SelectedFrames[index++] = i;
                 vi.num_frames = index;
             }
             SetVideoInfo(ref vi);
@@ -195,9 +207,9 @@ namespace AutoOverlay
 
         protected override VideoFrame GetFrame(int n)
         {
-            if (Mode == OverlayEngineMode.PROCESSED)
+            if (Mode is OverlayEngineMode.PROCESSED or OverlayEngineMode.UNPROCESSED)
             {
-                n = ProccessedFrames[n];
+                n = SelectedFrames[n];
             }
             var info = GetOverlayInfo(n);
             info.KeyFrame = KeyFrames.Contains(n);
@@ -248,26 +260,12 @@ namespace AutoOverlay
             if (Mode == OverlayEngineMode.ERASE)
             {
                 OverlayStat[n] = null;
-                return new OverlayInfo
-                {
-                    FrameNumber = n,
-                    Width = OverInfo.Width,
-                    Height = OverInfo.Height,
-                    Diff = -1,
-                    Message = "Frame align info was erased"
-                };
+                return GetDummyInfo(n, "Frame align info was erased");
             }
             var existed = OverlayStat[n];
             if (existed == null && Mode == OverlayEngineMode.READONLY)
             {
-                return new OverlayInfo
-                {
-                    FrameNumber = n,
-                    Width = OverInfo.Width,
-                    Height = OverInfo.Height,
-                    Diff = -1,
-                    Message = "Unprocessed frame [readonly mode enabled]"
-                };
+                return GetDummyInfo(n, "Unprocessed frame [readonly mode enabled]");
             }
             if (existed != null)
             {
@@ -286,6 +284,22 @@ namespace AutoOverlay
                 info.Message = sb.ToString();
             else info.Message = "Frame successfully auto-aligned";
             return info;
+        }
+
+        private OverlayInfo GetDummyInfo(int n, string message)
+        {
+            return new()
+            {
+                FrameNumber = n,
+                BaseWidth = OverInfo.Width,
+                BaseHeight = OverInfo.Height,
+                SourceWidth = SrcInfo.Width,
+                SourceHeight = SrcInfo.Height,
+                Width = OverInfo.Width,
+                Height = OverInfo.Height,
+                Diff = -1,
+                Message = message
+            };
         }
 
         private bool CheckDev(IEnumerable<OverlayInfo> sample)
