@@ -354,8 +354,13 @@ namespace AutoOverlay
         public static void Dispose(AvisynthFilter filter)
         {
             GetAnnotatedProperties(filter.GetType()).Select(p => p.Item1).Where(p => p.PropertyType == typeof(Clip))
-                .Select(p => p.GetGetMethod(true).Invoke(filter, null)).OfType<Clip>().ToList()
-                .ForEach(p => p.Dispose());
+                .Select(p =>
+                {
+                    var clp = p.GetGetMethod(true).Invoke(filter, null);
+                    p.GetSetMethod(true).Invoke(filter, new object[] {null});
+                    return clp;
+                }).OfType<Clip>().ToList()
+                .ForEach(p => p?.Dispose());
         }
 
         public static Size GetSize(this Clip clip)

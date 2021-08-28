@@ -199,6 +199,7 @@ namespace AutoOverlay
             OverlayUtils.Dispose(this);
             base.Dispose(A_0);
             topLevel?.Dispose();
+            topLevel = null;
         }
 
         private static void DisposeAll()
