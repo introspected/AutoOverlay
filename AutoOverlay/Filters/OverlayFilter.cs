@@ -114,19 +114,16 @@ namespace AutoOverlay
 
         public Clip GetBlankClip(Clip clip, bool white)
         {
-            if (clip.GetVideoInfo().pixel_type.HasFlag(ColorSpaces.CS_PLANAR | ColorSpaces.CS_INTERLEAVED))
-                return DynamicEnv.BlankClip(clip, color_yuv: white ? 0xFF0000 : 0x000000);
-            if (clip.GetVideoInfo().pixel_type.HasFlag(ColorSpaces.CS_PLANAR))
-                return DynamicEnv.BlankClip(clip, color_yuv: white ? 0xFF8080 : 0x008080);
-            return DynamicEnv.BlankClip(clip, color: white ? 0xFFFFFF : 0);
+            return clip.GetVideoInfo().IsRGB() ? 
+                (Clip) DynamicEnv.BlankClip(clip, color: white ? 0xFFFFFF : 0) : 
+                (Clip) DynamicEnv.BlankClip(clip, color_yuv: white ? 0xFF8080 : 0x008080);
         }
 
-        protected dynamic InitClip(dynamic clip, int width, int height, int color, string pixelType = null)
+        protected dynamic InitClip(dynamic clip, int width, int height, int color)
         {
-            var rgb = pixelType?.StartsWith("RGB") ?? ((Clip) clip).GetVideoInfo().IsRGB();
-            return rgb ?
-                clip.BlankClip(width: width, height: height, color: color, pixel_type: pixelType) :
-                clip.BlankClip(width: width, height: height, color_yuv: color, pixel_type: pixelType);
+            return ((Clip) clip).GetVideoInfo().IsRGB()
+                ? clip.BlankClip(width: width, height: height, color: color)
+                : clip.BlankClip(width: width, height: height, color_yuv: color);
         }
 
         public dynamic ResizeRotate(Clip clip, string resizeFunc, string rotateFunc, OverlayInfo info)

@@ -144,10 +144,10 @@ namespace AutoOverlay
                 var frameParams = ctx.CalcFrame(info);
 
                 var mask = DynamicEnv.StaticOverlayRender(ctx.Source.ConvertToY8(), ctx.Overlay.ConvertToY8(),
-                    info.X, info.Y, info.Angle, info.Width, info.Height, info.GetCrop(), info.Diff, overlayMode: "blend",
+                    info.X, info.Y, info.Angle / 100.0, info.Width, info.Height, info.GetCrop(),
                     width: frameParams.FinalWidth, height: frameParams.FinalHeight, mode: (int) FramingMode.Mask);
                 mask = InitClip(mask, ctx.TargetInfo.Width, ctx.TargetInfo.Height, 0xFF8080).Overlay(mask, frameParams.FinalX, frameParams.FinalY);
-                var background = InitClip(hybrid, ctx.TargetInfo.Width, ctx.TargetInfo.Height, ctx.BlankColor);//, ctx.TargetInfo.Info.IsRGB() ? "RGB24" : "YV24");
+                var background = InitClip(hybrid, ctx.TargetInfo.Width, ctx.TargetInfo.Height, ctx.BlankColor);
                 hybrid = hybrid.Overlay(background, mask: mask.Invert());
             }
 
@@ -232,7 +232,7 @@ namespace AutoOverlay
                             (!p.KeyFrame || p.FrameNumber == currentFrame) &&
                             p.NearlyEquals(history.First(), BorderMaxDeviation))).ToList();
 
-                int GetLength(Func<OverlayInfo, bool> func) => checkFrames.Any(func) ? length : 0;
+                int GetLength(Func<OverlayInfo, bool> func) => checkFrames.Any(p => func(p) || p.Angle != 0) ? length : 0;
 
                 return over.OverlayMask(
                     left: GetLength(p => p.X > BorderOffset.Left),
@@ -292,14 +292,20 @@ namespace AutoOverlay
             if (ctx.SourceMask != null && maskOver != null)
                 maskOver = maskOver.Overlay(Rotate(ctx.SourceMask.Invert(), true), -info.X, -info.Y, mode: "lighten");
             if (maskOver == null && info.Angle != 0)
-                maskOver = Rotate(((Clip) GetBlankClip(over, true)).Dynamic(), false);
+                maskOver = GetBlankClip((Clip) over, true).Dynamic();
+            maskOver = Rotate(maskOver, false);
+            var rotationMask = info.Angle == 0 ? null : Rotate(GetBlankClip((Clip) over, true).Dynamic(), false);
+
+            var overRotated = Rotate(over, false);
 
             switch (Mode)
             {
                 case FramingMode.Fit:
-                    {
-                        return Opacity <= double.Epsilon ? src : src.Overlay(Rotate(over, false), info.X, info.Y, mask: maskOver, opacity: Opacity, mode: OverlayMode);
-                    }
+                {
+                    return Opacity <= double.Epsilon ? 
+                        src : 
+                        src.Overlay(overRotated, info.X, info.Y, mask: maskOver, opacity: Opacity, mode: OverlayMode);
+                }
                 case FramingMode.Fill:
                     {
                         var maskSrc = GetMask(GetSourceMask);
@@ -307,10 +313,10 @@ namespace AutoOverlay
                         if (maskSrc != null || Opacity - 1 <= -double.Epsilon)
                             hybrid = hybrid.Overlay(src, Math.Max(0, -info.X), Math.Max(0, -info.Y));
                         if (maskOver != null || Opacity - 1 < double.Epsilon)
-                            hybrid = hybrid.Overlay(over.Invoke(this.Rotate, info.Angle / 100.0), Math.Max(0, info.X), Math.Max(0, info.Y));
+                            hybrid = hybrid.Overlay(overRotated, Math.Max(0, info.X), Math.Max(0, info.Y), mask: rotationMask);
 
                         var merged = hybrid.Overlay(src, Math.Max(0, -info.X), Math.Max(0, -info.Y), mask: maskSrc)
-                            .Overlay(over.Invoke(this.Rotate, info.Angle / 100.0), 
+                            .Overlay(overRotated, 
                                 Math.Max(0, info.X), Math.Max(0, info.Y),
                                 opacity: Opacity, mask: maskOver, mode: OverlayMode);
 
@@ -325,9 +331,9 @@ namespace AutoOverlay
                         var maskSrc = GetMask(GetSourceMask);
                         var background = GetBackground(frameParams.MergedWidth, frameParams.MergedHeight);
                         if (Opacity - 1 <= -double.Epsilon)
-                            background = background.Overlay(over.Invoke(this.Rotate, info.Angle / 100.0), Math.Max(0, info.X), Math.Max(0, info.Y), mask: maskOver);
+                            background = background.Overlay(overRotated, Math.Max(0, info.X), Math.Max(0, info.Y), mask: maskOver);
                         var hybrid = background.Overlay(src, Math.Max(0, -info.X), Math.Max(0, -info.Y), mask: maskSrc)
-                            .Overlay(over.Invoke(this.Rotate, info.Angle / 100.0),
+                            .Overlay(overRotated,
                                 x: Math.Max(0, info.X),
                                 y: Math.Max(0, info.Y),
                                 mask: maskOver,
@@ -360,11 +366,14 @@ namespace AutoOverlay
                         frameParams.FinalX = (frameParams.FinalWidth - frameParams.MergedWidth) / 2;
                         frameParams.FinalY = (frameParams.FinalHeight - frameParams.MergedHeight) / 2;
                         var hybrid = GetBackground(frameParams.FinalWidth, frameParams.FinalHeight);
+                        var maskSrc = GetMask(GetSourceMask);
+                        if (maskSrc != null || Opacity - 1 <= -double.Epsilon)
+                            hybrid = hybrid.Overlay(src, frameParams.FinalX + Math.Max(0, -info.X), frameParams.FinalY + Math.Max(0, -info.Y));
                         if (maskOver != null)
-                            hybrid = hybrid.Overlay(over.Invoke(this.Rotate, info.Angle / 100.0), 
-                                frameParams.FinalX + Math.Max(0, info.X), frameParams.FinalY + Math.Max(0, info.Y));
-                        return hybrid.Overlay(src, frameParams.FinalX + Math.Max(0, -info.X), frameParams.FinalY + Math.Max(0, -info.Y))
-                                .Overlay(over.Invoke(this.Rotate, info.Angle / 100.0), 
+                            hybrid = hybrid.Overlay(overRotated, 
+                                frameParams.FinalX + Math.Max(0, info.X), frameParams.FinalY + Math.Max(0, info.Y), mask: rotationMask);
+                        return hybrid.Overlay(src, frameParams.FinalX + Math.Max(0, -info.X), frameParams.FinalY + Math.Max(0, -info.Y), mask: maskSrc)
+                                .Overlay(overRotated, 
                                     frameParams.FinalX + Math.Max(0, info.X), frameParams.FinalY + Math.Max(0, info.Y), 
                                     mask: maskOver)
                                 .Invoke(Downsize, ctx.TargetInfo.Width, ctx.TargetInfo.Height);
@@ -379,7 +388,7 @@ namespace AutoOverlay
                         over = GetBlankClip((Clip) over, true).Dynamic();
                         return InitClip(src, frameParams.MergedWidth, frameParams.MergedHeight, ctx.DefaultColor)
                             .Overlay(src, Math.Max(0, -info.X), Math.Max(0, -info.Y))
-                            .Overlay(over.Invoke(this.Rotate, info.Angle / 100.0), Math.Max(0, info.X), Math.Max(0, info.Y))
+                            .Overlay(over.Invoke(this.Rotate, info.Angle / 100.0), Math.Max(0, info.X), Math.Max(0, info.Y), mask: rotationMask)
                             .Invoke(Downsize, frameParams.FinalWidth, frameParams.FinalHeight)
                             .ColorRangeMask((1 << ctx.TargetInfo.ColorSpace.GetBitDepth()) - 1)
                             .AddBorders(frameParams.FinalX, frameParams.FinalY, ctx.TargetInfo.Width - frameParams.FinalX - frameParams.FinalWidth,
