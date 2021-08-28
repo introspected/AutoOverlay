@@ -107,6 +107,7 @@ UPDATE – as default but with forced diff update
 ERASE – erase statistics  
 READONLY – use only existing align statistics
 PROCESSED – include only processed frames from stat file
+UNPROCESSED – include only unprocessed frames from stat file
 - **colorAdjust** - not implemented yet
 - **sceneFile** - scene file path with keyframes to separate scenes during auto-align process 
 - **simd** (default true) - SIMD Library using to increase performance in some cases
@@ -373,6 +374,14 @@ Filter to extract and save scene key frames to text file based on stat file of a
     ConvertToYV12()
 
 ## Changelist
+### 28.08.2021 v0.4.3
+1. Editor: maxDiff param editing.
+2. Editor: three-state defective frames checkbox.
+3. Engine: "unprocessed only" mode.
+4. Engine: dummy frame output fix.
+5. Core: filter disposing fix.
+6. Render: fix rotation rendering.
+
 ### 29.05.2021 v0.4.2
 1. Fix editor async frame rendering.
 2. Fix mask usage with chroma subsampling.
