@@ -30,7 +30,7 @@ namespace AutoOverlay.Histogram
         public HistogramCache(YUVPlanes[] planes, int[] channels, double exclude, bool simd, bool limitedRange, 
             ColorSpaces sampleFormat, ColorSpaces referenceFormat, ColorSpaces sourceFormat, int around)
         {
-            pixelSize = sourceFormat == ColorSpaces.CS_BGR24 ? 3 : 1;
+            pixelSize = sourceFormat.HasFlag(ColorSpaces.CS_BGR) ? 3 : 1;
             this.planes = planes;
             this.channels = channels;
             this.exclude = exclude;
@@ -117,13 +117,12 @@ namespace AutoOverlay.Histogram
         {
             var bits = pixelType.GetBitDepth();
             var hist = new uint[1 << bits];
-            var tempHist = hist;
             var chroma = plane == YUVPlanes.PLANAR_U || plane == YUVPlanes.PLANAR_V;
             var widthMult = chroma ? pixelType.GetWidthSubsample() : 1;
             var heightMult = chroma ? pixelType.GetHeightSubsample() : 1;
             var maskPitch = maskFrame?.GetPitch() * heightMult ?? 0;
             var maskPtr = maskFrame?.GetReadPtr() + channel ?? IntPtr.Zero;
-            NativeUtils.FillHistogram(tempHist,
+            NativeUtils.FillHistogram(hist,
                 frame.GetRowSize(plane), frame.GetHeight(plane), channel,
                 frame.GetReadPtr(plane), frame.GetPitch(plane), pixelSize,
                 maskPtr, maskPitch, widthMult, simd);
