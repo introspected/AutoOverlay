@@ -41,6 +41,9 @@ namespace AutoOverlay
         public int Seed { get; protected set; }
 
         private bool realPlanar, rgb;
+        private ushort shortMaxValue;
+        private int bitDepth;
+        private int byteDepth;
 
         protected override void Initialize(AVSValue args)
         {
@@ -68,6 +71,9 @@ namespace AutoOverlay
             SetVideoInfo(ref vi);
             realPlanar = Child == null || Child.IsRealPlanar(); //Y8 is interleaved
             rgb = GetVideoInfo().IsRGB();
+            bitDepth = vi.pixel_type.GetBitDepth();
+            byteDepth = bitDepth == 8 ? 1 : 2;
+            shortMaxValue = (ushort) ((1 << bitDepth) - 1);
         }
 
         protected override VideoFrame GetFrame(int n)
@@ -76,18 +82,18 @@ namespace AutoOverlay
             if (realPlanar)
                 OverlayUtils.ResetChroma(frame);
             OverlayUtils.MemSet(frame.GetWritePtr(), byte.MaxValue, frame.GetHeight() * frame.GetPitch());
-            var stride = frame.GetPitch();
-            var pixelSize = frame.GetRowSize() / GetVideoInfo().width;
+            var stride = frame.GetPitch() / byteDepth;
+            var pixelSize = frame.GetRowSize() / (GetVideoInfo().width * byteDepth);
             var random = new FastRandom(Seed == 0 ? n : Seed);
             unsafe
             {
-                void LeftRight(int length, Func<int, int> offset)
+                void LeftRightByte(int length, Func<int, int> offset)
                 {
                     if (length == 0) return;
                     for (var x = 0; x < length; x++)
                     {
                         var data = (byte*) frame.GetWritePtr() + offset(x) * pixelSize;
-                        var gradientVal = GradientVal(x, length);
+                        var gradientVal = GradientValByte(x, length);
 
                         for (var y = 0; y < Height; y++, data += stride)
                         {
@@ -102,13 +108,13 @@ namespace AutoOverlay
                     }
                 }
 
-                void TopBottom(int length, Func<int, int> offset)
+                void TopBottomByte(int length, Func<int, int> offset)
                 {
                     if (length == 0) return;
                     for (var y = 0; y < length; y++)
                     {
                         var data = (byte*) frame.GetWritePtr() + offset(rgb ? (Height - y - 1) : y) * stride;
-                        var gradientVal = GradientVal(y, length);
+                        var gradientVal = GradientValByte(y, length);
 
                         for (var x = 0; x < Width; x++, data += pixelSize)
                         {
@@ -122,15 +128,71 @@ namespace AutoOverlay
                         }
                     }
                 }
-                Parallel.Invoke(() => LeftRight(Left, x => x), () => LeftRight(Right, x => Width - x - 1));
-                Parallel.Invoke(() => TopBottom(Top, y => y), () => TopBottom(Bottom, y => Height - y - 1));
+
+                void LeftRightShort(int length, Func<int, int> offset)
+                {
+                    if (length == 0) return;
+                    for (var x = 0; x < length; x++)
+                    {
+                        var data = (ushort*) frame.GetWritePtr() + offset(x) * pixelSize;
+                        var gradientVal = GradientValShort(x, length);
+
+                        for (var y = 0; y < Height; y++, data += stride)
+                        {
+                            var val = gradientVal;
+
+                            if (Noise && random.Next(length) > x && random.Next(length) > x)
+                                val = 0;
+                            if (val != shortMaxValue)
+                                for (var i = 0; i < pixelSize; i++)
+                                    data[i] = val;
+                        }
+                    }
+                }
+
+                void TopBottomShort(int length, Func<int, int> offset)
+                {
+                    if (length == 0) return;
+                    for (var y = 0; y < length; y++)
+                    {
+                        var data = (ushort*) frame.GetWritePtr() + offset(rgb ? (Height - y - 1) : y) * stride;
+                        var gradientVal = GradientValShort(y, length);
+
+                        for (var x = 0; x < Width; x++, data += pixelSize)
+                        {
+                            var val = gradientVal;
+
+                            if (Noise && random.Next(length) > y && random.Next(length) > y)
+                                val = 0;
+                            if (val != shortMaxValue && data[0] > val)
+                                for (var i = 0; i < pixelSize; i++)
+                                    data[i] = val;
+                        }
+                    }
+                }
+
+                if (GetVideoInfo().pixel_type.GetBitDepth() == 8)
+                {
+                    Parallel.Invoke(() => LeftRightByte(Left, x => x), () => LeftRightByte(Right, x => Width - x - 1));
+                    Parallel.Invoke(() => TopBottomByte(Top, y => y), () => TopBottomByte(Bottom, y => Height - y - 1));
+                }
+                else
+                {
+                    Parallel.Invoke(() => LeftRightShort(Left, x => x), () => LeftRightShort(Right, x => Width - x - 1));
+                    Parallel.Invoke(() => TopBottomShort(Top, y => y), () => TopBottomShort(Bottom, y => Height - y - 1));
+                }
             }
             return frame;
         }
 
-        private byte GradientVal(int current, int total)
+        private byte GradientValByte(int current, int total)
         {
             return !Gradient ? byte.MaxValue : (byte) (255 * ((current + 1.0) / (total + 1)));
+        }
+
+        private ushort GradientValShort(int current, int total)
+        {
+            return !Gradient ? shortMaxValue : (ushort) (shortMaxValue * ((current + 1.0) / (total + 1)));
         }
     }
 }
