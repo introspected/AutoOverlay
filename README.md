@@ -14,7 +14,7 @@
 Windows XP and previous versions of AviSynth are supported only before v0.2.5.
 
 ### Installation
-- Copy x86/x64 DLL's to AviSynth plugins folder.
+- Copy all files from x86/x64 folder to the AviSynth plugins folder.
 - DLL's may be blocked after downloading. Open file properties to unblock them. 
 
 ### Description
