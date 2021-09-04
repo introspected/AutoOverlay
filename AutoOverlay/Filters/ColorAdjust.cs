@@ -11,7 +11,7 @@ using MathNet.Numerics.Interpolation;
 
 [assembly: AvisynthFilterClass(
     typeof(ColorAdjust), nameof(ColorAdjust),
-    "c[Sample]c[Reference]c[SampleMask]c[ReferenceMask]c[Intensity]f" +
+    "c[Sample]c[Reference]c[SampleMask]c[ReferenceMask]c[Intensity]f[Seed]i" +
     "[AdjacentFramesCount]i[AdjacentFramesDiff]f[LimitedRange]b[Channels]s[Dither]f[Exclude]f" +
     "[Interpolation]s[Extrapolation]b[DynamicNoise]b[SIMD]b[Debug]b[CacheId]s",
     OverlayUtils.DEFAULT_MT_MODE)]
@@ -33,6 +33,9 @@ namespace AutoOverlay
 
         [AvsArgument(Min = 0, Max = 1)]
         public double Intensity { get; set; } = 1;
+
+        [AvsArgument]
+        public int Seed { get; set; }
 
         [AvsArgument(Min = 0, Max = OverlayUtils.ENGINE_HISTORY_LENGTH)]
         public int AdjacentFramesCount { get; set; } = 0;
@@ -192,7 +195,7 @@ namespace AutoOverlay
 
                     var tuple = map.GetColorsAndWeights();
 
-                    NativeUtils.ApplyColorMap(DynamicNoise ? n : 0,
+                    NativeUtils.ApplyColorMap(DynamicNoise ? Seed^n : 0,
                         input.GetReadPtr(plane), input.GetPitch(plane), sampleBits > 8,
                         output.GetWritePtr(plane), output.GetPitch(plane), referenceBits > 8,
                         input.GetRowSize(plane), input.GetHeight(plane), pixelSize, channel,

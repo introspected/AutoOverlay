@@ -9,10 +9,9 @@ namespace AutoOverlay.Histogram
 {
     public class HistogramCache
     {
-        private static readonly Dictionary<string, HistogramCache> cacheCache = new Dictionary<string, HistogramCache>(); // we need to go deeper
+        private static readonly Dictionary<string, HistogramCache> cacheCache = new(); // we need to go deeper
 
-        private readonly ConcurrentDictionary<int, Lazy<Dictionary<CacheDimension, CacheValue>>> cache = 
-            new ConcurrentDictionary<int, Lazy<Dictionary<CacheDimension, CacheValue>>>();
+        private readonly ConcurrentDictionary<int, Lazy<Dictionary<CacheDimension, CacheValue>>> cache = new();
 
         private readonly YUVPlanes[] planes;
         private readonly int[] channels;
