@@ -433,7 +433,7 @@ Interpolate frame sequence from 'start' to 'end' to the target 'length' with MVT
     aoInterpolateScene(clip clp, int inStart, int inEnd, int outStart, int outEnd, int "removeGrain")
 Interpolate frame sequence from 'inStart' to 'inEnd' to the target scene from 'outStart' to 'outEnd' with MVTools.
 
-### Insert by default or replace with interpolated frame from the nearest with MVTools
+### aoInterpolateOne
     aoInterpolateOne(clip clp, int frame, bool "insert", int "removeGrain")
 Insert by default or replace with interpolated frame from the nearest with MVTools.
 

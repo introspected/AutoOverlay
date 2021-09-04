@@ -415,7 +415,7 @@ dither - уровень дизеринга для фильтра ColorAdjust
     aoInterpolateScene(clip clp, int inStart, int inEnd, int outStart, int outEnd, int "removeGrain")
 Интерполирует последовательность кадров клипа от 'inStart' до 'inEnd' включительно, перезаписывая результатом кадры от 'outStart' до 'outEnd' с помощью плагина MVTools.
 
-### Insert by default or replace with interpolated frame from the nearest with MVTools
+### aoInterpolateOne
     aoInterpolateOne(clip clp, int frame, bool "insert", int "removeGrain")
 Вставляет (по умолчанию) или заменяет один кадр интерполируемым из соседних с помощью плагина MVTools.
 
