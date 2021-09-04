@@ -175,7 +175,7 @@ function aoBorders(clip clp, int left, int top, int "right", int "bottom", int "
         length = top + refLength
         crop = Height - length
         resample = length > 6 ? "bicubic" : (length > 2 ? "bilinear" : "point")
-        canvas = clp.Crop(0, 0, 0, crop%2 - crop)
+        canvas = Crop(0, 0, 0, crop%2 - crop)
         canvas = canvas.IsRgb() ? canvas : canvas.ConvertToYUV444(chromaresample = resample)
         target = canvas.Crop(0, 0, 0, refLength%2 - refLength)
         canvas = canvas.Crop(0, 0, 0, -crop%2)
@@ -208,7 +208,7 @@ function aoBorders(clip clp, int left, int top, int "right", int "bottom", int "
         length = bottom + refLength
         crop = Height - length
         resample = length > 6 ? "bicubic" : (length > 2 ? "bilinear" : "point")
-        canvas = clp.Crop(0, crop - crop%2, 0, 0)
+        canvas = Crop(0, crop - crop%2, 0, 0)
         canvas = canvas.IsRgb() ? canvas : canvas.ConvertToYUV444(chromaresample = resample)
         target = canvas.Crop(0, refLength - refLength%2, 0, 0)
         canvas = canvas.Crop(0, crop%2, 0, 0)
@@ -242,7 +242,7 @@ function aoBorders(clip clp, int left, int top, int "right", int "bottom", int "
         length = left + refLength
         crop = Width - length
         resample = length > 4 ? "bicubic" : (length > 2 ? "bilinear" : "point")
-        canvas = clp.Crop(0, 0, crop%2 - crop, 0)
+        canvas = Crop(0, 0, crop%2 - crop, 0)
         canvas = canvas.IsRgb() ? canvas : canvas.ConvertToYUV444(chromaresample = resample)
         target = canvas.Crop(0,0,-refLength + refLength%2,0)
         canvas = canvas.Crop(0, 0, -crop%2, 0)
@@ -275,7 +275,7 @@ function aoBorders(clip clp, int left, int top, int "right", int "bottom", int "
         length = right + refLength
         crop = Width - length
         resample = length > 4 ? "bicubic" : (length > 2 ? "bilinear" : "point")
-        canvas = clp.Crop(crop - crop%2, 0, 0, 0)
+        canvas = Crop(crop - crop%2, 0, 0, 0)
         canvas = canvas.IsRgb() ? canvas : canvas.ConvertToYUV444(chromaresample = resample)
         target = canvas.Crop(refLength - refLength%2, 0, 0, 0)
         canvas = canvas.Crop(crop%2, 0, 0, 0)
