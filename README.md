@@ -6,6 +6,8 @@
 - SIMD Library https://github.com/ermig1979/Simd (included)
 - warp plugin v0.1b by wonkey_monkey https://forum.doom9.org/showthread.php?t=176031 (included)
 - Math.NET Numerics (included)
+- MVTools https://github.com/pinterf/mvtools/releases (for aoInterpolate, not included)
+- RGTools https://github.com/pinterf/RgTools/releases (for aoInterpolate, not included)
 - .NET framework 4.6.1+
 - Windows 7+
 
@@ -175,7 +177,7 @@ This filter preforms rendering of the result clip using align values from the en
 - **engine** (required) - *OverlayEngine* clip.
 - **source** (required) - first, base clip.
 - **overlay** (required) - second, overlaid clip. Any planar YUV (8-16 bit), RGB24 and RGB48 color spaces are supported.
-- **sourceMask** and **overlayMask** (default empty) - mask clips for source and overlaid clips. Unlike masks in overlay engine in this filter they work as avisynth built-in overlay filter masks. If both masks are specified then they are joined to one according align values. The purpose of the masks is maximum hiding of logos and other unwanted parts of the clips at transparent or gradient parts, which could be specified by *gradient* and *noise* parameters. 
+- **sourceMask** and **overlayMask** (default empty) - mask clips for source and overlaid clips. Unlike masks in overlay engine in this filter they work as avisynth built-in overlay filter masks. If both masks are specified then they are joined to one according align values. The purpose of the masks is maximum hiding of logos and other unwanted parts of the clips at transparent or gradient parts, which could be specified by *gradient* and *noise* parameters. The masks should be in the target clip bit depth. 
 - **overlayMode** (default blend) – overlay mode for built-in `Overlay` filter
 - **width** и **height** - output width and height. By default are taken from source clip.
 - **pixelType** - not implemented yet. The color space of source clip will be used for output. 
@@ -214,7 +216,7 @@ This filter preforms rendering of the result clip using align values from the en
 
 ### ColorAdjust
     ColorAdjust(clip sample, clip reference, clip sampleMask, clip referenceMask, float intensity, 
-				int adjacentFramesCount, float adjacentFramesDiff, 
+				int seed, int adjacentFramesCount, float adjacentFramesDiff, 
 	            bool limitedRange, string channels, float dither, float exclude, string interpolation, 
 				bool extrapolation, bool dynamicNoise, bool simd, bool debug)
     
@@ -226,6 +228,7 @@ Color matching. Input clip, sample clip and reference clip must be in the same t
 - **reference** (required) - reference clip (usually the same time and area from different master)
 - **sampleMask** and **referenceMask** (default empty) - 8 bit planar mask clips to exclude some parts from sample or reference clips. Only Y plane is used. Used only pixels with 255 value (white color). 
 - **intensity** (default 1) - intensity of color adjustment.
+- **seed** (default is constant) - seed for dynamic noise if there is multiple using of filter for rendering one frame
 - **adjacentFramesCount** (default 0) - forward and backward frames count that include to the color transition map
 - **adjacentFramesDiff** (default 1) - max RMSE of difference between sample and reference histogram for current and adjacent frame
 - **limitedRange** (default true) - TV or PC range for YUV clips
@@ -355,6 +358,85 @@ Filter to extract and save scene key frames to text file based on stat file of a
 - **sceneMinLength** (default 10) - scene minimal length
 - **maxDiffIncrease** (default 15) - scene detection DIFF value
 
+## User functions
+In additional to "native" filters there is some useful user functions in the file OverlayUtils.avsi.
+They are designed to make two clips synchronization easier and prepare a source for auto-aligning.
+
+### aoShift
+    aoShift(clip clp, int pivot, int length)
+Shift frames starting from pivot to delete previous frames or insert blank frames depending on direction.
+Positive length - to the right inserting blank frames before pivot
+Negative length - to the left deleting frames before pivot
+
+### aoDelay
+    aoDelay(clip clp, int length)
+A special case of 'aoShift' function to insert blank or delete frames at clip beginning.
+Positive length - how many blank frames insert 
+Negative length - how many frames delete
+
+### aoDelete
+    aoDelete(clip clp, int start, int end)
+Delete scene from 'start' to 'end' frame inclusive
+
+### aoReplace
+    aoReplace(clip clp, clip replace, int start, int "end")
+Replacing frame sequence from 'start' to 'end' inclusive from another (synchronized) clip starting from same frame.
+'end' equal to 'start' by default (one frame replacing)
+explicit zero 'end' means last frame of the clip
+
+### aoOverwrite
+    aoOverwrite(clip clp, clip scene, int frame)
+Insert whole clip as a 'scene' from specified 'frame' of input clip with overwriting.
+
+### aoInsert
+    aoInsert(clip clp, clip insert, int start, int "end")
+'Insert' scene from another clip from 'start' to 'end' inclusive without overwiting
+'end' equal to 'start' by default (one frame inserting)
+explicit zero 'end' means last frame of the clip
+
+### aoTransition
+    aoTransition(clip prev, clip next, int transitionStart, int transitionEnd, 
+	             int "reverseTransitionStart", int "reverseTransitionEnd")
+Smooth transition between synchronized clips.
+transitionStart - first frame of transition
+Positive 'transitionEnd' - last frame of transition
+Negative 'transitionEnd' - transition length
+reverseTransitionStart -  first frame of reverse transition, no reverse transition by default
+reverseTransitionEnd - last frame or length of reverse transition, equal to direct transition length by default
+
+### aoTransitionScene
+    aoTransitionScene(clip prev, clip next, int start, int end, int "length")
+Smooth transition of specified 'length' between synchronized clips for scene replacing from 'start' to 'end' frame.
+
+### aoBorders
+    aoBorders(clip clp, int left, int top, int "right", int "bottom", 
+	          int "refLength", int "segments", float "blur", float "dither")
+Fix invalid color level near borders using ColorAdjust filter.
+left, top, right, bottom params specified how much lines or columns need to fix
+right and bottom are optional and equal to left and right by default
+refLength (default 1) describes number of columns or lines after LTRB that will be used as color reference
+segments (default 1) allows to split image into blocks and process them separatly with smooth transition to avoid invalid color adjustment when image is complicated
+blur (default 0, max 1.5) makes nearest to edge pixels more smooth to avoid noise
+dither - dithering level for ColorAdjust filter
+
+### aoInvertBorders
+    aoInvertBorders(clip clp, int left, int top, int "right", int "bottom")
+Invert color at borders, useful for masks.
+If input is YUV only luma will be processed 
+right and bottom equal to left and top by default
+
+### aoInterpolate
+    aoInterpolate(clip clp, int length, int "start", int "end", int "removeGrain")
+Interpolate frame sequence from 'start' to 'end' to the target 'length' with MVTools.
+
+### aoInterpolateScene
+    aoInterpolateScene(clip clp, int inStart, int inEnd, int outStart, int outEnd, int "removeGrain")
+Interpolate frame sequence from 'inStart' to 'inEnd' to the target scene from 'outStart' to 'outEnd' with MVTools.
+
+### Insert by default or replace with interpolated frame from the nearest with MVTools
+    aoInterpolateOne(clip clp, int frame, bool "insert", int "removeGrain")
+Insert by default or replace with interpolated frame from the nearest with MVTools.
+
 ## Examples
 #### Simple script 
     OM=AviSource("c:\test\OpenMatte.avs") # YV12 clip
@@ -372,8 +454,38 @@ Filter to extract and save scene key frames to text file based on stat file of a
     OverlayEngine(OM, WS, statFile="c:\test\Overlay.stat")
     OverlayRender(OM, WS, debug=true, noise=50, upsize="Spline64Resize")
     ConvertToYV12()
+	
+## Use cases
+
+### Improvement by other clip with different framing and better quality
+
+### Improvement by other clip with same framing and probably quality
+
+### Visible frame area maximization
+
+### Color matching
+
+### HDR to SDR conversion
+
+### SDR to HDR conversion
+
+### Logo removal
+
+### Clip comparing
+
+### Invalid or out of sync frames discovering
+
+### Edge correction
+
+### Scene detection
 
 ## Changelist
+### 04.09.2021 v0.5.0
+1. User function package
+2. Render: fix RGB HDR color mapping
+3. OverlayMask: HDR support
+4. Render: seed parameter
+
 ### 28.08.2021 v0.4.3
 1. Editor: maxDiff param editing.
 2. Editor: three-state defective frames checkbox.

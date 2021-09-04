@@ -6,6 +6,8 @@
 - SIMD Library https://github.com/ermig1979/Simd (включено в поставку)
 - warp plugin v0.1b by wonkey_monkey https://forum.doom9.org/showthread.php?t=176031 (включено в поставку)
 - Math.NET Numerics (включено в поставку)
+- MVTools https://github.com/pinterf/mvtools/releases (для aoInterpolate, не включено в поставку)
+- RGTools https://github.com/pinterf/RgTools/releases (для aoInterpolate, не включено в поставку)
 - .NET framework 4.6.1+
 - Windows 7+
 
@@ -157,7 +159,7 @@ Separate - обособление кадра. Join prev - присоединит
 - **engine** (required) - клип типа *OverlayEngine*, который предоставляет параметры наложения.
 - **source** (required) - первый, основной клип.
 - **overlay** (required) - второй клип, накладываемый на первый. Поддерживаются планарные YUV (8-16 бит), RGB24 и RGB48 цветовые пространства.
-- **sourceMask** and **overlayMask** (default empty) - маски основного и накладываемого клипа. В отличие от OverlayEngine смысл этих масок такой же, как в обычном фильтре *Overlay*. Маски регулируют интенсивность наложения клипов относительно друга друга.
+- **sourceMask** and **overlayMask** (default empty) - маски основного и накладываемого клипа. В отличие от OverlayEngine смысл этих масок такой же, как в обычном фильтре *Overlay*. Маски регулируют интенсивность наложения клипов относительно друга друга. Маски должны иметь ту же разрядность, что и накладываемый клип.
 - **overlayMode** (default blend) – режим наложения для встроенного фильтра `Overlay`
 - **width** и **height** - ширина и высота выходного изображения. По умолчанию соответствует основному клипу.
 - **pixelType** - не реализован. Вместо него для результирующего клипа используется цветовое пространство основного клипа. 
@@ -196,7 +198,7 @@ Separate - обособление кадра. Join prev - присоединит
 
 ### ColorAdjust
     ColorAdjust(clip sample, clip reference, clip sampleMask, clip referenceMask, float intensity,
-				int adjacentFramesCount, float adjacentFramesDiff, 
+				int seed, int adjacentFramesCount, float adjacentFramesDiff, 
 	            bool limitedRange, string channels, float dither, float exclude, string interpolation, 
 				bool extrapolation, bool dynamicNoise, bool simd, bool debug)
 
@@ -208,6 +210,7 @@ Separate - обособление кадра. Join prev - присоединит
 - **reference** (required) - клип-образец с тем же наполнением, что и sample
 - **sampleMask** and **referenceMask** (default empty) - 8 битные планарные маски для включения в обработку только участков изображений, значение маски для которых равно 255.
 - **intensity** (default 1) - интенсивность цветокоррекции
+- **seed** (default is constant) - seed для дизеринга, если фильтр используется многократно для рендеринга одного кадра
 - **adjacentFramesCount** (default 0) - количество соседних кадров в обе стороны, информация о которых включается в построение карты соответствия цветов
 - **adjacentFramesDiff** (default 1) - максимальное среднеквадратическое отклонение гистограмм разницы цветов сэмпла и образца от текущего кадра к соседним. 
 - **limitedRange** (default true) - ТВ диапазон
@@ -337,6 +340,85 @@ Filter to extract and save scene key frames to text file based on stat file of a
 - **sceneMinLength** (default 10) - scene minimal length
 - **maxDiffIncrease** (default 15) - scene detection DIFF value
 
+## User functions
+В дополнение к перечисленным выше фильтрам в файле OverlayUtils.avsi определены пользовательские функции.
+Они предназначены для облегчения процесса синхронизиации двух клипов и подготовки исходников для автовыравнивания.
+
+### aoShift
+    aoShift(clip clp, int pivot, int length)
+Сдвигает кадры, начиная с номера 'pivot', с удалением предыдущих или вставки пустых в зависимости от направления.
+Положительное значение 'length' - сдвиг вправо со вставкой пустых кадров перед 'pivot'.
+Отрицаительное значение 'length' - сдвиг влево с удалением кадров перед 'pivot'.
+
+### aoDelay
+    aoDelay(clip clp, int length)
+Частый случай 'aoShift' для вставки или удаления кадров в начале клипа.
+Положительное значение 'length' - сколько пустых кадров вставить.
+Отрицаительное значение 'length' - сколько кадров выкинуть.
+
+### aoDelete
+    aoDelete(clip clp, int start, int end)
+Удаление последовательности кадров от 'start' до 'end' включительно.
+
+### aoReplace
+    aoReplace(clip clp, clip replace, int start, int "end")
+Замена последовательноси кадров аналогичной из другого (синхронизированного) клипа.
+Параметр 'end' равен параметру 'start' по умолчанию, удобно для замены только одного кадра.
+Явно указанный ноль в параметре 'end' заменяется на последний кадр.
+
+### aoOverwrite
+    aoOverwrite(clip clp, clip scene, int frame)
+Вставка другого клипа 'scene', начиная с кадра 'frame' текущего с перезаписью.
+
+### aoInsert
+    aoInsert(clip clp, clip insert, int start, int "end")
+Вставка без перезаписи фрагмента из другого клипа, начиная с позиции 'start' в обоих клипах, заканчивая кадром 'end' во вставляемом клипе. 
+Параметр 'end' равен 'start' по умолчанию (вставка одного кадра).
+Явно указанный ноль в параметре 'end' заменяется на последний кадр.
+
+### aoTransition
+    aoTransition(clip prev, clip next, int transitionStart, int transitionEnd, 
+	             int "reverseTransitionStart", int "reverseTransitionEnd")
+Плавный переход между синхронизированными клипами. 
+transitionStart - начальный кадр перехода, включительно
+Положительное значение 'transitionEnd' - последний кадр перехода, включительно
+Отрицательное значение 'transitionEnd' - продолжительность перехода в кадрах, включительно
+reverseTransitionStart - начальный кадр обратного перехода, по умолчанию обратный переход отсутствует
+reverseTransitionEnd - последний кадр или длина обратного перехода, по умолчанию длина обратного перехода равна длине прямого
+
+### aoTransitionScene
+    aoTransitionScene(clip prev, clip next, int start, int end, int "length")
+Плавный переход указанной длины 'length' между синхронизированными клипами от 'start' до 'end' для замены фрагмента в исходном клипе, частный случай aoTransition.
+
+### aoBorders
+    aoBorders(clip clp, int left, int top, int "right", int "bottom", 
+	          int "refLength", int "segments", float "blur", float "dither")
+Исправление цветового уровня около границ кадра с использованием фильтра ColorAdjust.
+Параметры left, top, right, bottom определяют сколько пикселей от границ необходимо обработать.
+Параметры right и bottom по умолчанию равны left и top соответственно.
+refLength (default 1) задает ширину/высоту области в непосредственной близости от корректируемой, которая будет использоваться как образец цвета.
+segments (default 1) позволяет разбить границы на сегменты и обработать каждый из них отдельно с плавными переходами, чтобы избежать ошибок цветокоррекции на большей площади кадра, особенно если кадр содержит много объектов. 
+blur (default 0, max 1.5) смазывает ближайшие к границам пиксели для уменьшения шума
+dither - уровень дизеринга для фильтра ColorAdjust
+
+### aoInvertBorders
+    aoInvertBorders(clip clp, int left, int top, int "right", int "bottom")
+Инвертирует цвета по границам кадра, подходит для создания масок.
+В YUV клипе обрабатывается только яркость. 
+Параметры right и bottom по умолчанию равны left и top соответственно.
+
+### aoInterpolate
+    aoInterpolate(clip clp, int length, int "start", int "end", int "removeGrain")
+Интерполирует последовательность кадров клипа от 'start' до 'end' включительно, уменьшая или увеличивая их количество с помощью плагина MVTools.
+
+### aoInterpolateScene
+    aoInterpolateScene(clip clp, int inStart, int inEnd, int outStart, int outEnd, int "removeGrain")
+Интерполирует последовательность кадров клипа от 'inStart' до 'inEnd' включительно, перезаписывая результатом кадры от 'outStart' до 'outEnd' с помощью плагина MVTools.
+
+### Insert by default or replace with interpolated frame from the nearest with MVTools
+    aoInterpolateOne(clip clp, int frame, bool "insert", int "removeGrain")
+Вставляет (по умолчанию) или заменяет один кадр интерполируемым из соседних с помощью плагина MVTools.
+
 ## Examples
 #### Simple script 
     OM=AviSource("c:\test\OpenMatte.avs") # YV12 clip
@@ -354,8 +436,38 @@ Filter to extract and save scene key frames to text file based on stat file of a
     OverlayEngine(OM, WS, statFile="c:\test\Overlay.stat")
     OverlayRender(OM, WS, debug=true, noise=50, upsize="Spline64Resize")
     ConvertToYV12()
+	
+## Варианты использования
+Описание будет позже. 
+### Наложение источника лучшего качества с другим наполнением кадра
+
+### Совмещение источников с одинаковым наполнением кадра для получения результата лучшего качества
+
+### Максимизация наполнения кадра
+
+### Автоматическая цветокоррекция
+
+### Конвертация HDR в SDR
+
+### Конвертация SDR в HDR
+
+### Удаление логотипа
+
+### Сравнение клипов
+
+### Поиск "битых" кадров
+
+### Исправление границ кадра
+
+### Обнаружение сцен
 
 ## История изменений
+### 04.09.2021 v0.5.0
+1. Пакет пользовательских функций
+2. Render: исправление работы с RGB HDR клипами
+3. OverlayMask: поддержка HDR
+4. Render: новый параметр seed
+
 ### 28.08.2021 v0.4.3
 1. Editor: редактирование параметра maxDiff.
 2. Editor: чекбокс "Defective" теперь имеет три состояния.
