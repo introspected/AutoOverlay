@@ -15,7 +15,10 @@ function aoShift(clip clp, int pivot, int length) {
 		pivot = 0
 	}
 	if (pivot + length <= 0) {
-		return length > 0 ? BlankClip(clp, length) + clp : Trim( - pivot - length,0)
+		return Trim(-pivot - length, 0)
+	}
+	if (pivot == 0) {
+		return BlankClip(clp, length) + clp
 	}
 	if (pivot == FrameCount) {
 		return length > 0 ? clp + BlankClip(clp, length) : clp.Trim(0, FrameCount + length - 1)
