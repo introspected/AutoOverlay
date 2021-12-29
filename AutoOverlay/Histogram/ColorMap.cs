@@ -9,7 +9,6 @@ namespace AutoOverlay.Histogram
         public int[] FixedMap { get; }
         public Dictionary<int, double>[] DynamicMap { get; }
         private readonly double limit;
-        private readonly FastRandom random;
         private bool ditherAnyway;
         private bool fastDither;
 
@@ -23,7 +22,6 @@ namespace AutoOverlay.Histogram
                 FixedMap[i] = -1;
                 DynamicMap[i] = new Dictionary<int, double>();
             }
-            random = new FastRandom(seed);
             this.limit = limit;
             fastDither = limit > 0.5;
             ditherAnyway = limit > 1 - double.Epsilon;
@@ -55,13 +53,13 @@ namespace AutoOverlay.Histogram
             return FixedMap[color] >= 0 || DynamicMap[color].Any();
         }
 
-        public void Add(int oldColor, double newColor)
+        public void AddReal(int oldColor, double newColor, double weight = 1)
         {
-            var intergerColor = Math.Truncate(newColor);
-            var val = 1 - (newColor - intergerColor);
-            Add(oldColor, (int) intergerColor, val);
+            var integerColor = Math.Truncate(newColor);
+            var val = 1 - (newColor - integerColor);
+            Add(oldColor, (int) integerColor, val * weight);
             if (val <= 1 - double.Epsilon)
-                Add(oldColor, (int) intergerColor + 1, 1 - val);
+                Add(oldColor, (int) integerColor + 1, (1 - val) * weight);
         }
 
         public void Add(int oldColor, int newColor, double weight)
@@ -86,19 +84,6 @@ namespace AutoOverlay.Histogram
             }
         }
 
-        public int Next(int color)
-        {
-            var fixedColor = FixedMap[color];
-            if (fixedColor >= 0)
-                return fixedColor;
-            var val = random.NextDouble();
-            var map = DynamicMap[color];
-            foreach (var pair in map)
-                if ((val -= pair.Value) < double.Epsilon)
-                    return pair.Key;
-            throw new InvalidOperationException();
-        }
-
         public Tuple<int[][], double[][]> GetColorsAndWeights()
         {
             var length = DynamicMap.Length;
@@ -114,7 +99,7 @@ namespace AutoOverlay.Histogram
                 foreach (var pair in map)
                 {
                     colors[i] = pair.Key;
-                    weights[i++] = pair.Value;
+                    weights[i++] = pair.Value + double.Epsilon;
                 }
             }
             return Tuple.Create(colorMap, weightMap);

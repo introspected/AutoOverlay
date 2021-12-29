@@ -44,7 +44,11 @@ namespace AutoOverlay
             get => Contains(frame) ? frames[frame] : null;
             set
             {
+                if (Fixed)
+                    foreach (var f in frames.Values)
+                        f.CopyFrom(value);
                 frames[frame] = value;
+                value.ProbablyChanged = true;
                 ClearCache();
             }
         }

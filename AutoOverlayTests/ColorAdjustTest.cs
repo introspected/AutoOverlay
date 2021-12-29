@@ -50,7 +50,7 @@ namespace AutoOverlayTests
         public void TestColorMap()
         {
             var map = new ColorMap(8, 0, 1);
-            map.Add(2, 3.2);
+            map.AddReal(2, 3.2);
             var tuples = map.GetColorsAndWeights();
             Assert.AreEqual(tuples.Item1[2][0], 3);
             Assert.AreEqual(tuples.Item1[2][1], 4);

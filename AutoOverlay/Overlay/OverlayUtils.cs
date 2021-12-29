@@ -81,6 +81,8 @@ namespace AutoOverlay
                 if (cached != null)
                     return cached;
             }
+            if (val is Enum)
+                val = val.ToString();
 
             if (!(val is string) && val is IEnumerable array)
             {
@@ -478,6 +480,19 @@ namespace AutoOverlay
         {
             var mean = Mean(sample);
             return sample.All(p => (abs ? Math.Abs(p.Diff - mean) : p.Diff - mean) <= maxDiffIncrease);
+        }
+
+        public static dynamic GetConvertFunction(ColorSpaces colorSpace)
+        {
+            return colorSpace switch
+            {
+                ColorSpaces.CS_BGR24 => "ConvertToRGB24",
+                ColorSpaces.CS_BGR48 => "ConvertToRGB48",
+                var p when p.HasFlag(ColorSpaces.CS_GENERIC_YUV420) => "ConvertToYUV420",
+                var p when p.HasFlag(ColorSpaces.CS_GENERIC_YUV422) => "ConvertToYUV422",
+                var p when p.HasFlag(ColorSpaces.CS_GENERIC_YUV444) => "ConvertToYUV444",
+                _ => throw new ArgumentException("Unsupported color space with specified matrix")
+            };
         }
     }
 }

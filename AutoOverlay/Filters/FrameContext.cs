@@ -42,35 +42,25 @@ namespace AutoOverlay.Filters
             var crop = Info.GetCrop();
             Overlay = ctx.Render.ResizeRotate(Overlay, resizeFunc, null, Info.Width, Info.Height, 0, crop, Info.Warp);
             OverlayMask = ctx.Render.ResizeRotate(ctx.OverlayMask, "BicubicResize", null, Info.Width, Info.Height, 0, crop, Info.Warp);
-            if (ctx.Render.BitDepth > 0)
-            {
-                Source = Source.ConvertBits(ctx.Render.BitDepth);
-                Overlay = Overlay.ConvertBits(ctx.Render.BitDepth);
-            }
             InitColorAdjust();
         }
 
         private void InitColorAdjust()
         {
+            if (ctx.Render.BitDepth > 0)
+            {
+                Source = Source.ConvertBits(ctx.Render.BitDepth);
+                Overlay = Overlay.ConvertBits(ctx.Render.BitDepth);
+            }
             SourceTest = AdjCrop(Source, false);
             OverlayTest = AdjCrop(Overlay, true);
-            MaskTest = AdjCrop(ctx.SourceMask, false);
-            if (OverlayMask != null)
+            var srcMaskTest = AdjCrop(ctx.SourceMask, false);
+            var overMaskTest = AdjCrop(OverlayMask, true);
+            MaskTest = (srcMaskTest, overMaskTest) switch
             {
-                var input = (MaskTest ?? new DynamicEnvironment(ctx.Render.GetBlankClip(Source, true)))
-                    .Overlay(OverlayMask, Info.X, Info.Y, mode: "darken");
-                MaskTest = AdjCrop(input, true);
-            }
-            if (!ctx.Render.GetVideoInfo().IsRGB() && !string.IsNullOrEmpty(ctx.Render.Matrix))
-            {
-                SourceTest = SourceTest.ConvertToRgb24(matrix: ctx.Render.Matrix);
-                OverlayTest = OverlayTest.ConvertToRgb24(matrix: ctx.Render.Matrix);
-                MaskTest = MaskTest?.ConvertToRgb24(matrix: ctx.Render.Matrix);
-                if (ctx.Render.ColorAdjust > double.Epsilon)
-                    Source = Source.ConvertToRgb24(matrix: ctx.Render.Matrix);
-                if (ctx.Render.ColorAdjust < 1 - double.Epsilon)
-                    Overlay = Overlay.ConvertToRgb24(matrix: ctx.Render.Matrix);
-            }
+                ({}, {}) => srcMaskTest.Overlay(overMaskTest, mode: "darken"),
+                _ => srcMaskTest ?? overMaskTest
+            };
         }
 
         private dynamic AdjCrop(dynamic clp, bool invert)

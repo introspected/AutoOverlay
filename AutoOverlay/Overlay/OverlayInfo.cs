@@ -32,9 +32,9 @@ namespace AutoOverlay
         public int SourceHeight { get; set; }
         public double Comparison { get; set; } = 2;
 
-        public bool Preferred { get; set; }
-
         public bool Modified { get; set; }
+
+        public bool ProbablyChanged { get; set; }
 
         public bool KeyFrame { get; set; }
 

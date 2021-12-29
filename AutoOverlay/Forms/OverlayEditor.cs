@@ -101,23 +101,25 @@ namespace AutoOverlay.Forms
         {
             var interval = prevInterval;
             if (interval == null || !interval.Contains(CurrentFrame)) return;
-            if (interval == null || !interval.Contains(CurrentFrame)) return;
             var info = GetOverlayInfo();
-            if (!info.Equals(interval[CurrentFrame]))
+            var intervalInfo = interval[CurrentFrame];
+            var changed = intervalInfo.ProbablyChanged || !info.Equals(intervalInfo);
+            if (changed)
             {
                 if (interval.Fixed)
                     foreach (var frame in interval)
                     {
                         frame.CopyFrom(info);
-                        frame.Modified = true;
+                        frame.Modified = !frame.Equals(Engine.OverlayStat[frame.FrameNumber]);
                     }
                 else
                 {
                     interval[CurrentFrame].CopyFrom(info);
-                    interval[CurrentFrame].Modified = true;
+                    interval[CurrentFrame].Modified = !info.Equals(Engine.OverlayStat[CurrentFrame]);
                 }
                 grid.Refresh();
             }
+            info.ProbablyChanged = false;
         }
         #endregion
 
@@ -178,7 +180,7 @@ namespace AutoOverlay.Forms
 
         private void grid_RowPrePaint(object sender, DataGridViewRowPrePaintEventArgs e)
         {
-            var compareLimit = (double)nudCompare.Value;
+            var compareLimit = (double) nudCompare.Value;
             if (e.RowIndex < 0) return;
             var item = Intervals[e.RowIndex];
             if (item.Modified)
@@ -189,6 +191,7 @@ namespace AutoOverlay.Forms
                 grid.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.LightCoral;
             else if (item.Any(p => p.Diff > MaxDiff))
                 grid.Rows[e.RowIndex].DefaultCellStyle.BackColor = Color.LightPink;
+            else grid.Rows[e.RowIndex].DefaultCellStyle.BackColor = grid.DefaultCellStyle.BackColor;
         }
 
         private void OverlayEditor_FormClosing(object sender, FormClosingEventArgs e)
@@ -353,7 +356,7 @@ namespace AutoOverlay.Forms
             using (var refStat = compareFilename == null ? null : new FileOverlayStat(compareFilename, Engine.SrcInfo.Size, Engine.OverInfo.Size))
                 foreach (var info in Engine.OverlayStat.Frames.Where(p => p.FrameNumber >= min && p.FrameNumber <= max))
                 {
-                    info.Comparison = refStat?[info.FrameNumber]?.Compare(info, Engine.SrcInfo.Size) ?? 2;
+                    info.Comparison = refStat?[info.FrameNumber]?.Compare(info, Engine.OverInfo.Size) ?? 2;
                     var compareFailed = info.Comparison < compareLimit;
                     var diffFailed = info.Diff > MaxDiff;
                     var valid = !diffFailed && !compareFailed;
@@ -362,7 +365,7 @@ namespace AutoOverlay.Forms
                         continue;
                     if (lastInterval == null
                         || lastFrame.FrameNumber != info.FrameNumber - 1
-                        || !lastFrame.NearlyEquals(info, overSize, MaxDeviation)
+                        || (MaxDeviation.NearlyZero() ? !lastFrame.Equals(info) : !lastFrame.NearlyEquals(info, overSize, MaxDeviation))
                         || Engine.KeyFrames.Contains(info.FrameNumber))
                     {
                         if (initial && Intervals.Count == 2000)
@@ -471,6 +474,7 @@ namespace AutoOverlay.Forms
         private OverlayInfo GetOverlayInfo()
         {
             Func<decimal, int> crop = val => (int) (val * OverlayInfo.CROP_VALUE_COUNT);
+            var currentFrame = prevInterval?[CurrentFrame] ?? Interval?[CurrentFrame];
             return new OverlayInfo
             {
                 FrameNumber = CurrentFrame,
@@ -484,11 +488,11 @@ namespace AutoOverlay.Forms
                 CropTop = crop(nudCropTop.Value),
                 CropRight = crop(nudCropRight.Value),
                 CropBottom = crop(nudCropBottom.Value),
-                SourceWidth = CurrentFrameInfo?.SourceWidth ?? Engine.SrcInfo.Width,
-                SourceHeight = CurrentFrameInfo?.SourceHeight ?? Engine.SrcInfo.Height,
-                BaseWidth = CurrentFrameInfo?.BaseWidth ?? Engine.OverInfo.Width,
-                BaseHeight = CurrentFrameInfo?.BaseHeight ?? Engine.OverInfo.Height,
-                Diff = CurrentFrameInfo?.Diff ?? -1
+                SourceWidth = currentFrame?.SourceWidth ?? Engine.SrcInfo.Width,
+                SourceHeight = currentFrame?.SourceHeight ?? Engine.SrcInfo.Height,
+                BaseWidth = currentFrame?.BaseWidth ?? Engine.OverInfo.Width,
+                BaseHeight = currentFrame?.BaseHeight ?? Engine.OverInfo.Height,
+                Diff = currentFrame?.Diff ?? -1
             };
         }
 
@@ -496,7 +500,7 @@ namespace AutoOverlay.Forms
         {
             var request = new RenderRequest
             {
-                info = GetOverlayInfo(),
+                info = GetOverlayInfo().Resize(Engine.SrcInfo.Size, Engine.OverInfo.Size),
                 env = Env,
                 outSize = new Size((int) nudOutputWidth.Value, (int) nudOutputHeight.Value),
                 preview = chbPreview.Checked,
@@ -645,7 +649,7 @@ namespace AutoOverlay.Forms
         private void ResetCurrent(object sender = null, EventArgs e = null)
         {
             var info = Engine.OverlayStat[CurrentFrame];
-            Interval[CurrentFrame].Diff = info.Diff;
+            Interval[CurrentFrame] = info;
             UpdateControls(info);
             RenderImpl();
         }
@@ -815,7 +819,7 @@ namespace AutoOverlay.Forms
             if (Interval == null) return;
             Post(CurrentFrame, frame => Engine.AutoOverlayImpl(frame), (frame, info) =>
             {
-                Interval[frame].Diff = info.Diff;
+                Interval[frame] = info;
                 UpdateControls(info);
                 RenderImpl();
             });
@@ -832,7 +836,7 @@ namespace AutoOverlay.Forms
             if (Interval == null) return;
             Post(CurrentFrame, frame => Engine.AutoOverlayImpl(frame), (frame, info) =>
             {
-                Interval[CurrentFrame].Diff = info.Diff;
+                Interval[CurrentFrame] = info;
                 if (Interval.Contains(CurrentFrame - 1) && !info.NearlyEquals(Interval[CurrentFrame - 1], Engine.OverInfo.Size, MaxDeviation))
                 {
                     btnSeparate_Click(sender, e);
@@ -881,14 +885,14 @@ namespace AutoOverlay.Forms
             Post(new
                 {
                     Frame = CurrentFrame,
-                    KeyInfo = keyFrame(),
+                    KeyInfo = keyFrame().Resize(Engine.SrcInfo.Size, Engine.OverInfo.Size),
                     Delta = (int)nudDistance.Value,
                     Scale = (double)nudScale.Value / 1000
                 },
                 tuple => Engine.PanScanImpl(tuple.KeyInfo, tuple.Frame, tuple.Delta, tuple.Scale, false),
                 (tuple, info) =>
                 {
-                    Interval[tuple.Frame].Diff = info.Diff;
+                    Interval[tuple.Frame] = info;
                     UpdateControls(info);
                     RenderImpl();
                 });
@@ -902,6 +906,7 @@ namespace AutoOverlay.Forms
                 var delta = (int) nudDistance.Value;
                 var scale = (double) nudScale.Value / 1000;
                 var keyFrame = interval == Interval ? Interval[currentFrame] : interval.First();
+                keyFrame = keyFrame.Resize(Engine.SrcInfo.Size, Engine.OverInfo.Size);
                 return Engine.PanScanImpl(keyFrame, frame, delta, scale, false);
             })
             {
@@ -917,6 +922,7 @@ namespace AutoOverlay.Forms
                 var delta = (int) nudDistance.Value;
                 var scale = (double) nudScale.Value / 1000;
                 var keyFrame = interval[frame - 1] ?? interval[frame];
+                keyFrame = keyFrame.Resize(Engine.SrcInfo.Size, Engine.OverInfo.Size);
                 if (interval == Interval)
                     keyFrame.Warp = Interval[currentFrame].Warp;
                 return Engine.PanScanImpl(keyFrame, frame, delta, scale, false);

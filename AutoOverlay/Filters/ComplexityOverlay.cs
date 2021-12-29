@@ -9,7 +9,7 @@ using AvsFilterNet;
 [assembly: AvisynthFilterClass(
     typeof(ComplexityOverlay),
     nameof(ComplexityOverlay),
-    "cc[Channels]s[Steps]i[Preference]f[Mask]b[Smooth]f[Debug]b",
+    "cc[Channels]s[Steps]i[Preference]f[Mask]b[Smooth]f[Threads]i[Debug]b",
     OverlayUtils.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
@@ -36,14 +36,22 @@ namespace AutoOverlay
         [AvsArgument(Min = 0, Max = 1.58)]
         public double Smooth { get; protected set; }
 
+        [AvsArgument(Min = 0)]
+        public int Threads { get; set; } = 0;
+
         [AvsArgument]
         public override bool Debug { get; protected set; }
 
         private YUVPlanes[] planes;
         private int[] realChannels;
+        private ParallelOptions parallelOptions;
 
         protected override void Initialize(AVSValue args)
         {
+            parallelOptions = new ParallelOptions
+            {
+                MaxDegreeOfParallelism = Threads == 0 ? -1 : Threads
+            };
             planes = GetVideoInfo().pixel_type.HasFlag(ColorSpaces.CS_INTERLEAVED)
                 ? new[] { default(YUVPlanes) }
                 : (Channels ?? "yuv").ToCharArray().Select(p => Enum.Parse(typeof(YUVPlanes), "PLANAR_" + p, true))
@@ -67,20 +75,20 @@ namespace AutoOverlay
             {
                 if (GetVideoInfo().IsRGB() && realChannels.Length < 3 || Source.IsRealPlanar() && planes.Length < 3)
                 {
-                    Parallel.ForEach(allPlanes, plane => OverlayUtils.CopyPlane(src, output, plane));
+                    Parallel.ForEach(allPlanes, parallelOptions, plane => OverlayUtils.CopyPlane(src, output, plane));
                 }
                 unsafe
                 {
-                    Parallel.ForEach(planes, plane =>
+                    Parallel.ForEach(planes, parallelOptions, plane =>
                     {
                         var pixelSize = GetVideoInfo().IsRGB() ? 3 : 1;
                         
                         var size = new Size(src.GetRowSize(plane), src.GetHeight(plane));
                         var srcStride = src.GetPitch(plane);
                         var overStride = over.GetPitch(plane);
-                        Parallel.ForEach(realChannels, channel =>
+                        Parallel.ForEach(realChannels, parallelOptions, channel =>
                         {
-                            Parallel.For(0, size.Height, y =>
+                            Parallel.For(0, size.Height, parallelOptions, y =>
                             {
                                 var srcData = (byte*) src.GetReadPtr(plane) + y * srcStride + channel;
                                 var overData = (byte*) over.GetReadPtr(plane) + y * overStride + channel;

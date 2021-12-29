@@ -1,5 +1,10 @@
 # AutoOverlay AviSynth plugin v0.5
 
+function aoDebug(clip clp) {
+	global aoDebugReplace = true
+	return clp.BlankClip(0)
+}
+
 # Shift frames starting from pivot to delete previous frames or insert blank frames depending on direction
 # Positive length - to the right inserting blank frames before pivot
 # Negative length - to the left deleting frames before pivot
@@ -59,12 +64,17 @@ function aoDelete(clip clp, int start, int end) {
 function aoReplace(clip clp, clip replace, int start, int "end") {
 	end = default(end, -1)
 	if (end == 0) {
-		end = clp.FrameCount - 1
+		end = replace.FrameCount - 1
 	} else if (end == -1) {
         end = start
 	}
+	
+	if (VarExist("aoDebugReplace") && eval("aoDebugReplace")) {
+		return clp + replace.Trim(start, end)
+	}
+	
 	assert(start >= 0 && start < clp.FrameCount, "'start' should be non-negative and less than clip length")
-	assert(end >= start && end < clp.FrameCount, "'end' should be greater than or equal to 'start' and less than clip length")
+	assert(end >= start, "'end' should be greater than or equal to 'start'")
 	assert(end < replace.FrameCount, "'replace' clip should be longer than 'end'")
 	
 	result = replace.Trim(start, end == 0 ? -1 : end)

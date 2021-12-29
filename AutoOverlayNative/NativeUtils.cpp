@@ -13,8 +13,8 @@ namespace AutoOverlay {
 		IntPtr dstImage, int dstWidth, int dstHeight, int dstStride,
 		double angle)
 	{
-		unsigned char* src = reinterpret_cast<unsigned char*>(srcImage.ToPointer());
-		unsigned char* dst = reinterpret_cast<unsigned char*>(dstImage.ToPointer());
+		unsigned char* src = static_cast<unsigned char*>(srcImage.ToPointer());
+		unsigned char* dst = static_cast<unsigned char*>(dstImage.ToPointer());
 
 		double oldXradius = (srcWidth - 1) / 2.0;
 		double oldYradius = (srcHeight - 1) / 2.0;
@@ -90,8 +90,8 @@ namespace AutoOverlay {
 				angle);
 			return;
 		}
-		unsigned char* src = reinterpret_cast<unsigned char*>(srcImage.ToPointer());
-		unsigned char* dst = reinterpret_cast<unsigned char*>(dstImage.ToPointer());
+		unsigned char* src = static_cast<unsigned char*>(srcImage.ToPointer());
+		unsigned char* dst = static_cast<unsigned char*>(dstImage.ToPointer());
 
 		double oldXradius = (srcWidth - 1) / 2.0;
 		double oldYradius = (srcHeight - 1) / 2.0;

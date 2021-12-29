@@ -73,12 +73,6 @@ namespace AutoOverlay
         [AvsArgument(Min = 0, Max = 100)]
         public int Correction { get; set; } = 1;
 
-        //[AvsArgument(Min = 0, Max = 10)]
-        //public double StickLevel { get; set; } = 0.05;
-
-        //[AvsArgument(Min = 0, Max = 10)]
-        //public double StickDistance { get; set; } = 1;
-
         [AvsArgument]
         public int MinX { get; set; } = short.MinValue;
 
@@ -135,8 +129,6 @@ namespace AutoOverlay
                     writer.Write(Branches);
                     writer.Write(AcceptableDiff);
                     writer.Write(Correction);
-                    //writer.Write(StickLevel);
-                    //writer.Write(StickDistance);
                     writer.Write(MinX);
                     writer.Write(MaxX);
                     writer.Write(MinY);
@@ -187,8 +179,6 @@ namespace AutoOverlay
                         Branches = reader.ReadInt32(),
                         AcceptableDiff = reader.ReadDouble(),
                         Correction = reader.ReadInt32(),
-                        //StickLevel = reader.ReadDouble(),
-                        //StickDistance = reader.ReadDouble(),
                         MinX = reader.ReadInt32(),
                         MaxX = reader.ReadInt32(),
                         MinY = reader.ReadInt32(),

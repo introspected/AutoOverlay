@@ -30,14 +30,18 @@
         {
             this.components = new System.ComponentModel.Container();
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(OverlayEditor));
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(OverlayEditor));
             this.panel1 = new System.Windows.Forms.Panel();
             this.trackBar = new System.Windows.Forms.TrackBar();
             this.panel3 = new System.Windows.Forms.Panel();
             this.chbDefective = new System.Windows.Forms.CheckBox();
+            this.nudMaxDiff = new System.Windows.Forms.NumericUpDown();
+            this.nudMinSceneLength = new System.Windows.Forms.NumericUpDown();
             this.nudMinFrame = new System.Windows.Forms.NumericUpDown();
             this.nudMaxFrame = new System.Windows.Forms.NumericUpDown();
+            this.label31 = new System.Windows.Forms.Label();
+            this.label30 = new System.Windows.Forms.Label();
             this.label21 = new System.Windows.Forms.Label();
             this.label19 = new System.Windows.Forms.Label();
             this.nudCurrentFrame = new System.Windows.Forms.NumericUpDown();
@@ -45,9 +49,15 @@
             this.label20 = new System.Windows.Forms.Label();
             this.panelManage = new System.Windows.Forms.Panel();
             this.grid = new System.Windows.Forms.DataGridView();
+            this.intervalDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.xDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.yDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Resolution = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Crop = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.Angle = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.diffDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Fixed = new System.Windows.Forms.DataGridViewCheckBoxColumn();
+            this.frameIntervalBindingSource = new System.Windows.Forms.BindingSource(this.components);
             this.panel2 = new System.Windows.Forms.Panel();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.gbScan = new System.Windows.Forms.GroupBox();
@@ -132,24 +142,17 @@
             this.btnDelete = new System.Windows.Forms.ToolStripButton();
             this.pictureBox = new System.Windows.Forms.PictureBox();
             this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
-            this.label30 = new System.Windows.Forms.Label();
-            this.nudMinSceneLength = new System.Windows.Forms.NumericUpDown();
-            this.intervalDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.xDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.yDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.Angle = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.diffDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.frameIntervalBindingSource = new System.Windows.Forms.BindingSource(this.components);
-            this.label31 = new System.Windows.Forms.Label();
-            this.nudMaxDiff = new System.Windows.Forms.NumericUpDown();
             this.panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trackBar)).BeginInit();
             this.panel3.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.nudMaxDiff)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudMinSceneLength)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudMinFrame)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudMaxFrame)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudCurrentFrame)).BeginInit();
             this.panelManage.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.grid)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.frameIntervalBindingSource)).BeginInit();
             this.panel2.SuspendLayout();
             this.groupBox3.SuspendLayout();
             this.gbScan.SuspendLayout();
@@ -178,9 +181,6 @@
             ((System.ComponentModel.ISupportInitialize)(this.nudOverlayWidth)).BeginInit();
             this.toolStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudMinSceneLength)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.frameIntervalBindingSource)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudMaxDiff)).BeginInit();
             this.SuspendLayout();
             // 
             // panel1
@@ -243,7 +243,51 @@
             this.chbDefective.Text = "Defective only";
             this.chbDefective.ThreeState = true;
             this.chbDefective.UseVisualStyleBackColor = true;
-            this.chbDefective.CheckedChanged += new System.EventHandler(this.Reset);
+            this.chbDefective.CheckStateChanged += new System.EventHandler(this.Reset);
+            // 
+            // nudMaxDiff
+            // 
+            this.nudMaxDiff.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.nudMaxDiff.DecimalPlaces = 1;
+            this.nudMaxDiff.Location = new System.Drawing.Point(171, 2);
+            this.nudMaxDiff.Maximum = new decimal(new int[] {
+            9999,
+            0,
+            0,
+            65536});
+            this.nudMaxDiff.Name = "nudMaxDiff";
+            this.nudMaxDiff.Size = new System.Drawing.Size(49, 20);
+            this.nudMaxDiff.TabIndex = 14;
+            this.nudMaxDiff.Value = new decimal(new int[] {
+            9999,
+            0,
+            0,
+            65536});
+            this.nudMaxDiff.ValueChanged += new System.EventHandler(this.Reset);
+            // 
+            // nudMinSceneLength
+            // 
+            this.nudMinSceneLength.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.nudMinSceneLength.Location = new System.Drawing.Point(311, 2);
+            this.nudMinSceneLength.Maximum = new decimal(new int[] {
+            99999,
+            0,
+            0,
+            0});
+            this.nudMinSceneLength.Minimum = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            this.nudMinSceneLength.Name = "nudMinSceneLength";
+            this.nudMinSceneLength.Size = new System.Drawing.Size(49, 20);
+            this.nudMinSceneLength.TabIndex = 14;
+            this.nudMinSceneLength.Value = new decimal(new int[] {
+            1,
+            0,
+            0,
+            0});
+            this.nudMinSceneLength.ValueChanged += new System.EventHandler(this.Reset);
             // 
             // nudMinFrame
             // 
@@ -277,6 +321,26 @@
             0,
             0});
             this.nudMaxFrame.ValueChanged += new System.EventHandler(this.Reset);
+            // 
+            // label31
+            // 
+            this.label31.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.label31.AutoSize = true;
+            this.label31.Location = new System.Drawing.Point(99, 4);
+            this.label31.Name = "label31";
+            this.label31.Size = new System.Drawing.Size(70, 13);
+            this.label31.TabIndex = 5;
+            this.label31.Text = "Defective diff";
+            // 
+            // label30
+            // 
+            this.label30.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.label30.AutoSize = true;
+            this.label30.Location = new System.Drawing.Point(221, 4);
+            this.label30.Name = "label30";
+            this.label30.Size = new System.Drawing.Size(88, 13);
+            this.label30.TabIndex = 5;
+            this.label30.Text = "Min scene length";
             // 
             // label21
             // 
@@ -388,6 +452,30 @@
             this.grid.KeyDown += new System.Windows.Forms.KeyEventHandler(this.SuppressKeyPress);
             this.grid.KeyUp += new System.Windows.Forms.KeyEventHandler(this.SuppressKeyPress);
             // 
+            // intervalDataGridViewTextBoxColumn
+            // 
+            this.intervalDataGridViewTextBoxColumn.DataPropertyName = "Interval";
+            this.intervalDataGridViewTextBoxColumn.HeaderText = "Interval";
+            this.intervalDataGridViewTextBoxColumn.Name = "intervalDataGridViewTextBoxColumn";
+            this.intervalDataGridViewTextBoxColumn.ReadOnly = true;
+            this.intervalDataGridViewTextBoxColumn.Width = 67;
+            // 
+            // xDataGridViewTextBoxColumn
+            // 
+            this.xDataGridViewTextBoxColumn.DataPropertyName = "X";
+            this.xDataGridViewTextBoxColumn.HeaderText = "X";
+            this.xDataGridViewTextBoxColumn.Name = "xDataGridViewTextBoxColumn";
+            this.xDataGridViewTextBoxColumn.ReadOnly = true;
+            this.xDataGridViewTextBoxColumn.Width = 39;
+            // 
+            // yDataGridViewTextBoxColumn
+            // 
+            this.yDataGridViewTextBoxColumn.DataPropertyName = "Y";
+            this.yDataGridViewTextBoxColumn.HeaderText = "Y";
+            this.yDataGridViewTextBoxColumn.Name = "yDataGridViewTextBoxColumn";
+            this.yDataGridViewTextBoxColumn.ReadOnly = true;
+            this.yDataGridViewTextBoxColumn.Width = 39;
+            // 
             // Resolution
             // 
             this.Resolution.DataPropertyName = "Size";
@@ -404,6 +492,24 @@
             this.Crop.ReadOnly = true;
             this.Crop.Width = 54;
             // 
+            // Angle
+            // 
+            this.Angle.DataPropertyName = "Angle";
+            this.Angle.HeaderText = "Angle";
+            this.Angle.Name = "Angle";
+            this.Angle.ReadOnly = true;
+            this.Angle.Width = 59;
+            // 
+            // diffDataGridViewTextBoxColumn
+            // 
+            this.diffDataGridViewTextBoxColumn.DataPropertyName = "Diff";
+            dataGridViewCellStyle1.Format = "F1";
+            this.diffDataGridViewTextBoxColumn.DefaultCellStyle = dataGridViewCellStyle1;
+            this.diffDataGridViewTextBoxColumn.HeaderText = "Diff";
+            this.diffDataGridViewTextBoxColumn.Name = "diffDataGridViewTextBoxColumn";
+            this.diffDataGridViewTextBoxColumn.ReadOnly = true;
+            this.diffDataGridViewTextBoxColumn.Width = 48;
+            // 
             // Fixed
             // 
             this.Fixed.DataPropertyName = "Fixed";
@@ -411,6 +517,10 @@
             this.Fixed.Name = "Fixed";
             this.Fixed.ReadOnly = true;
             this.Fixed.Width = 38;
+            // 
+            // frameIntervalBindingSource
+            // 
+            this.frameIntervalBindingSource.DataSource = typeof(AutoOverlay.FrameInterval);
             // 
             // panel2
             // 
@@ -1518,116 +1628,6 @@
             this.pictureBox.TabIndex = 2;
             this.pictureBox.TabStop = false;
             // 
-            // label30
-            // 
-            this.label30.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.label30.AutoSize = true;
-            this.label30.Location = new System.Drawing.Point(221, 4);
-            this.label30.Name = "label30";
-            this.label30.Size = new System.Drawing.Size(88, 13);
-            this.label30.TabIndex = 5;
-            this.label30.Text = "Min scene length";
-            // 
-            // nudMinSceneLength
-            // 
-            this.nudMinSceneLength.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.nudMinSceneLength.Location = new System.Drawing.Point(311, 2);
-            this.nudMinSceneLength.Maximum = new decimal(new int[] {
-            99999,
-            0,
-            0,
-            0});
-            this.nudMinSceneLength.Minimum = new decimal(new int[] {
-            1,
-            0,
-            0,
-            0});
-            this.nudMinSceneLength.Name = "nudMinSceneLength";
-            this.nudMinSceneLength.Size = new System.Drawing.Size(49, 20);
-            this.nudMinSceneLength.TabIndex = 14;
-            this.nudMinSceneLength.Value = new decimal(new int[] {
-            1,
-            0,
-            0,
-            0});
-            this.nudMinSceneLength.ValueChanged += new System.EventHandler(this.Reset);
-            // 
-            // intervalDataGridViewTextBoxColumn
-            // 
-            this.intervalDataGridViewTextBoxColumn.DataPropertyName = "Interval";
-            this.intervalDataGridViewTextBoxColumn.HeaderText = "Interval";
-            this.intervalDataGridViewTextBoxColumn.Name = "intervalDataGridViewTextBoxColumn";
-            this.intervalDataGridViewTextBoxColumn.ReadOnly = true;
-            this.intervalDataGridViewTextBoxColumn.Width = 67;
-            // 
-            // xDataGridViewTextBoxColumn
-            // 
-            this.xDataGridViewTextBoxColumn.DataPropertyName = "X";
-            this.xDataGridViewTextBoxColumn.HeaderText = "X";
-            this.xDataGridViewTextBoxColumn.Name = "xDataGridViewTextBoxColumn";
-            this.xDataGridViewTextBoxColumn.ReadOnly = true;
-            this.xDataGridViewTextBoxColumn.Width = 39;
-            // 
-            // yDataGridViewTextBoxColumn
-            // 
-            this.yDataGridViewTextBoxColumn.DataPropertyName = "Y";
-            this.yDataGridViewTextBoxColumn.HeaderText = "Y";
-            this.yDataGridViewTextBoxColumn.Name = "yDataGridViewTextBoxColumn";
-            this.yDataGridViewTextBoxColumn.ReadOnly = true;
-            this.yDataGridViewTextBoxColumn.Width = 39;
-            // 
-            // Angle
-            // 
-            this.Angle.DataPropertyName = "Angle";
-            this.Angle.HeaderText = "Angle";
-            this.Angle.Name = "Angle";
-            this.Angle.ReadOnly = true;
-            this.Angle.Width = 59;
-            // 
-            // diffDataGridViewTextBoxColumn
-            // 
-            this.diffDataGridViewTextBoxColumn.DataPropertyName = "Diff";
-            dataGridViewCellStyle1.Format = "F1";
-            this.diffDataGridViewTextBoxColumn.DefaultCellStyle = dataGridViewCellStyle1;
-            this.diffDataGridViewTextBoxColumn.HeaderText = "Diff";
-            this.diffDataGridViewTextBoxColumn.Name = "diffDataGridViewTextBoxColumn";
-            this.diffDataGridViewTextBoxColumn.ReadOnly = true;
-            this.diffDataGridViewTextBoxColumn.Width = 48;
-            // 
-            // frameIntervalBindingSource
-            // 
-            this.frameIntervalBindingSource.DataSource = typeof(AutoOverlay.FrameInterval);
-            // 
-            // label31
-            // 
-            this.label31.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.label31.AutoSize = true;
-            this.label31.Location = new System.Drawing.Point(99, 4);
-            this.label31.Name = "label31";
-            this.label31.Size = new System.Drawing.Size(70, 13);
-            this.label31.TabIndex = 5;
-            this.label31.Text = "Defective diff";
-            // 
-            // nudMaxDiff
-            // 
-            this.nudMaxDiff.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.nudMaxDiff.DecimalPlaces = 1;
-            this.nudMaxDiff.Location = new System.Drawing.Point(171, 2);
-            this.nudMaxDiff.Maximum = new decimal(new int[] {
-            9999,
-            0,
-            0,
-            65536});
-            this.nudMaxDiff.Name = "nudMaxDiff";
-            this.nudMaxDiff.Size = new System.Drawing.Size(49, 20);
-            this.nudMaxDiff.TabIndex = 14;
-            this.nudMaxDiff.Value = new decimal(new int[] {
-            9999,
-            0,
-            0,
-            65536});
-            this.nudMaxDiff.ValueChanged += new System.EventHandler(this.Reset);
-            // 
             // OverlayEditor
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -1648,11 +1648,14 @@
             ((System.ComponentModel.ISupportInitialize)(this.trackBar)).EndInit();
             this.panel3.ResumeLayout(false);
             this.panel3.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.nudMaxDiff)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudMinSceneLength)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudMinFrame)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudMaxFrame)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudCurrentFrame)).EndInit();
             this.panelManage.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.grid)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.frameIntervalBindingSource)).EndInit();
             this.panel2.ResumeLayout(false);
             this.panel2.PerformLayout();
             this.groupBox3.ResumeLayout(false);
@@ -1686,9 +1689,6 @@
             this.toolStrip1.ResumeLayout(false);
             this.toolStrip1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudMinSceneLength)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.frameIntervalBindingSource)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudMaxDiff)).EndInit();
             this.ResumeLayout(false);
 
         }

@@ -4,16 +4,15 @@ using System.Linq;
 using System.Threading.Tasks;
 using AutoOverlay;
 using AutoOverlay.AviSynth;
-using AutoOverlay.Filters;
 using AutoOverlay.Histogram;
 using AvsFilterNet;
 using MathNet.Numerics.Interpolation;
 
 [assembly: AvisynthFilterClass(
     typeof(ColorAdjust), nameof(ColorAdjust),
-    "c[Sample]c[Reference]c[SampleMask]c[ReferenceMask]c[Intensity]f[Seed]i" +
+    "c[Sample]c[Reference]c[SampleMask]c[ReferenceMask]c[GreyMask]b[Intensity]f[Seed]i" +
     "[AdjacentFramesCount]i[AdjacentFramesDiff]f[LimitedRange]b[Channels]s[Dither]f[Exclude]f" +
-    "[Interpolation]s[Extrapolation]b[DynamicNoise]b[SIMD]b[Debug]b[CacheId]s",
+    "[Interpolation]s[Extrapolation]b[DynamicNoise]b[SIMD]b[Threads]i[Debug]b[CacheId]s",
     OverlayUtils.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
@@ -30,6 +29,9 @@ namespace AutoOverlay
 
         [AvsArgument]
         public Clip ReferenceMask { get; private set; }
+
+        [AvsArgument]
+        public bool GreyMask { get; protected set; } = true;
 
         [AvsArgument(Min = 0, Max = 1)]
         public double Intensity { get; set; } = 1;
@@ -56,7 +58,7 @@ namespace AutoOverlay
         public double Exclude { get; set; } = 0;
 
         [AvsArgument]
-        public ColorInterpolation Interpolation { get; set; } = ColorInterpolation.Linear; //ColorInterpolation.Spline;
+        public ColorInterpolation Interpolation { get; set; } = ColorInterpolation.Linear;
 
         [AvsArgument]
         public bool Extrapolation { get; protected set; } = false;
@@ -66,6 +68,9 @@ namespace AutoOverlay
 
         [AvsArgument]
         public bool SIMD { get; private set; } = true;
+
+        [AvsArgument(Min = 0)]
+        public int Threads { get; set; } = 0;
 
         [AvsArgument]
         public override bool Debug { get; protected set; }
@@ -78,9 +83,14 @@ namespace AutoOverlay
         private int sampleBits, referenceBits;
 
         private HistogramCache histogramCache;
+        private ParallelOptions parallelOptions;
 
         protected override void Initialize(AVSValue args)
         {
+            parallelOptions = new ParallelOptions
+            {
+                MaxDegreeOfParallelism = Threads == 0 ? -1 : Threads
+            };
             LimitedRange = LimitedRange && GetVideoInfo().IsPlanar();
             planes = GetVideoInfo().pixel_type.HasFlag(ColorSpaces.CS_INTERLEAVED)
                 ? new[] {default(YUVPlanes)}
@@ -108,9 +118,9 @@ namespace AutoOverlay
 
             histogramCache = !string.IsNullOrEmpty(CacheId)
                 ? HistogramCache.Get(CacheId)
-                : new HistogramCache(planes, realChannels, Exclude, SIMD, LimitedRange,
+                : new HistogramCache(planes, realChannels, SIMD, LimitedRange,
                     Sample.GetVideoInfo().pixel_type, Reference.GetVideoInfo().pixel_type,
-                    Child.GetVideoInfo().pixel_type, AdjacentFramesCount);
+                    Child.GetVideoInfo().pixel_type, AdjacentFramesCount, GreyMask, parallelOptions);
 
             if (histogramCache == null)
                 throw new AvisynthException($"$Histogram cache with ID: {CacheId} not found");
@@ -160,18 +170,21 @@ namespace AutoOverlay
             {
                 var current = histogramCache[n];
                 return dims != null && current.All(pair =>
-                    current == dims ||
+                    current == dims || !dims[pair.Key].Empty &&
                     CompareHist(dims[pair.Key].DiffHist, pair.Value.DiffHist) < AdjacentFramesDiff);
             }).SelectMany(p => p)).ToList();
-            Parallel.ForEach(planes, plane =>
+            Parallel.ForEach(planes, parallelOptions, plane =>
             {
-                Parallel.ForEach(realChannels, channel =>
+                Parallel.ForEach(realChannels, parallelOptions, channel =>
                 {
                     var currentDimensions = dimensions
                         .Where(p => p.Key.Equal(plane, channel))
                         .Select(p => p.Value).ToArray();
                     var sampleHist = AverageHist(sampleBits, currentDimensions.Select(p => p.SampleHist).ToArray());
                     var referenceHist = AverageHist(referenceBits, currentDimensions.Select(p => p.ReferenceHist).ToArray());
+
+                    if (sampleHist == null || referenceHist == null)
+                        return;
 
                     var map = GetTransitionMap(sampleHist, referenceHist, n, plane);
 
@@ -188,7 +201,7 @@ namespace AutoOverlay
                         var decreased = new ColorMap(sampleBits, n, Dither);
                         for (var color = 0; color < 1 << sampleBits; color++)
                         {
-                            decreased.Add(color, map.Average(color) * Intensity + color * (1 - Intensity));
+                            decreased.AddReal(color, map.Average(color) * Intensity + color * (1 - Intensity));
                         }
                         map = decreased;
                     }
@@ -210,6 +223,8 @@ namespace AutoOverlay
 
         private int[] AverageHist(int bits, params int[][] histograms)
         {
+            if (histograms.Any(p => p == null))
+                return null;
             if (histograms.Length == 1)
                 return histograms[0];
             var hist = new int[1 << bits];
@@ -284,7 +299,7 @@ namespace AutoOverlay
             {
                 var avgDiff = mappedColors.Take(limit).Sum(p => map.Average(p) - p) / limit;
                 var mapped = min + avgDiff;
-                map.Add(min, Math.Max(minColor, mapped));
+                map.AddReal(min, Math.Max(minColor, mapped));
                 Log(() => $"Min: {min} -> {mapped:F3}");
             }
 
@@ -292,48 +307,58 @@ namespace AutoOverlay
             {
                 var avgDiff = mappedColors.Reverse().Take(limit).Sum(p => map.Average(p) - p) / limit;
                 var mapped = max + avgDiff;
-                map.Add(max, Math.Min(maxColor, mapped));
+                map.AddReal(max, Math.Min(maxColor, mapped));
                 Log(() => $"Max: {max} -> {mapped:F3}");
             }
         }
 
         private void Interpolate(ColorMap map, int min, int max, int srcBits, int refBits)
         {
-            var interpolator = GetInterpolator(map);
+            var mult = Math.Pow(2, refBits - srcBits);
+            var interpolator = GetInterpolator(map, mult);
 
             if (interpolator == null) return;
 
             var firstOldColor = map.First();
             var lastOldColor = map.Last();
-            var mult = Math.Pow(2, refBits - srcBits);
             for (var oldColor = 0; oldColor < map.FixedMap.Length; oldColor++)
             {
                 if (oldColor < firstOldColor || oldColor > lastOldColor)
-                    map.Add(oldColor, oldColor * mult);
+                    map.AddReal(oldColor, oldColor * mult);
                 else if (!map.Contains(oldColor))
                 {
                     var interpolated = interpolator.Interpolate(oldColor);
                     interpolated = Math.Min(max, Math.Max(min, interpolated));
-                    map.Add(oldColor, interpolated);
+                    map.AddReal(oldColor, interpolated);
+                }
+                else if (map.FixedMap[oldColor] < 0)
+                {
+                    var m = map.DynamicMap[oldColor];
+                    var weights = m.Values.Sum();
+                    if (weights < 1 - double.Epsilon)
+                    {
+                        var interpolated = interpolator.Interpolate(oldColor);
+                        interpolated = Math.Min(max, Math.Max(min, interpolated));
+                        map.AddReal(oldColor, interpolated, 1 - weights);
+                        continue;
+                        var coef = 1 / weights;
+                        foreach (var color in m.Keys.ToArray())
+                        {
+                            m[color] *= coef;
+                        }
+                    }
                 }
             }
         }
 
-        private IInterpolation GetInterpolator(ColorMap map)
+        private IInterpolation GetInterpolator(ColorMap map, double mult)
         {
             var size = map.FixedMap.Length;
             var points = new List<Tuple<int, double>>(map.FixedMap.Length);
             for (var oldColor = 0; oldColor < size; oldColor++)
             {
-                var fixedColor = map.FixedMap[oldColor];
-                if (fixedColor >= 0)
-                {
-                    points.Add(Tuple.Create(oldColor, (double) fixedColor));
-                }
-                else if (map.DynamicMap[oldColor].Any())
-                {
-                    points.Add(Tuple.Create(oldColor, map.DynamicMap[oldColor].Sum(pair => pair.Key * pair.Value)));
-                }
+                if (map.Contains(oldColor))
+                    points.Add(Tuple.Create(oldColor, map.Average(oldColor)));
             }
             var xValues = new double[points.Count];
             var yValues = new double[points.Count];
@@ -345,11 +370,11 @@ namespace AutoOverlay
             }
 
             if (xValues.Length == 1)
-                return GetInterpolator(Interpolation, new[] {xValues[0], xValues[0]}, new[] {yValues[0], yValues[0]});
-            return GetInterpolator(Interpolation, xValues, yValues);
+                return GetInterpolator(Interpolation, new[] {xValues[0], xValues[0]}, new[] {yValues[0], yValues[0]}, mult);
+            return GetInterpolator(Interpolation, xValues, yValues, mult);
         }
 
-        private static IInterpolation GetInterpolator(ColorInterpolation interpolation, double[] x, double[] y)
+        private static IInterpolation GetInterpolator(ColorInterpolation interpolation, double[] x, double[] y, double mult)
         {
             switch (interpolation)
             {
@@ -359,6 +384,8 @@ namespace AutoOverlay
                     return CubicSpline.InterpolateNaturalSorted(x, y);
                 case ColorInterpolation.Linear:
                     return LinearSpline.InterpolateSorted(x, y);
+                case ColorInterpolation.None:
+                    return new NoneInterpolator(mult);
                 default:
                     throw new ArgumentException("interpolation");
             }
@@ -368,17 +395,21 @@ namespace AutoOverlay
         {
             var map = new ColorMap(sampleBits, n, Intensity < 1 ? 1 : Dither);
             var highRefColor = GetHighColor(referenceBits, plane);
-
             for (int newColor = GetLowColor(referenceBits), oldColor = -1, restPixels = 0; newColor <= highRefColor; newColor++)
             {
                 var refCount = referenceHist[newColor];
+                //var excludeReference = (double) refCount / int.MaxValue < Exclude;
                 while (refCount > 0)
                 {
                     var add = Math.Min(restPixels, refCount);
                     if (add > 0)
                     {
-                        var weight = add / (double) sampleHist[oldColor];
-                        map.Add(oldColor, newColor, weight);
+                        var exclude = (((double) add) / int.MaxValue) < Exclude;
+                        if (!exclude)
+                        {
+                            var weight = add / (double) sampleHist[oldColor];
+                            map.Add(oldColor, newColor, weight);
+                        }
                         refCount -= add;
                         restPixels -= add;
                     }
@@ -395,6 +426,27 @@ namespace AutoOverlay
         {
             base.Dispose(A_0);
             HistogramCache.Dispose(histogramCache.Id);
+        }
+
+        private class NoneInterpolator : IInterpolation
+        {
+            public double Interpolate(double t) => t * mult;
+
+            public double Differentiate(double t) => t * mult;
+            public double Differentiate2(double t) => t * mult;
+
+            public double Integrate(double t) => t * mult;
+            public double Integrate(double a, double b) => a * mult;
+
+            public bool SupportsDifferentiation => false;
+            public bool SupportsIntegration => false;
+
+            private double mult;
+
+            public NoneInterpolator(double mult)
+            {
+                this.mult = mult;
+            }
         }
     }
 }

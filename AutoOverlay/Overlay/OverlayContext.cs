@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using AutoOverlay.AviSynth;
 using AutoOverlay.Histogram;
 using AvsFilterNet;
@@ -36,7 +37,7 @@ namespace AutoOverlay.Overlay
         public HistogramCache SourceCache { get; }
         public HistogramCache OverlayCache { get; }
 
-        private readonly HashSet<IDisposable> disposables = new HashSet<IDisposable>();
+        private readonly HashSet<IDisposable> disposables = new();
 
         public OverlayContext(OverlayRender render, YUVPlanes plane)
         {
@@ -99,8 +100,12 @@ namespace AutoOverlay.Overlay
                     var channels = TargetInfo.ColorSpace.HasFlag(ColorSpaces.CS_PLANAR)
                         ? new[] { 0 }
                         : (AdjustChannels ?? "rgb").ToLower().ToCharArray().Select(p => "bgr".IndexOf(p)).ToArray();
-                    SourceCache = new HistogramCache(planes, channels, 0, render.SIMD, true, SourceInfo.ColorSpace, OverlayInfo.ColorSpace, SourceInfo.ColorSpace, render.ColorFramesCount);
-                    OverlayCache = new HistogramCache(planes, channels, 0, render.SIMD, true, OverlayInfo.ColorSpace, SourceInfo.ColorSpace, OverlayInfo.ColorSpace, render.ColorFramesCount);
+                    SourceCache = new HistogramCache(planes, channels, render.SIMD, true, 
+                        SourceInfo.ColorSpace, OverlayInfo.ColorSpace, 
+                        SourceInfo.ColorSpace, render.ColorFramesCount, true, new ParallelOptions());
+                    OverlayCache = new HistogramCache(planes, channels, render.SIMD, true, 
+                        OverlayInfo.ColorSpace, SourceInfo.ColorSpace, 
+                        OverlayInfo.ColorSpace, render.ColorFramesCount, true, new ParallelOptions());
                 }
             }
 

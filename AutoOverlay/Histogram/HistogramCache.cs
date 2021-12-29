@@ -15,7 +15,6 @@ namespace AutoOverlay.Histogram
 
         private readonly YUVPlanes[] planes;
         private readonly int[] channels;
-        private readonly double exclude;
         private readonly bool simd;
         private readonly bool limitedRange;
         private readonly ColorSpaces sampleFormat;
@@ -23,22 +22,26 @@ namespace AutoOverlay.Histogram
         private readonly ColorSpaces sourceFormat;
         private readonly int pixelSize;
         private readonly int around;
+        private readonly bool greyMask;
+        private readonly ParallelOptions parallelOptions;
 
         public string Id { get; } = Guid.NewGuid().ToString();
 
-        public HistogramCache(YUVPlanes[] planes, int[] channels, double exclude, bool simd, bool limitedRange, 
-            ColorSpaces sampleFormat, ColorSpaces referenceFormat, ColorSpaces sourceFormat, int around)
+        public HistogramCache(YUVPlanes[] planes, int[] channels, bool simd, bool limitedRange, 
+            ColorSpaces sampleFormat, ColorSpaces referenceFormat, ColorSpaces sourceFormat, int around, bool greyMask, 
+            ParallelOptions parallelOptions)
         {
             pixelSize = sourceFormat.HasFlag(ColorSpaces.CS_BGR) ? 3 : 1;
             this.planes = planes;
             this.channels = channels;
-            this.exclude = exclude;
             this.simd = simd;
             this.limitedRange = limitedRange && pixelSize == 1;
             this.sampleFormat = sampleFormat;
             this.referenceFormat = referenceFormat;
             this.sourceFormat = sourceFormat;
             this.around = around;
+            this.greyMask = greyMask;
+            this.parallelOptions = parallelOptions;
             lock (cacheCache)
                 cacheCache.Add(Id, this);
         }
@@ -60,7 +63,7 @@ namespace AutoOverlay.Histogram
 
         public HistogramCache SubCache(int first, int last)
         {
-            var temp = new HistogramCache(planes, channels, exclude, simd, limitedRange, sampleFormat, referenceFormat, sourceFormat, last - first);
+            var temp = new HistogramCache(planes, channels, simd, limitedRange, sampleFormat, referenceFormat, sourceFormat, last - first, greyMask, parallelOptions);
             for (var frame = first; frame <= last; frame++)
                 if (cache.TryGetValue(frame, out var value))
                     temp.cache[frame] = value;
@@ -73,11 +76,12 @@ namespace AutoOverlay.Histogram
             Func<VideoFrame> source, Func<VideoFrame> sample, Func<VideoFrame> reference, 
             Func<VideoFrame> sampleMask, Func<VideoFrame> referenceMask)
         {
-            return cache.GetOrAdd(frame, _ => new Lazy<Dictionary<CacheDimension, CacheValue>>(() =>
+            return cache.GetOrAdd(frame, f => new Lazy<Dictionary<CacheDimension, CacheValue>>(() =>
             {
-                if (cache.Count > around * 100) // magic
-                    foreach (var key in cache.Keys.Where(p => p < frame - around || p > frame + around))
-                        cache.TryRemove(key, out var _);
+                var minAround = Math.Max(10, around);
+                if (cache.Count > minAround * 100)
+                    foreach (var key in cache.Keys.Where(p => p < f - minAround || p > f + minAround))
+                        cache.TryRemove(key, out _);
                 return PrepareFrame(sample(), reference(), source(), sampleMask(), referenceMask());
             })).Value;
         }
@@ -87,19 +91,21 @@ namespace AutoOverlay.Histogram
             VideoFrame sampleMask, VideoFrame referenceMask)
         {
             var dict = new Dictionary<CacheDimension, CacheValue>();
-            Parallel.ForEach(planes, plane =>
+            Parallel.ForEach(planes, parallelOptions, plane =>
             {
-                Parallel.ForEach(channels, channel =>
+                Parallel.ForEach(channels, parallelOptions, channel =>
                 {
                     var dimension = new CacheDimension { Plane = plane, Channel = channel };
                     var value = new CacheValue();
                     lock (dict)
                         dict[dimension] = value;
-                    Parallel.Invoke(
+                    Parallel.Invoke(parallelOptions,
                         () => value.SampleHist = GetHistogram(sample, sampleMask, channel, plane, sampleFormat, false),
                         () => value.ReferenceHist = GetHistogram(reference, referenceMask, channel, plane, referenceFormat, limitedRange),
                         () => value.InputHist = source == null ? null : GetHistogram(source, null, channel, plane, sourceFormat, limitedRange)
                     );
+                    if (value.Empty)
+                        return;
                     var diffLength = Math.Min(value.SampleHist.Length, value.ReferenceHist.Length);
                     var diffHist = value.DiffHist = new int[diffLength];
                     foreach (var i in Enumerable.Range(0, diffLength))
@@ -117,10 +123,10 @@ namespace AutoOverlay.Histogram
             var bits = pixelType.GetBitDepth();
             var hist = new uint[1 << bits];
             var chroma = plane == YUVPlanes.PLANAR_U || plane == YUVPlanes.PLANAR_V;
-            var widthMult = chroma ? pixelType.GetWidthSubsample() : 1;
-            var heightMult = chroma ? pixelType.GetHeightSubsample() : 1;
-            var maskPitch = maskFrame?.GetPitch() * heightMult ?? 0;
-            var maskPtr = maskFrame?.GetReadPtr() + channel ?? IntPtr.Zero;
+            var widthMult = chroma && greyMask ? pixelType.GetWidthSubsample() : 1;
+            var heightMult = chroma && greyMask ? pixelType.GetHeightSubsample() : 1;
+            var maskPitch = maskFrame?.GetPitch(greyMask ? default : plane) * heightMult ?? 0;
+            var maskPtr = maskFrame?.GetReadPtr(greyMask ? default : plane) + channel ?? IntPtr.Zero;
             NativeUtils.FillHistogram(hist,
                 frame.GetRowSize(plane), frame.GetHeight(plane), channel,
                 frame.GetReadPtr(plane), frame.GetPitch(plane), pixelSize,
@@ -149,23 +155,7 @@ namespace AutoOverlay.Histogram
             var uni = new int[length];
             var total = (uint)hist.Cast<int>().Sum();
             var newRest = int.MaxValue;
-            var includeAll = exclude <= double.Epsilon;
-            if (!includeAll)
-                unsafe
-                {
-                    fixed (uint* input = hist)
-                    {
-                        for (var color = 0; color < length; color++)
-                        {
-                            if (input[color] / (double) total < exclude)
-                            {
-                                total -= input[color];
-                                input[color] = 0;
-                            }
-                        }
-                    }
-                }
-            var mult = int.MaxValue / (double)total;
+            var mult = int.MaxValue / (double) total;
             var rest = total;
 
             var maxColor = -1;
@@ -191,6 +181,8 @@ namespace AutoOverlay.Histogram
                     }
                 }
             }
+            if (maxColor == -1)
+                return null;
             uni[maxColor] += newRest;
             if (uni.Sum() != int.MaxValue)
                 throw new InvalidOperationException();
@@ -214,7 +206,7 @@ namespace AutoOverlay.Histogram
 
         public struct CacheDimension
         {
-            private static YUVPlanes[] SAME = new[] {YUVPlanes.PLANAR_Y, default};
+            private static YUVPlanes[] SAME = {YUVPlanes.PLANAR_Y, default};
             public YUVPlanes Plane { get; set; }
             public int Channel { get; set; }
 
@@ -230,6 +222,8 @@ namespace AutoOverlay.Histogram
             public int[] ReferenceHist { get; set; }
             public int[] InputHist { get; set; }
             public int[] DiffHist { get; set; }
+
+            public bool Empty => SampleHist == null || ReferenceHist == null;
         }
     }
 }

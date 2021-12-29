@@ -21,6 +21,7 @@ using AvsFilterNet;
     "cc[StatFile]s" +
     "[BackwardFrames]i[ForwardFrames]i[SourceMask]c[OverlayMask]c" +
     "[MaxDiff]f[MaxDiffIncrease]f[MaxDeviation]f[PanScanDistance]i[PanScanScale]f[Stabilize]b" +
+    "[StickLevel]f[StickDistance]f" +
     "[Configs]c[Presize]s[Resize]s[Rotate]s[Editor]b[Mode]s[ColorAdjust]f[SceneFile]s[SIMD]b[Debug]b",
     OverlayUtils.DEFAULT_MT_MODE)]
 namespace AutoOverlay
@@ -66,6 +67,12 @@ namespace AutoOverlay
         [AvsArgument]
         public bool Stabilize { get; private set; } = true;
 
+        [AvsArgument(Min = 0, Max = 10)]
+        public double StickLevel { get; set; } = 0;
+
+        [AvsArgument(Min = 0, Max = 10)]
+        public double StickDistance { get; set; } = 1;
+
         [AvsArgument]
         public Clip Configs { get; private set; }
 
@@ -105,8 +112,8 @@ namespace AutoOverlay
 
         public Clip overlayPrepared;
 
-        private readonly ConcurrentDictionary<Tuple<OverlayInfo, int>, OverlayInfo> repeatCache = new ConcurrentDictionary<Tuple<OverlayInfo, int>, OverlayInfo>();
-        private readonly ConcurrentDictionary<int, OverlayInfo> overlayCache = new ConcurrentDictionary<int, OverlayInfo>();
+        private readonly ConcurrentDictionary<RepeatKey, OverlayInfo> repeatCache = new();
+        private readonly ConcurrentDictionary<int, OverlayInfo> overlayCache = new();
 
         public event EventHandler<FrameEventArgs> CurrentFrameChanged;
 
@@ -114,7 +121,17 @@ namespace AutoOverlay
 
         public int[] SelectedFrames { get; private set; }
 
-        public HashSet<int> KeyFrames { get; } = new HashSet<int>();
+        public HashSet<int> KeyFrames { get; } = new();
+
+        private static List<Func<OverlayInfo, double, bool>> stickCriteria = new()
+        {
+            (p, distance) => p.X == 0 && p.CropLeft == 0 && Math.Abs(p.X) <= distance,
+            (p, distance) => p.GetRectangle().Right.NearlyEquals(p.SourceWidth) && p.CropRight == 0 &&
+                             Math.Abs(p.GetRectangle().Right - p.SourceWidth) <= distance,
+            (p, distance) => p.Y == 0 && p.CropTop == 0 && Math.Abs(p.Y) <= distance,
+            (p, distance) => p.GetRectangle().Bottom.NearlyEquals(p.SourceHeight) && p.CropBottom == 0 &&
+                             Math.Abs(p.GetRectangle().Bottom - p.SourceHeight) <= distance
+        };
 
 #if DEBUG
         Stopwatch totalWatch = new Stopwatch();
@@ -237,12 +254,12 @@ namespace AutoOverlay
 
         private OverlayInfo Repeat(OverlayInfo testInfo, int n)
         {
-            return repeatCache.GetOrAdd(new Tuple<OverlayInfo, int>(testInfo, n), key => RepeatImpl(key.Item1, key.Item2));
+            return repeatCache.GetOrAdd(new RepeatKey(testInfo, n), key => RepeatImpl(key.Info, key.FrameNumber));
         }
 
         private OverlayInfo PanScan(OverlayInfo testInfo, int n)
         {
-            return repeatCache.GetOrAdd(new Tuple<OverlayInfo, int>(testInfo, n), key => PanScanImpl(key.Item1, key.Item2));
+            return repeatCache.GetOrAdd(new RepeatKey(testInfo, n), key => PanScanImpl(key.Info, key.FrameNumber));
         }
 
         private OverlayInfo AutoOverlay(int n)
@@ -250,7 +267,7 @@ namespace AutoOverlay
             return overlayCache.GetOrAdd(n, key =>
             {
                 var stat = AutoOverlayImpl(n);
-                repeatCache.TryAdd(new Tuple<OverlayInfo, int>(stat, n), stat);
+                repeatCache.TryAdd(new RepeatKey(stat, n), stat);
                 return stat;
             });
         }
@@ -337,7 +354,7 @@ namespace AutoOverlay
                     .ToArray();
             else prevFrames = prevFrames.TakeWhile(p => p.Equals(prevInfo)).ToArray();
 
-            var prevFramesCount = prevFrames.Length; //Math.Min(prevFrames.Length, BackwardFrames);
+            var prevFramesCount = prevFrames.Length;
 
             log.AppendLine($"Prev frames: {prevFramesCount}");
 
@@ -415,7 +432,7 @@ namespace AutoOverlay
                 if (info.Diff > MaxDiff)
                     goto simple;
                 prevFrames = prevFrames.TakeWhile(p => p.Equals(info) && p.Diff <= MaxDiff).Take(BackwardFrames - 1).ToArray();
-                prevFramesCount = prevFrames.Length; //Math.Min(prevFrames.Length, BackwardFrames);
+                prevFramesCount = prevFrames.Length;
 
                 var stabilizeFrames = new List<OverlayInfo>(prevFrames) {info};
                 for (var nextFrame = n + 1;
@@ -802,6 +819,7 @@ namespace AutoOverlay
 #endif
                     var subResults = new SortedSet<OverlayInfo>(subResultSet);
                     var bestCrops = subResults.ToList();
+                    bestCrops.Add(FindBest(subResultSet));
                     for (var substep = 1; substep <= config.Subpixel; substep++)
                     {
                         var initialStep = substep == 1 ? 1 : 0;
@@ -917,29 +935,9 @@ namespace AutoOverlay
                         $"Subpixel: {extraWatch.ElapsedMilliseconds} ms. " +
                         $"Diff: {diffWatch.ElapsedMilliseconds} ms. Step count: {stepCount}");
 #endif
-                    //if (subResults.Any())
-                    //{
-                    //    var best = subResults.Min;
-                    //    var sticked = subResults
-                    //        .Where(p => p.Width == OverInfo.Width &&
-                    //                    p.GetRectangle().Left.NearlyZero() &&
-                    //                    p.GetRectangle().Right.NearlyEquals(OverInfo.Width))
-                    //        .OrderBy(p => p.Diff).FirstOrDefault();
-                    //    if (sticked != null && sticked != best && 
-                    //        Math.Abs(best.GetRectangle().Left) <= config.StickDistance &&
-                    //        Math.Abs(best.GetRectangle().Right - OverInfo.Width) <= config.StickDistance && 
-                    //        sticked.Diff - best.Diff <= config.StickLevel)
-                    //    {
-                    //        sticked.Preferred = true;
-                    //    }
-                    //    else
-                    //    {
-
-                    //    }
-                    //}
 
                     resultSet.UnionWith(subResults);
-                    if (FindBest(resultSet, config).Diff <= config.AcceptableDiff)
+                    if (FindBest(resultSet).Diff <= config.AcceptableDiff)
                         break;
                 }
             }
@@ -954,17 +952,47 @@ namespace AutoOverlay
             return result;
         }
 
-        private static OverlayInfo FindBest(IEnumerable<OverlayInfo> list, OverlayConfig config = null)
+        private OverlayInfo FindBest(IEnumerable<OverlayInfo> list)
         {
-            var best = list.OrderBy(p => p.Diff).FirstOrDefault();
-            var preferred = list.Where(p => p.Preferred).OrderBy(p => p.Diff).FirstOrDefault();
-            if (preferred != null &&
-                (config == null || preferred.Diff <= config.AcceptableDiff || best.Diff > config.AcceptableDiff))
+            list = list.OrderBy(p => p.Diff).ToList();
+            var best = list.OrderBy(p => p.Diff).FirstOrDefault() ?? OverlayInfo.EMPTY;
+
+            var sticked = list
+                .Where(p => p.Diff - best.Diff <= StickLevel)
+                .Select(p => new
+                {
+                    Info = p,
+                    StickCriteriaCount = stickCriteria.Count(c => c.Invoke(p, StickDistance))
+                })
+                .OrderByDescending(p => p.StickCriteriaCount)
+                .ThenByDescending(p => p.Info.Diff)
+                .FirstOrDefault(p => p.StickCriteriaCount > 0)?.Info;
+
+            return sticked ?? best;
+        }
+
+        private sealed class RepeatKey
+        {
+            private readonly int hashCode;
+            public OverlayInfo Info { get; }
+            public int FrameNumber { get; }
+
+            public RepeatKey(OverlayInfo info, int frameNumber)
             {
-                return preferred;
+                Info = info;
+                FrameNumber = frameNumber;
+                hashCode = info.GetHashCode() + 37 * frameNumber;
             }
 
-            return best ?? OverlayInfo.EMPTY;
+            public override int GetHashCode()
+            {
+                return hashCode;
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is RepeatKey other && Equals(Info, other.Info) && Equals(FrameNumber, other.FrameNumber);
+            }
         }
 
         private class TestOverlay
@@ -1050,7 +1078,7 @@ namespace AutoOverlay
         {
             Log("\tRepeat started: " + n);
 
-            var testInfo = repeatInfo.Shrink(SrcInfo.Size, OverInfo.Size);
+            var testInfo = repeatInfo.Resize(SrcInfo.Size, OverInfo.Size).Shrink(SrcInfo.Size, OverInfo.Size);
             using (new VideoFrameCollector())
             using (new DynamicEnvironment(StaticEnv))
             {

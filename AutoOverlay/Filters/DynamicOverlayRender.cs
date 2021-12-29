@@ -11,7 +11,8 @@ using AvsFilterNet;
     "ccc[SourceMask]c[OverlayMask]c" +
     "[OverlayMode]s[Width]i[Height]i[PixelType]s[Gradient]i[Noise]i[DynamicNoise]b" +
     "[BorderControl]i[BorderMaxDeviation]f[BorderOffset]c[SrcColorBorderOffset]c[OverColorBorderOffset]c" +
-    "[Mode]i[Opacity]f[ColorAdjust]f[ColorFramesCount]i[ColorFramesDiff]f[ColorMaxDeviation]f[AdjustChannels]s[Matrix]s" +
+    "[Mode]i[Opacity]f[ColorAdjust]f[ColorInterpolation]s[ColorExclude]f[ColorFramesCount]i[ColorFramesDiff]f" +
+    "[ColorMaxDeviation]f[AdjustChannels]s[Matrix]s" +
     "[Upsize]s[Downsize]s[Rotate]s[SIMD]b[Debug]b[Invert]b[Extrapolation]b[BlankColor]i" +
     "[Background]f[BackBlur]i[BitDepth]i",
     OverlayUtils.DEFAULT_MT_MODE)]
@@ -78,6 +79,12 @@ namespace AutoOverlay
 
         [AvsArgument(Min = -1, Max = 1)]
         public override double ColorAdjust { get; protected set; } = -1;
+
+        [AvsArgument]
+        public override ColorInterpolation ColorInterpolation { get; protected set; } = ColorInterpolation.Linear;
+
+        [AvsArgument(Min = 0, Max = 1)]
+        public override double ColorExclude { get; protected set; } = 0;
 
         [AvsArgument(Min = 0, Max = OverlayUtils.ENGINE_HISTORY_LENGTH)]
         public override int ColorFramesCount { get; protected set; } = 0;

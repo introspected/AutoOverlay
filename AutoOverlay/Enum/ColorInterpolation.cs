@@ -9,6 +9,7 @@ namespace AutoOverlay
     {
         Spline,
         Akima,
-        Linear
+        Linear,
+        None
     }
 }

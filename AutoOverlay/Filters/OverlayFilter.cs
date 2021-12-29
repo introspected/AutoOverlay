@@ -47,6 +47,10 @@ namespace AutoOverlay
                 {
                     DisposeAll();
                 }
+                catch
+                {
+                    // ignored
+                }
                 finally
                 {
                     if (ex is SEHException)
@@ -190,11 +194,11 @@ namespace AutoOverlay
 #endif
         }
 
-        protected override void Dispose(bool A_0)
+        protected override void Dispose(bool disposing)
         {
             Filters.Remove(this);
+            base.Dispose(disposing);
             OverlayUtils.Dispose(this);
-            base.Dispose(A_0);
             topLevel?.Dispose();
             topLevel = null;
         }

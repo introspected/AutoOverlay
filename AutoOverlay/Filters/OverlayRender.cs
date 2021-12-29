@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.Drawing.Imaging;
 using System.Linq;
 using System.Threading.Tasks;
 using AutoOverlay.Filters;
@@ -37,6 +36,8 @@ namespace AutoOverlay
         public abstract string Downsize { get; protected set; }
         public abstract string Rotate { get; protected set; }
         public abstract double ColorAdjust { get; protected set; }
+        public abstract ColorInterpolation ColorInterpolation { get; protected set; }
+        public abstract double ColorExclude { get; protected set; }
         public abstract int ColorFramesCount { get; protected set; }
         public abstract double ColorFramesDiff { get; protected set; }
         public abstract double ColorMaxDeviation { get; protected set; }
@@ -54,7 +55,7 @@ namespace AutoOverlay
 
         private Size targetSubsample;
 
-        private readonly List<OverlayContext> contexts = new List<OverlayContext>();
+        private readonly List<OverlayContext> contexts = new();
 
         protected abstract List<OverlayInfo> GetOverlayInfo(int n);
 
@@ -108,9 +109,21 @@ namespace AutoOverlay
         {
             BorderMaxDeviation /= 100.0;
             ColorMaxDeviation /= 100.0;
-            var withoutSubSample = GetVideoInfo().pixel_type.WithoutSubSample() &&
-                             Source.GetVideoInfo().pixel_type.WithoutSubSample() &&
-                             Overlay.GetVideoInfo().pixel_type.WithoutSubSample();
+            if (!string.IsNullOrEmpty(Matrix))
+            {
+                Source = ConvertToRgb(Source);
+                Overlay = ConvertToRgb(Overlay);
+
+                Clip ConvertToRgb(Clip clp)
+                {
+                    var vi = clp.GetVideoInfo();
+                    return vi.IsRGB() ? clp : vi.pixel_type.GetBitDepth() == 8 ?
+                        clp.Dynamic().ConvertToRgb24(matrix: Matrix) :
+                        clp.Dynamic().ConvertToRgb48(matrix: Matrix);
+                }
+            }
+            var withoutSubSample = Source.GetVideoInfo().pixel_type.WithoutSubSample() &&
+                                   Overlay.GetVideoInfo().pixel_type.WithoutSubSample();
             if (withoutSubSample)
             {
                 contexts.Add(new OverlayContext(this, default));
@@ -125,18 +138,24 @@ namespace AutoOverlay
         {
             var history = GetOverlayInfo(n);
             if (Invert)
-                history.ForEach(p => p.Invert());
-            var info = history.First();//.Resize(Source.GetSize(), Overlay.GetSize());
+                history = history.Select(p => p.Invert()).ToList();
+            var info = history.First();
 
             var res = NewVideoFrame(StaticEnv);
 
             var outClips = contexts.Select(ctx => RenderFrame(ctx, history));
 
-            //outClips = contexts.Select(ctx => ctx.Source);
-
             var hybrid = contexts.Count == 1 ? outClips.First() : DynamicEnv.CombinePlanes(outClips, 
                 planes: contexts.Select(p => p.Plane.GetLetter()).Aggregate(string.Concat),
                 pixel_type: $"YUV4{4 / targetSubsample.Width}{(4 / targetSubsample.Width - 4) + 4 / targetSubsample.Height}P{GetVideoInfo().pixel_type.GetBitDepth()}");
+
+            if (!GetVideoInfo().IsRGB() && !string.IsNullOrEmpty(Matrix))
+            {
+                hybrid = hybrid.Invoke(OverlayUtils.GetConvertFunction(GetVideoInfo().pixel_type), matrix: Matrix);
+            } else if (GetVideoInfo().pixel_type != ((Clip) hybrid).GetVideoInfo().pixel_type)
+            {
+                hybrid = hybrid.Invoke(OverlayUtils.GetConvertFunction(GetVideoInfo().pixel_type));
+            }
 
             if (BlankColor >= 0 && Mode == FramingMode.Fill)
             {
@@ -152,7 +171,11 @@ namespace AutoOverlay
             }
 
             if (Debug)
-                hybrid = hybrid.Subtitle(info.DisplayInfo().Replace("\n", "\\n"), lsp: 0);
+            {
+                var resizedInfo = info.Resize(contexts.First().SourceInfo.Size, contexts.First().OverlayInfo.Size);
+                hybrid = hybrid.Subtitle(resizedInfo.DisplayInfo().Replace("\n", "\\n"), lsp: 0);
+            }
+
             using VideoFrame frame = hybrid[info.FrameNumber];
             Parallel.ForEach(planes, plane =>
             {
@@ -205,12 +228,10 @@ namespace AutoOverlay
                             }
                             cache = cache.SubCache(frames.First(), frames.Last());
                         }
-                    var res = source(frameCtx).ColorAdjust(sample(frameCtx), reference(frameCtx), mask(frameCtx), mask(frameCtx), 
-                        intensity: intensity, channels: ctx.AdjustChannels, debug: Debug, SIMD: SIMD, extrapolation: Extrapolation, 
+                    return source(frameCtx).ColorAdjust(sample(frameCtx), reference(frameCtx), mask(frameCtx), mask(frameCtx), 
+                        intensity: intensity, channels: ctx.AdjustChannels, debug: Debug, SIMD: SIMD, extrapolation: Extrapolation, exclude: ColorExclude,
+                        interpolation: ColorInterpolation,
                         cacheId: cache?.Id, adjacentFramesCount: ColorFramesCount, adjacentFramesDiff: ColorFramesDiff, dynamicNoise: DynamicNoise);
-                    if (!GetVideoInfo().IsRGB() && !string.IsNullOrEmpty(Matrix))
-                        res = res.ConvertToYV24(matrix: Matrix);
-                    return res;
                 }
             }
 
@@ -319,6 +340,13 @@ namespace AutoOverlay
                             .Overlay(overRotated, 
                                 Math.Max(0, info.X), Math.Max(0, info.Y),
                                 opacity: Opacity, mask: maskOver, mode: OverlayMode);
+
+                        //var edgeMask = InitClip(src.ConvertToY8(), frameParams.MergedWidth, frameParams.MergedHeight, 0xFF8080)
+                        //    .Overlay(GetBlankClip((Clip) src.ConvertToY8(), false), Math.Max(0, -info.X), Math.Max(0, -info.Y))
+                        //    .Overlay(GetBlankClip((Clip) overRotated.ConvertToY8(), false), Math.Max(0, -info.X), Math.Max(0, -info.Y), mask: rotationMask);
+                        //edgeMask = DynamicEnv.MergeARGB(edgeMask, edgeMask, edgeMask, edgeMask);
+
+                        //merged = merged.InpaintLogo(edgeMask, sharpness: 45, preBlur: 6.5, postBlur: 4, radius: 8);
 
                         var resized = merged.Invoke(Downsize, frameParams.FinalWidth, frameParams.FinalHeight);
 

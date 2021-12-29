@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Dynamic;
-using System.Globalization;
 using System.Linq;
 using System.Threading;
 using AutoOverlay.Overlay;
