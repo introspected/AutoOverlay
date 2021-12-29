@@ -8,7 +8,7 @@
 - Math.NET Numerics (включено в поставку)
 - MVTools https://github.com/pinterf/mvtools/releases (для aoInterpolate, не включено в поставку)
 - RGTools https://github.com/pinterf/RgTools/releases (для aoInterpolate, не включено в поставку)
-- .NET framework 4.6.1+
+- .NET framework 4.7+
 - Windows 7+
 
 Windows XP и предыдущие версии AviSynth поддерживаются только в версиях плагина ниже 0.2.5.
@@ -66,9 +66,9 @@ AviSynth+ поддерживает автоподключение плагино
 ### OverlayEngine                  
     OverlayEngine(clip source, clip overlay, string statFile, int backwardFrames, int forwardFrames, 
                   clip sourceMask, clip overlayMask, float maxDiff, float maxDiffIncrease, float maxDeviation, 
-                  int panScanDistance, float panScanScale, bool stabilize, clip configs, string presize, 
-                  string resize, string rotate, bool editor, string mode, float colorAdjust, 
-				  string sceneFile, bool simd, bool debug)
+                  int panScanDistance, float panScanScale, bool stabilize, float stickLevel, float stickDistance,
+                  clip configs, string presize, string resize, string rotate, bool editor, string mode, 
+                  float colorAdjust, string sceneFile, bool simd, bool debug)
 
 Фильтр принимает на вход два клипа: основной и накладываемый и выполняет процедуру автовыравнивания с помощью изменения размера, вращения и сдвига накладываемого клипа, чтобы найти наименьшее значение diff. Оптимальные параметры наложения кодируются в выходной кадр, чтобы они могли быть считаны другими фильтрами. Последовательность таких параметров наложения кадра за кадром (статистика) может накапливаться в оперативной памяти, либо в файле для повторного использования без необходимости повторно выполнять дорогостоящую процедуру автовыравнивания. Файл статистики может быть проанализирован и отредактирован во встроенном графическом редакторе. 
 
@@ -84,6 +84,8 @@ AviSynth+ поддерживает автоподключение плагино
 - **panScanDistance** (default 0) – максимально допустимый сдвиг накладываемого изображения между соседними кадрами в сцене. Используется, если источники не стабилизированы относительно друг друга.
 - **panScanScale** (default 3) – максимально допустимое изменения размера в промилле накладываемого изображения между соседними кадрами в сцене.
 - **stabilize** (default true) – попытка стабилизировать кадры в самом начале сцены, когда еще не накоплено достаточное количество предыдущих кадров. Если true, то параметр `panScanDistance` должен быть 0.
+- **stickLevel** (default 0) - максимально допустимая разница между значениями DIFF для наилучших параметров наложения и тех, что приведут к приклеиванию накладываемого изображения к границам основного.
+- **stickDistance** (default 1) - максимально допустимое расстояние между краями накладываемого изображения для наилучших параметров наложения и тех, что приведут к приклеиванию накладываемого изображения к границам основного.
 - **configs** (по умолчанию OverlayConfig со значениями по умолчанию) – список конфигураций в виде клипа. Пример: `configs=OverlayConfig(subpixel=1, acceptableDiff=10) + OverlayConfig(angle1=-1, angle2=1)`. Если в ходе автовыравнивания после прогона первой конфигурации будет получено значение diff менее 10, то следующая конфигурация с более "тяжелыми" параметрами (вращение) будет пропущена. 
 - **presize** (default *BilinearResize*) – функция изменения размера изображения для начальных шагов масштабирования.
 - **resize** (default *BicubicResize*) – функция изменения размера изображения для финальных шагов масштабирования.
@@ -197,10 +199,10 @@ Separate - обособление кадра. Join prev - присоединит
 - **bitDepth** (default unused) - глубина цвета выходного изображения, а также входящих после трансформаций, но перед цветокоррекцией, для ее улучшения
 
 ### ColorAdjust
-    ColorAdjust(clip sample, clip reference, clip sampleMask, clip referenceMask, float intensity,
-				int seed, int adjacentFramesCount, float adjacentFramesDiff, 
+    ColorAdjust(clip sample, clip reference, clip sampleMask, clip referenceMask, bool greyMask,
+                float intensity, int seed, int adjacentFramesCount, float adjacentFramesDiff, 
 	            bool limitedRange, string channels, float dither, float exclude, string interpolation, 
-				bool extrapolation, bool dynamicNoise, bool simd, bool debug)
+				bool extrapolation, bool dynamicNoise, bool simd, int threads, bool debug)
 
 Автокоррекция цвета. Входной клип, sample и reference клипы должны быть в одном типе цветового диапазона (YUV or RGB). Поддерживаются любые планарные цветовое диапазоны YUV (8-16 bit), RGB24 и RGB48. Входной клип и sample клип должны иметь одинаковую глубину цвета (обычно sample - это весь входной фильтр или его часть). Глубина цвета входного фильтра изменится на глубину цвета клипа reference. Фильтр дает хороший результат только если sample и reference клипы содержат схожее наполнение кадра. Фильтр используется внутри OverlayRender, но может использоваться и независимо. 
 
@@ -209,6 +211,7 @@ Separate - обособление кадра. Join prev - присоединит
 - **sample** (required) - клип, сравнивающийся с клипом-образцом (обычно входной клип, может применяться crop) 
 - **reference** (required) - клип-образец с тем же наполнением, что и sample
 - **sampleMask** and **referenceMask** (default empty) - 8 битные планарные маски для включения в обработку только участков изображений, значение маски для которых равно 255.
+- **greyMask** (default true) - маска только по яркости или по всем каналам
 - **intensity** (default 1) - интенсивность цветокоррекции
 - **seed** (default is constant) - seed для дизеринга, если фильтр используется многократно для рендеринга одного кадра
 - **adjacentFramesCount** (default 0) - количество соседних кадров в обе стороны, информация о которых включается в построение карты соответствия цветов
@@ -217,13 +220,15 @@ Separate - обособление кадра. Join prev - присоединит
 - **channels** (default yuv or rgb) - плоскости или каналы для обработки. Допустимы любые комбинации y,u,v или r,g,b (пример: y, uv, r, br).
 - **dither** (default 0.95) - уровень дизеринга 0 (disable) to 1 (aggressive). 
 - **exclude** (default 0) - исключение редко встречающихся в изображениях цветов по формуле: *current_color_pixel_count / total_pixel_count < exclude*.
-- **interpolation** (default linear) - алгоритм интерполяции из библиотеки Math.NET Numerics (spline, akima, linear).
+- **interpolation** (default linear) - алгоритм интерполяции из библиотеки Math.NET Numerics (spline, akima, linear, none).
 - **extrapolation** (default false, experimental) - экстраполяция цветов, выходящих за границы сэмплов.
 - **dynamicNoise** (default true) - динамический шум, если цветовая карта совпадает у нескольких кадров.
 - **simd** (default true) - использование SIMD Library для повышения производительности в некоторых случаях
+- **threads** (.NET default) - максимальное число потоков
 
 ### ComplexityOverlay
-    ComplexityOverlay(clip source, clip overlay, string channels, int steps, float preference, bool mask, float smooth, bool debug)
+    ComplexityOverlay(clip source, clip overlay, string channels, int steps, float preference, bool mask, 
+                      float smooth, int threads, bool debug)
     
 Независимый фильтр для совмещения наиболее сложных участков двух клипов. Подходит для совмещения двух источников низкого качества. Клипы должны иметь одинаковые кадрирование, цвет, разрешения и цветовые пространства. 
 
@@ -234,6 +239,7 @@ Separate - обособление кадра. Join prev - присоединит
 - **preference** (default 0) - если больше ноля 0 второй клип будет более предпочтителен, иначе первый клип. Рекомендуется: -1 to 1. 
 - **mask** (default false) - выводить маску наложения вместо совмещения. 
 - **smooth** (default 0) - смазать маску наложения для снижения резкости.
+- **threads** (.NET default) - максимальное число потоков
 
 ### OverlayCompare
     OverlayCompare(clip engine, clip source, clip overlay, string sourceText, string overlayText, int sourceColor, 
@@ -299,13 +305,14 @@ Support filter to use as argument on other clips. It representes a rectangle.
 Left, top, right, bottom integer values. 
 
 ### ColorRangeMask
-    ColorRangeMask(clip, int low, int high)
+    ColorRangeMask(clip, int low, int high, bool greyMask)
 Support filter which provides mask clip by color range: white if pixel value is between low and high arguments. For YUV clips only luma channel is used. For RGB clips all channels are proccessed independently. Output is the clip in the same color space. Limited range is not supported. 
 
 #### Parameters
 - **input** (required) - input clip.
 - **low** (default 0) - lower bound of color range.
 - **high** (default 0) - higher bound of color range.
+- **greyMask** (default true) - маска только по яркости или по всем каналам
 
 ### BilinearRotate
     BilinearRotate(clip, float)
@@ -419,6 +426,11 @@ dither - уровень дизеринга для фильтра ColorAdjust
     aoInterpolateOne(clip clp, int frame, bool "insert", int "removeGrain")
 Вставляет (по умолчанию) или заменяет один кадр интерполируемым из соседних с помощью плагина MVTools.
 
+### aoDebug
+    aoDebug(clip clp)
+Функция для дебага остальных функций пакета. 
+Для функции aoReplace будут удалены все кадры кроме заменяемых.
+
 ## Examples
 #### Simple script 
     OM=AviSource("c:\test\OpenMatte.avs") # YV12 clip
@@ -462,6 +474,18 @@ dither - уровень дизеринга для фильтра ColorAdjust
 ### Обнаружение сцен
 
 ## История изменений
+### 29.12.2021 v0.5.1
+1. .NET 4.7, latest C# level
+2. Возможность отключения интерполяции цвета
+3. Маска только по каналу яркости теперь опциональна
+4. Настройка максимального количества потоков для некоторых фильтров
+5. Улучшенный алгоритм исключения редко встречающихся цветов
+6. Исправлена внутренняя конвертация в RGB для цветокоррекции
+7. Параметры stick level & stick distance для приклеивания накладываемого изображения в границам основного по возможности
+8. OverlayEngine: исправлен кэш повторения
+9. Overlay editor: мелкие исправления
+10. aoDebug function
+
 ### 04.09.2021 v0.5.0
 1. Пакет пользовательских функций
 2. Render: исправление работы с RGB HDR клипами

@@ -8,7 +8,7 @@
 - Math.NET Numerics (included)
 - MVTools https://github.com/pinterf/mvtools/releases (for aoInterpolate, not included)
 - RGTools https://github.com/pinterf/RgTools/releases (for aoInterpolate, not included)
-- .NET framework 4.6.1+
+- .NET framework 4.7+
 - Windows 7+
 
 Windows XP and previous versions of AviSynth are supported only before v0.2.5.
@@ -81,9 +81,9 @@ It is possible to add some clips to config chain with regular splice operator: O
 ### OverlayEngine                  
     OverlayEngine(clip source, clip overlay, string statFile, int backwardFrames, int forwardFrames, 
                   clip sourceMask, clip overlayMask, float maxDiff, float maxDiffIncrease, float maxDeviation, 
-                  int panScanDistance, float panScanScale, bool stabilize, clip configs, string presize, 
-                  string resize, string rotate, bool editor, string mode, float colorAdjust, 
-				  string sceneFile, bool simd, bool debug)
+                  int panScanDistance, float panScanScale, bool stabilize, float stickLevel, float stickDistance,
+                  clip configs, string presize, string resize, string rotate, bool editor, string mode, 
+                  float colorAdjust, string sceneFile, bool simd, bool debug)
 
 Filter takes two clips: source and overlay. It performs auto-align by resizing, rotation and shifting an overlay clip to find the best diff value. Best align settings are encoded into output frame so it could be read by another filter. The sequence of these align settings frame-by-frame (statistics) could be written to in-memory cache or file for reuse and manual editing via built-in visual editor. 
 #### Parameters
@@ -98,6 +98,8 @@ Filter takes two clips: source and overlay. It performs auto-align by resizing, 
 - **panScanDistance** (default 0) – maximum allowed shift in pixels between two frames in scene. Use it only if source clips are not stabilized to each other. 
 - **panScanScale** (default 3) – maximum allowed overlay clip resolution scaling in ppm between two frames in scene.
 - **stabilize** (default true) – attempt to stabilize align params at the beginning of scene when there is no enough backward frames including to current scene. If true `panScanDistance` should be 0.
+- **stickLevel** (default 0) - max difference between DIFF values of best align params and another one when image may be sticked to borders of source.
+- **stickDistance** (default 1) - max distance between borders of source and overlay with best align params when image may be sticked to borders of source.
 - **configs** (default OverlayConfig with default values) – configuration list in the form of clip. Example: `configs=OverlayConfig(subpixel=1, acceptableDiff=10) + OverlayConfig(angle1=-1, angle2=1)`. If during analyses of first configuration it founds align values with diff below 10 then second one with high ranges and low performance will be skipped.
 - **presize** (default *BilinearResize*) – resize function for steps with less than one pixel accuracy.
 - **resize** (default *BicubicResize*) – resize function for steps with one pixel or subpixel accuracy.
@@ -215,10 +217,10 @@ This filter preforms rendering of the result clip using align values from the en
 - **bitDepth** (default unused) - target bit depth of output clip and input clips after transformations but before color adjustment to improve it
 
 ### ColorAdjust
-    ColorAdjust(clip sample, clip reference, clip sampleMask, clip referenceMask, float intensity, 
-				int seed, int adjacentFramesCount, float adjacentFramesDiff, 
+    ColorAdjust(clip sample, clip reference, clip sampleMask, clip referenceMask, bool greyMask,
+                float intensity, int seed, int adjacentFramesCount, float adjacentFramesDiff, 
 	            bool limitedRange, string channels, float dither, float exclude, string interpolation, 
-				bool extrapolation, bool dynamicNoise, bool simd, bool debug)
+				bool extrapolation, bool dynamicNoise, bool simd, int threads, bool debug)
     
 Color matching. Input clip, sample clip and reference clip must be in the same type of color space (YUV or RGB). Any planar YUV (8-16 bit), RGB24 and RGB48 color spaces are supported. Input clip and sample clip must have the same bit depth (usually sample is the cropped or resized input clip). The bit depth of output clip will changed to the reference one. The filter provides perfect matching only if sample and reference are represent the same area of frame while the input (first argument) may have different framing. This filter is used inside OverlayRender but it is also useful as standalone. 
 
@@ -226,7 +228,8 @@ Color matching. Input clip, sample clip and reference clip must be in the same t
 - **clip** (required) - clip for color adjustment
 - **sample** (required) - the sample clip (usually the first clip or cropped) 
 - **reference** (required) - reference clip (usually the same time and area from different master)
-- **sampleMask** and **referenceMask** (default empty) - 8 bit planar mask clips to exclude some parts from sample or reference clips. Only Y plane is used. Used only pixels with 255 value (white color). 
+- **sampleMask** and **referenceMask** (default empty) - 8 bit planar mask clips to exclude some parts from sample or reference clips. Only Y plane is used. Used only pixels with 255 value (white color).
+- **greyMask** (default true) - one mask (luma channel) for all planes or not.
 - **intensity** (default 1) - intensity of color adjustment.
 - **seed** (default is constant) - seed for dynamic noise if there is multiple using of filter for rendering one frame
 - **adjacentFramesCount** (default 0) - forward and backward frames count that include to the color transition map
@@ -235,13 +238,15 @@ Color matching. Input clip, sample clip and reference clip must be in the same t
 - **channels** (default yuv or rgb) - planes to process for YUV clips or channels for RGB. Any combination of y,u,v and r,g,b supported (ex: y, uv, r, br).
 - **dither** (default 0.95) - dither level from 0 (disable) to 1 (aggressive). 
 - **exclude** (default 0) - value to exclude rare colors by formula: *current_color_pixel_count / total_pixel_count < exclude*.
-- **interpolation** (default linear) - interpolation mode for Math.NET Numerics (spline, akima, linear).
+- **interpolation** (default linear) - interpolation mode for Math.NET Numerics (spline, akima, linear, none).
 - **extrapolation** (default false, experimental) - adjust the colors of input clip out of bounds colors of sample clip.
 - **dynamicNoise** (default true) - dynamic noise if color mapping is the same between frames.
 - **simd** (default true) - SIMD Library using to increase performance in some cases.
+- **threads** (.NET default) - maximum thread count
 
 ### ComplexityOverlay
-    ComplexityOverlay(clip source, clip overlay, string channels, int steps, float preference, bool mask, float smooth, bool debug)
+    ComplexityOverlay(clip source, clip overlay, string channels, int steps, float preference, bool mask, 
+                      float smooth, int threads, bool debug)
     
 Independent filter to combine most complexity parts of two source clips. It is useful to get result clip with best parts of the image from two low quality sources. The clips must have the same framing, color grading, resolutions and color spaces. 
 
@@ -252,6 +257,7 @@ Independent filter to combine most complexity parts of two source clips. It is u
 - **preference** (default 0) - if greater than 0 overlay clip will be more preferred, otherwise source clip. Recommended range: -1 to 1. 
 - **mask** (default false) - mask output instead of combined clip.
 - **smooth** (default 0) - smooth overlay mask to prevent much sharpening. Recommended range: 0 to 1.
+- **threads** (.NET default) - maximum thread count
 
 ### OverlayCompare
     OverlayCompare(clip engine, clip source, clip overlay, string sourceText, string overlayText, int sourceColor, 
@@ -317,13 +323,14 @@ Support filter to use as argument on other clips. It represents a rectangle.
 Left, top, right, bottom integer values. 
 
 ### ColorRangeMask
-    ColorRangeMask(clip, int low, int high)
+    ColorRangeMask(clip, int low, int high, bool greyMask)
 Support filter which provides mask clip by color range: white if pixel value is between low and high arguments. For YUV clips only luma channel is used. For RGB clips all channels are processed independently. Output is the clip in the same color space. Limited range is not supported. 
 
 #### Parameters
 - **input** (required) - input clip.
 - **low** (default 0) - lower bound of color range.
 - **high** (default 0) - higher bound of color range.
+- **greyMask** (default true) - one mask (luma channel) for all planes or not.
 
 ### BilinearRotate
     BilinearRotate(clip, float)
@@ -437,6 +444,11 @@ Interpolate frame sequence from 'inStart' to 'inEnd' to the target scene from 'o
     aoInterpolateOne(clip clp, int frame, bool "insert", int "removeGrain")
 Insert by default or replace with interpolated frame from the nearest with MVTools.
 
+### aoDebug
+    aoDebug(clip clp)
+Special function for other functions debugging. 
+In case of aoReplace it removes all frames except replacements. 
+
 ## Examples
 #### Simple script 
     OM=AviSource("c:\test\OpenMatte.avs") # YV12 clip
@@ -480,6 +492,18 @@ Insert by default or replace with interpolated frame from the nearest with MVToo
 ### Scene detection
 
 ## Changelist
+### 29.12.2021 v0.5.1
+1. .NET 4.7, latest C# level
+2. Color interpolation disabling
+3. GreyMask is now optional
+4. Threads parameter
+5. Better color excluding algoritm
+6. RGB internal converting fix
+7. Stick level & stick distance params
+8. Overlay engine repeat cache fix
+9. Overlay editor fixes
+10. aoDebug function
+
 ### 04.09.2021 v0.5.0
 1. User function package
 2. Render: fix RGB HDR color mapping
