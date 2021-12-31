@@ -175,6 +175,8 @@ namespace AutoOverlay.Overlay
             if (!regex.IsMatch(text))
                 return false;
             var matches = regex.Matches(text);
+            if (matches.Count < 3)
+                return false;
             warp = new Warp(matches.Count);
             for (var i = 0; i < matches.Count; i++)
             {
