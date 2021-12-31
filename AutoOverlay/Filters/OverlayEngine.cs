@@ -678,6 +678,14 @@ namespace AutoOverlay
                                     maxWidth = Math.Min(maxWidth, Round((best.Width + config.Correction) * coefDiff) + 1);
                                 }
 
+                                var minArea = Math.Min(
+                                    config.MinArea * coefCurrent * coefCurrent,
+                                    maxWidth * Round(maxWidth / minAspectRatio));
+
+                                var maxArea = Math.Max(
+                                    Round(config.MaxArea * coefCurrent * coefCurrent),
+                                    minWidth * Round(minWidth / maxAspectRatio));
+
                                 var warpStep = config.WarpSteps - step + 1 + Math.Min(config.WarpOffset, stepCount - config.WarpSteps);
                                 var warperator = new WarpIterator(warpPoints, best.Warp, OverInfo.Size, overBaseSize, warpStep, config.WarpSteps);
                                 foreach (var warp in warperator)
@@ -703,8 +711,6 @@ namespace AutoOverlay
                                         for (var height = minHeight; height <= maxHeight; height++)
                                         {
                                             var area = width * height;
-                                            var minArea = config.MinArea * coefCurrent * coefCurrent;
-                                            var maxArea = Round(config.MaxArea * coefCurrent * coefCurrent);
                                             if (area < minArea || area > maxArea)
                                                 continue;
 
