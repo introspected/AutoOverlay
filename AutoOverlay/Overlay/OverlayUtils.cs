@@ -355,13 +355,19 @@ namespace AutoOverlay
 
         public static void Dispose(AvisynthFilter filter)
         {
-            GetAnnotatedProperties(filter.GetType()).Select(p => p.Item1).Where(p => p.PropertyType == typeof(Clip))
+            var props = GetAnnotatedProperties(filter.GetType()).Select(p => p.Item1)
+                .Where(p => p.PropertyType == typeof(Clip) || p.PropertyType == typeof(Clip[]))
                 .Select(p =>
                 {
-                    var clp = p.GetGetMethod(true).Invoke(filter, null);
+                    var val = p.GetGetMethod(true).Invoke(filter, null);
                     p.GetSetMethod(true).Invoke(filter, new object[] {null});
-                    return clp;
-                }).OfType<Clip>().ToList()
+                    return val;
+                }).ToArray();
+            props
+                .OfType<Clip>().ToList()
+                .ForEach(p => p?.Dispose());
+            props
+                .OfType<Clip[]>().SelectMany(p => p).ToList()
                 .ForEach(p => p?.Dispose());
         }
 
@@ -395,7 +401,7 @@ namespace AutoOverlay
                     return null;
                 var type = value[0].AsObject().GetType();
                 var arrayType = type.MakeArrayType();
-                var array = (Array) Activator.CreateInstance(arrayType, new object[length]);
+                var array = (Array) Activator.CreateInstance(arrayType, length);
                 for (var i = 0; i < length; i++)
                     array.SetValue(value[i].AsObject(), i);
                 return array;

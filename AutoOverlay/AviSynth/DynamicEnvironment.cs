@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Dynamic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using AutoOverlay.Overlay;
@@ -17,9 +18,7 @@ namespace AutoOverlay.AviSynth
         static DynamicEnvironment()
         {
             contexts = new ThreadLocal<Stack<DynamicEnvironment>>(() => new Stack<DynamicEnvironment>());
-#if DEBUG
             Thread.CurrentThread.CurrentUICulture = new CultureInfo("en-US");
-#endif
         }
 
         private static readonly ThreadLocal<Stack<DynamicEnvironment>> contexts;
