@@ -8,7 +8,7 @@ using AvsFilterNet;
 [assembly: AvisynthFilterClass(
     typeof(ExtractScenes),
     nameof(ExtractScenes),
-    "ss[SceneMinLength]i[MaxDiffIncrease]d",
+    "ss[SceneMinLength]i[MaxDiffIncrease]f",
     OverlayUtils.DEFAULT_MT_MODE)]
 namespace AutoOverlay.Filters
 {
