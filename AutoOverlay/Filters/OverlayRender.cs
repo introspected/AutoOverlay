@@ -389,8 +389,8 @@ namespace AutoOverlay
                     }
                 case FramingMode.FillFull:
                     {
-                        frameParams.FinalWidth = !frameParams.Wider ? frameParams.MergedWidth : (int)Math.Round(frameParams.MergedHeight * frameParams.OutAr);
-                        frameParams.FinalHeight = !frameParams.Wider ? (int)Math.Round(frameParams.MergedWidth / frameParams.OutAr) : frameParams.MergedHeight;
+                        frameParams.FinalWidth = frameParams.Wider ? frameParams.MergedWidth : (int)Math.Round(frameParams.MergedHeight * frameParams.OutAr);
+                        frameParams.FinalHeight = frameParams.Wider ? (int)Math.Round(frameParams.MergedWidth / frameParams.OutAr) : frameParams.MergedHeight;
                         frameParams.FinalX = (frameParams.FinalWidth - frameParams.MergedWidth) / 2;
                         frameParams.FinalY = (frameParams.FinalHeight - frameParams.MergedHeight) / 2;
                         var hybrid = GetBackground(frameParams.FinalWidth, frameParams.FinalHeight);

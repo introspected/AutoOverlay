@@ -132,13 +132,13 @@ namespace AutoOverlay.Overlay
             frame.MergedHeight = srcSize.Height + Math.Max(-info.Y, 0) + Math.Max(info.Height + info.Y - srcSize.Height, 0);
             frame.MergedAr = frame.MergedWidth / (double) frame.MergedHeight;
             frame.OutAr = TargetInfo.Width / (double) TargetInfo.Height;
-            var wider = frame.MergedAr > frame.OutAr;
+            frame.Wider = frame.MergedAr > frame.OutAr;
             if (Mode == FramingMode.FitBorders)
-                wider = !wider;
-            frame.FinalWidth = wider ? TargetInfo.Width : (int) Math.Round(TargetInfo.Width * (frame.MergedAr / frame.OutAr));
-            frame.FinalHeight = wider ? (int) Math.Round(TargetInfo.Height * (frame.OutAr / frame.MergedAr)) : TargetInfo.Height;
-            frame.FinalX = wider ? 0 : (TargetInfo.Width - frame.FinalWidth) / 2;
-            frame.FinalY = wider ? (TargetInfo.Height - frame.FinalHeight) / 2 : 0;
+                frame.Wider = !frame.Wider;
+            frame.FinalWidth = frame.Wider ? TargetInfo.Width : (int) Math.Round(TargetInfo.Width * (frame.MergedAr / frame.OutAr));
+            frame.FinalHeight = frame.Wider ? (int) Math.Round(TargetInfo.Height * (frame.OutAr / frame.MergedAr)) : TargetInfo.Height;
+            frame.FinalX = frame.Wider ? 0 : (TargetInfo.Width - frame.FinalWidth) / 2;
+            frame.FinalY = frame.Wider ? (TargetInfo.Height - frame.FinalHeight) / 2 : 0;
             return frame;
         }
         
