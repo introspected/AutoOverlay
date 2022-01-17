@@ -479,6 +479,7 @@ dither - уровень дизеринга для фильтра ColorAdjust
 2. ExtractScenes: исправлен тип параметра
 3. OvrelayEditor: исправлено редактирование параметров warp
 4. OverlayEngine: исправлено использование параметров minArea и maxArea
+5. AvsFilterNet: лучшая совместимость с AviSynth 3.7.1
 
 ### 29.12.2021 v0.5.1
 1. .NET 4.7, latest C# level

@@ -497,6 +497,7 @@ In case of aoReplace it removes all frames except replacements.
 2. ExtractScenes: fix parameter type
 3. OvrelayEditor: fix warp input parsing
 4. OverlayEngine: fix minArea and maxArea using
+5. AvsFilterNet: AviSynth 3.7.1 better compatibility
 
 ### 29.12.2021 v0.5.1
 1. .NET 4.7, latest C# level
