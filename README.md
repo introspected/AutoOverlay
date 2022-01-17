@@ -492,6 +492,12 @@ In case of aoReplace it removes all frames except replacements.
 ### Scene detection
 
 ## Changelist
+### 17.01.2022 v0.5.2
+1. OverlayRender: fix mode=5
+2. ExtractScenes: fix parameter type
+3. OvrelayEditor: fix warp input parsing
+4. OverlayEngine: fix minArea and maxArea using
+
 ### 29.12.2021 v0.5.1
 1. .NET 4.7, latest C# level
 2. Color interpolation disabling
