@@ -1,35 +1,29 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using AutoOverlay.Overlay;
-using AutoOverlay.Stat;
 using AvsFilterNet;
 
 namespace AutoOverlay
 {
     public sealed class OverlayInfo : IComparable<OverlayInfo>, IEquatable<OverlayInfo>, ICloneable
     {
-        public static readonly OverlayInfo EMPTY = new OverlayInfo
+        public static readonly OverlayInfo EMPTY = new()
         {
             Diff = double.MaxValue
         };
 
         public double Diff { get; set; }
-        public int X { get; set; }
-        public int Y { get; set; }
-        public int Angle { get; set; }
-        public Warp Warp { get; set; } = Warp.Empty;
-        public int Width { get; set; }
-        public int Height { get; set; }
-        public int CropLeft { get; set; }
-        public int CropTop { get; set; }
-        public int CropRight { get; set; }
-        public int CropBottom { get; set; }
-        public int BaseWidth { get; set; }
-        public int BaseHeight { get; set; }
-        public int SourceWidth { get; set; }
-        public int SourceHeight { get; set; }
+        public SizeD SourceSize { get; set; }
+        public SizeD OverlaySize { get; set; }
+        public Space Placement { get; set; }
+        public float Angle { get; set; }
+        public Warp SourceWarp { get; set; } = Warp.Empty;
+        public Warp OverlayWarp { get; set; } = Warp.Empty;
+
         public double Comparison { get; set; } = 2;
 
         public bool Modified { get; set; }
@@ -44,121 +38,21 @@ namespace AutoOverlay
 
         public int FrameNumber { get; set; } // zero based
 
-        private static readonly OverlayStatFormat format = new OverlayStatFormat(OverlayUtils.OVERLAY_FORMAT_VERSION);
+        private static readonly OverlayStatFormat format = new(OverlayUtils.OVERLAY_FORMAT_VERSION);
 
         object ICloneable.Clone() => MemberwiseClone();
 
-        public OverlayInfo Clone() => (OverlayInfo) MemberwiseClone();
-
-        public OverlayInfo Shrink()
-        {
-            return Shrink(new Size(SourceWidth, SourceHeight), new Size(BaseWidth, BaseHeight));
-        }
-
-        public OverlayInfo Shrink(Size srcSize, Size overSize)
-        {
-            var info = Clone();
-            var excess = Rectangle.FromLTRB(
-                Math.Max(0, -info.X),
-                Math.Max(0, -info.Y),
-                Math.Max(0, info.Width + info.X - srcSize.Width),
-                Math.Max(0, info.Height + info.Y - srcSize.Height));
-            var widthCoef = (double) overSize.Width / info.Width;
-            var heightCoef = (double) overSize.Height / info.Height;
-            info.Width -= excess.Left + excess.Right;
-            info.Height -= excess.Top + excess.Bottom;
-            info.X = Math.Max(0, info.X);
-            info.Y = Math.Max(0, info.Y);
-            var crop = info.GetCrop();
-            info.SetCrop(RectangleD.FromLTRB(
-                crop.Left + excess.Left * widthCoef,
-                crop.Top + excess.Top * heightCoef,
-                crop.Right + excess.Right * widthCoef,
-                crop.Bottom + excess.Bottom * heightCoef));
-            return info;
-        }
+        public OverlayInfo Clone() => (OverlayInfo)MemberwiseClone();
 
         public OverlayInfo Invert()
         {
-            var info = Invert(new Size(SourceWidth, SourceHeight), new Size(BaseWidth, BaseHeight));
-            info.BaseWidth = SourceWidth;
-            info.BaseHeight = SourceHeight;
-            info.SourceWidth = BaseWidth;
-            info.SourceHeight = BaseHeight;
-            return info;
-        }
-
-        public OverlayInfo Invert(Size srcSize, Size overSize)
-        {
-            var rect = GetRectangle(overSize);
             var info = Clone();
-            var invertedRect = new RectangleD(
-                -rect.X,
-                -rect.Y,
-                srcSize.Width,
-                srcSize.Height
-            );
+            info.SourceSize = OverlaySize;
+            info.OverlaySize = SourceSize;
+            info.Placement = -Placement;
             info.Angle = -Angle;
-            info.X = (int) Math.Ceiling(invertedRect.X);
-            info.Y = (int) Math.Ceiling(invertedRect.Y);
-            info.Width = (int) Math.Floor(invertedRect.Right) - info.X;
-            info.Height = (int) Math.Floor(invertedRect.Bottom) - info.Y;
-            info.SetCrop(RectangleD.FromLTRB(
-                info.X - invertedRect.X,
-                info.Y - invertedRect.Y,
-                invertedRect.Right - info.Width - info.X,
-                invertedRect.Bottom - info.Height - info.Y
-            ));
-            return info.Resize(srcSize, invertedRect.Size, rect.Size, overSize);
-        }
-
-        public OverlayInfo Resize(SizeD newUnionSize)
-        {
-            var oldUnionSize = GetUnionSize();
-            var coefWidth = newUnionSize.Width / oldUnionSize.Width;
-            var coefHeight = newUnionSize.Height / oldUnionSize.Height;
-
-            return Resize(new Size(BaseWidth, BaseHeight));
-        }
-
-        public OverlayInfo Resize(Size newSrcSize, Size newOverSize)
-        {
-            var info = Resize(new Size(BaseWidth, BaseHeight), newOverSize, new Size(SourceWidth, SourceHeight),
-                newSrcSize);
-            info.BaseWidth = newOverSize.Width;
-            info.BaseHeight = newOverSize.Height;
-            info.SourceWidth = newSrcSize.Width;
-            info.SourceHeight = newSrcSize.Height;
-            return info;
-        }
-
-        public OverlayInfo Resize(SizeD oldOverSize, SizeD newOverSize, SizeD oldSrcSize, SizeD newSrcSize)
-        {
-            var rect = GetRectangle(oldOverSize);
-            var coefWidth = newSrcSize.Width / oldSrcSize.Width;
-            var coefHeight = newSrcSize.Height / oldSrcSize.Height;
-            rect = new RectangleD(
-                rect.X * coefWidth,
-                rect.Y * coefHeight,
-                rect.Width * coefWidth,
-                rect.Height * coefHeight
-            );
-            var info = Clone();
-            info.Warp = Warp.Scale(coefWidth, coefHeight);
-            coefWidth = newOverSize.Width / rect.Width;
-            coefHeight = newOverSize.Height / rect.Height;
-            info.SourceWidth = (int) Math.Floor(newSrcSize.Width);
-            info.SourceHeight = (int) Math.Floor(newSrcSize.Height);
-            info.X = (int) Math.Ceiling(rect.X);
-            info.Y = (int) Math.Ceiling(rect.Y);
-            info.Width = (int) Math.Floor(rect.Right) - info.X;
-            info.Height = (int) Math.Floor(rect.Bottom) - info.Y;
-            info.SetCrop(RectangleD.FromLTRB(
-                (info.X - rect.X) * coefWidth,
-                (info.Y - rect.Y) * coefHeight,
-                (rect.Right - info.Width - info.X) * coefWidth,
-                (rect.Bottom - info.Height - info.Y) * coefHeight
-            ));
+            info.SourceSize = OverlaySize;
+            info.OverlayWarp = SourceWarp;
             return info;
         }
 
@@ -188,12 +82,16 @@ namespace AutoOverlay
             unsafe
             {
                 using var stream = new UnmanagedMemoryStream(
-                    (byte*) frame.GetReadPtr().ToPointer(),
-                    frame.GetRowSize() * frame.GetHeight(), 
-                    frame.GetRowSize() * frame.GetHeight(), 
+                    (byte*)frame.GetReadPtr().ToPointer(),
+                    frame.GetRowSize() * frame.GetHeight(),
+                    frame.GetRowSize() * frame.GetHeight(),
                     FileAccess.Read);
                 using var reader = new BinaryReader(stream);
                 var list = new List<OverlayInfo>();
+                var caption = reader.ReadString();
+                if (caption != nameof(OverlayEngine))
+                    throw new AvisynthException();
+                reader.ReadInt32();
                 while (true)
                 {
                     var info = Read(reader);
@@ -207,13 +105,11 @@ namespace AutoOverlay
 
         public string DisplayInfo()
         {
-            var crop = GetCrop();
             var key = KeyFrame ? "[KeyFrame]" : "";
             return $"Frame: {FrameNumber} {key}\n" +
-                   $"Size: {Width}x{Height} ({GetAspectRatio():F5}:1)\n" +
-                   $"Crop: {crop.Left:0.###}:{crop.Top:0.###}:{crop.Right:0.###}:{crop.Bottom:0.###}\n" +
-                   $"Warp: {Warp}\n" +
-                   $"X: {X} Y: {Y} Angle: {Angle / 100.0:F2}\n" +
+                   $"Size: {OverlaySize.Width:F2}x{OverlaySize.Height:F2} ({OverlayAspectRatio:F5}:1)\n" +
+                   $"Warp: {OverlayWarp}\n" +
+                   $"X: {Placement.X:F2} Y: {Placement.Y:F2} Angle: {Angle:F2}\n" +
                    $"Diff: {Diff:F5}\n{Message ?? string.Empty}";
         }
 
@@ -227,202 +123,246 @@ namespace AutoOverlay
             return Diff.CompareTo(other.Diff);
         }
 
-        public double GetAspectRatio(Size overSize)
-        {
-            var rect = GetRectangle(overSize);
-            return rect.Width / rect.Height;
-        }
+        public double SourceAspectRatio => SourceSize.AspectRatio;
 
-        public double GetAspectRatio()
-        {
-            var rect = GetRectangle();
-            return rect.Width / rect.Height;
-        }
+        public double OverlayAspectRatio => OverlaySize.AspectRatio;
 
-        public int Area => Width * Height;
+        public RectangleD SourceRectangle => new(PointF.Empty, SourceSize);
 
-        public const int CROP_VALUE_COUNT = 10000;
-        public const double CROP_VALUE_COUNT_R = CROP_VALUE_COUNT;
+        public RectangleD OverlayRectangle => new(Placement, OverlaySize);
 
-        public RectangleD GetRectangle()
-        {
-            return GetRectangle(new SizeD(BaseWidth, BaseHeight));
-        }
+        public RectangleD Union => RectangleD.Union(SourceRectangle, OverlayRectangle);
 
-        public RectangleD GetRectangle(SizeD overlaySize)
-        {
-            var crop = GetCrop();
-            var scaleWidth = Width / (overlaySize.Width - crop.Left - crop.Right);
-            var scaleHeight = Height / (overlaySize.Height - crop.Top - crop.Bottom);
-            return new RectangleD(
-                X - crop.Left * scaleWidth,
-                Y - crop.Top * scaleHeight,
-                Width + (crop.Right + crop.Left) * scaleWidth,
-                Height + (crop.Bottom + crop.Top) * scaleHeight);
-        }
-
-        public SizeD GetUnionSize()
-        {
-            var over = GetRectangle();
-            var width = SourceWidth + Math.Max(-X, 0) + Math.Max(over.Width + X - SourceWidth, 0);
-            var height = SourceHeight + Math.Max(-Y, 0) + Math.Max(over.Height + Y - SourceHeight, 0);
-            return new SizeD(width, height);
-        }
-
-        public void SetRectangle(SizeF size, RectangleF rect)
-        {
-            var scaleWidth = size.Width / rect.Width;
-            var scaleHeight = size.Height / rect.Height;
-            CropLeft = (int) Math.Abs((1 - rect.X + (int) rect.X) * scaleWidth * CROP_VALUE_COUNT_R);
-            CropRight = (int) Math.Abs((rect.Right - (int) rect.Right) * scaleWidth * CROP_VALUE_COUNT_R);
-            CropTop = (int) Math.Abs((1 - rect.Y + (int) rect.Y) * scaleHeight * CROP_VALUE_COUNT_R);
-            CropBottom = (int) Math.Abs((rect.Bottom - (int) rect.Bottom) * scaleHeight * CROP_VALUE_COUNT_R);
-            Width = (int) Math.Round(rect.Width - (CropLeft + CropRight) / CROP_VALUE_COUNT_R);
-            Height = (int) Math.Round(rect.Height - (CropTop + CropBottom) / CROP_VALUE_COUNT_R);
-        }
-
-        public RectangleD GetCrop()
-        {
-            return RectangleD.FromLTRB(
-                CropLeft / CROP_VALUE_COUNT_R,
-                CropTop / CROP_VALUE_COUNT_R,
-                CropRight / CROP_VALUE_COUNT_R,
-                CropBottom / CROP_VALUE_COUNT_R);
-        }
-
-        public Rectangle GetIntCrop()
-        {
-            return Rectangle.FromLTRB(
-                CropLeft,
-                CropTop,
-                CropRight,
-                CropBottom);
-        }
-
-        public OverlayInfo SetIntCrop(Rectangle crop)
-        {
-            CropLeft = crop.Left;
-            CropTop = crop.Top;
-            CropRight = crop.Right;
-            CropBottom = crop.Bottom;
-            return this;
-        }
-
-        public OverlayInfo SetCrop(RectangleD crop)
-        {
-            CropLeft = IntCrop(crop.Left);
-            CropTop = IntCrop(crop.Top);
-            CropRight = IntCrop(crop.Right);
-            CropBottom = IntCrop(crop.Bottom);
-            return this;
-        }
-
-        public static int IntCrop(double crop)
-        {
-            return (int) Math.Round(crop * CROP_VALUE_COUNT_R);
-        }
+        public RectangleD Intersection => RectangleD.Intersect(SourceRectangle, OverlayRectangle);
 
         public bool Equals(OverlayInfo other)
         {
-            return other != null && X == other.X && Y == other.Y
-                   && Width == other.Width && Height == other.Height
-                   && CropLeft == other.CropLeft && CropTop == other.CropTop
-                   && CropRight == other.CropRight && CropBottom == other.CropBottom
-                   && Angle == other.Angle && Warp.Equals(other.Warp)
-                   && BaseWidth == other.BaseWidth && BaseHeight == other.BaseHeight
-                   && SourceWidth == other.SourceWidth && SourceHeight == other.SourceHeight;
+            if (ReferenceEquals(null, other)) return false;
+            if (ReferenceEquals(this, other)) return true;
+            return SourceSize.Equals(other.SourceSize) &&
+                   OverlaySize.Equals(other.OverlaySize) &&
+                   Placement.Equals(other.Placement) &&
+                   Angle.Equals(other.Angle) &&
+                   Equals(SourceWarp, other.SourceWarp) &&
+                   Equals(OverlayWarp, other.OverlayWarp);
+        }
+
+        public override bool Equals(object obj)
+        {
+            return ReferenceEquals(this, obj) || obj is OverlayInfo other && Equals(other);
         }
 
         public override int GetHashCode()
         {
             unchecked
             {
-                var hashCode = X;
-                hashCode = (hashCode * 397) ^ Y;
-                hashCode = (hashCode * 397) ^ Width;
-                hashCode = (hashCode * 397) ^ Height;
-                hashCode = (hashCode * 397) ^ CropLeft;
-                hashCode = (hashCode * 397) ^ CropTop;
-                hashCode = (hashCode * 397) ^ CropRight;
-                hashCode = (hashCode * 397) ^ CropBottom;
-                hashCode = (hashCode * 397) ^ Angle;
-                hashCode = (hashCode * 397) ^ BaseWidth;
-                hashCode = (hashCode * 397) ^ BaseHeight;
-                hashCode = (hashCode * 397) ^ SourceWidth;
-                hashCode = (hashCode * 397) ^ SourceHeight;
+                var hashCode = SourceSize.GetHashCode();
+                hashCode = (hashCode * 397) ^ OverlaySize.GetHashCode();
+                hashCode = (hashCode * 397) ^ Placement.GetHashCode();
+                hashCode = (hashCode * 397) ^ Angle.GetHashCode();
+                hashCode = (hashCode * 397) ^ (SourceWarp != null ? SourceWarp.GetHashCode() : 0);
+                hashCode = (hashCode * 397) ^ (OverlayWarp != null ? OverlayWarp.GetHashCode() : 0);
                 return hashCode;
             }
-        }
-
-        public override bool Equals(object obj)
-        {
-            if (ReferenceEquals(null, obj)) return false;
-            if (ReferenceEquals(this, obj)) return true;
-            if (!(obj is OverlayInfo)) throw new InvalidOperationException();
-            return Equals((OverlayInfo) obj);
         }
 
         public double Compare(OverlayInfo other)
         {
             if (Equals(other))
                 return 1;
-            var rect1 = GetRectangle();
-            var rect2 = other.GetRectangle();
-            var intersect = RectangleF.Intersect(rect1, rect2);
-            var union = RectangleF.Union(rect1, rect2);
-            return (double) (intersect.Width * intersect.Height) / (union.Width * union.Height);
+            var intersect = RectangleD.Intersect(Union, other.Union);
+            var union = RectangleD.Union(Union, other.Union);
+            return intersect.Area / union.Area;
         }
 
-        public double Compare(OverlayInfo other, Size size)
+        public OverlayInfo ScaleBySource(SizeD sourceSize)
+        {
+            var info = Clone();
+            var scale = new SizeD(sourceSize.Width / SourceSize.Width, sourceSize.Height / SourceSize.Height);
+            info.SourceSize = sourceSize;
+            info.OverlaySize = new SizeD(OverlaySize.Width * scale.Width, OverlaySize.Height * scale.Height);
+            info.Placement = new Space(Placement.X * scale.Width, Placement.Y * scale.Height);
+            return info;
+        }
+
+        public double GetEqualityLevel(OverlayInfo other)
         {
             if (Equals(other))
+            {
                 return 1;
-            var rect1 = GetRectangle(size);
-            var rect2 = other.GetRectangle(size);
-            var intersect = RectangleF.Intersect(rect1, rect2);
-            var union = RectangleF.Union(rect1, rect2);
-            return (double) (intersect.Width * intersect.Height) / (union.Width * union.Height);
+            }
+            var rect1 = OverlayRectangle;
+            var rect2 = other.ScaleBySource(SourceSize).OverlayRectangle;
+            var intersect = RectangleD.Intersect(rect1, rect2);
+            var union = RectangleD.Union(rect1, rect2);
+            return (double)(intersect.Width * intersect.Height) / (union.Width * union.Height);
         }
 
         public bool NearlyEquals(OverlayInfo other, double tolerance)
         {
             if (other == null)
                 return false;
-            var comparison = Compare(other);
-            return 1 - comparison <= tolerance;
-        }
-
-        public bool NearlyEquals(OverlayInfo other, Size size, double tolerance)
-        {
-            if (other == null)
-                return false;
-            var comparison = Compare(other, size);
+            var comparison = GetEqualityLevel(other);
             return 1 - comparison <= tolerance;
         }
 
         public void CopyFrom(OverlayInfo other)
         {
-            X = other.X;
-            Y = other.Y;
-            Width = other.Width;
-            Height = other.Height;
-            CropLeft = other.CropLeft;
-            CropTop = other.CropTop;
-            CropRight = other.CropRight;
-            CropBottom = other.CropBottom;
+            Placement = other.Placement;
+            SourceSize = other.SourceSize;
+            OverlaySize = other.OverlaySize;
             Angle = other.Angle;
-            Warp = other.Warp;
-            BaseWidth = other.BaseWidth;
-            BaseHeight = other.BaseHeight;
-            SourceWidth = other.SourceWidth;
-            SourceHeight = other.SourceHeight;
+            SourceWarp = other.SourceWarp;
+            OverlayWarp = other.OverlayWarp;
         }
 
         public override string ToString()
         {
-            return $"{nameof(Diff)}: {Diff}, {nameof(X)}: {X}, {nameof(Y)}: {Y}, {nameof(Angle)}: {Angle}, " +
-                   $"{nameof(Width)}: {Width}, {nameof(Height)}: {Height}, {nameof(Warp)}: {Warp}, " +
-                   $"{nameof(CropLeft)}: {CropLeft}, {nameof(CropTop)}: {CropTop}, {nameof(CropRight)}: {CropRight}, {nameof(CropBottom)}: {CropBottom}, ";
+            return $"{nameof(Diff)}: {Diff:F5}, {nameof(Placement)}: {Placement.X:F3}, {Placement.Y:F3}, {nameof(Angle)}: {Angle:F3}, " +
+                   $"{nameof(SourceSize)}: {SourceSize.Width:F2}x{SourceSize.Height}, " +
+                   $"{nameof(OverlaySize)}: {OverlaySize.Width:F2}x{OverlaySize.Height}, {nameof(Warp)}: {OverlayWarp}, ";
+        }
+
+        public RectangleD GetCanvas(OverlayInput input)
+        {
+            if (input.FixedSource)
+                return SourceRectangle.Expand(input.TargetSize.GetAspectRatio());
+            var extraClips = input.ExtraClips
+                .Select(p => p.Item2.ScaleBySource(SourceSize))
+                .ToList();
+            var union = extraClips
+                .Select(p => p.Union)
+                .Aggregate(Union, (acc, rect) => acc.Union(rect));
+
+            var canvas = union.Expand(input.TargetSize.GetAspectRatio());
+            var balanceCoef = (input.OverlayBalance + Space.One) / 2;
+            var center = (SourceRectangle.Location + SourceRectangle.AsSpace() / 2) * balanceCoef.Remaining() +
+                         (OverlayRectangle.Location + OverlayRectangle.AsSpace() / 2) * balanceCoef;
+
+            // Outer bounds
+            var borderShares = RectangleD.Difference(canvas, union, false).BorderShares;
+            var crop = borderShares.Eval(
+                canvas.AsSpace().Repeat(),
+                input.OuterBounds,
+                (share, length, max) => max > 1.01 ? Math.Max(length * share - max, 0) : length * Math.Max(0, share - max));
+            canvas = canvas.Crop(crop);
+
+            var limit = input.InnerBounds.Eval(canvas.AsSpace().Repeat(), (mult, length) => mult > 1.01 ? mult : length * mult);
+            var diff = RectangleD.Difference(SourceRectangle, OverlayRectangle, true);
+
+            // Inner bounds
+            IEnumerable<RectangleD> IterateCrop(RectangleD canvas, RectangleD limit)
+            {
+                var crops = new HashSet<RectangleD>();
+
+                void ConditionalAdd(RectangleD emptyArea, params RectangleD[] variants)
+                {
+                    if (emptyArea.Area > 0 && emptyArea.Intersect(canvas).Area > 0)
+                        foreach (var variant in variants)
+                            crops.Add(variant);
+                }
+
+                ConditionalAdd(diff.LeftTop,
+                    RectangleD.FromLTRB(diff.LeftTop.Right - canvas.Left - limit.Left, 0, 0, 0),
+                    RectangleD.FromLTRB(0, diff.LeftTop.Bottom - canvas.Top - limit.Top, 0, 0));
+                ConditionalAdd(diff.RightTop,
+                    RectangleD.FromLTRB(0, 0, canvas.Right - diff.RightTop.Left - limit.Right, 0),
+                    RectangleD.FromLTRB(0, diff.RightTop.Bottom - canvas.Top - limit.Top, 0, 0));
+                ConditionalAdd(diff.RightBottom,
+                    RectangleD.FromLTRB(0, 0, canvas.Right - diff.RightBottom.Left - limit.Right, 0),
+                    RectangleD.FromLTRB(0, 0, 0, canvas.Bottom - diff.RightBottom.Top - limit.Bottom));
+                ConditionalAdd(diff.LeftBottom,
+                    RectangleD.FromLTRB(diff.LeftBottom.Right - canvas.Left - limit.Left, 0, 0, 0),
+                    RectangleD.FromLTRB(0, 0, 0, canvas.Bottom - diff.LeftBottom.Top - limit.Bottom));
+
+                crops.RemoveWhere(p => !p.LTRB().Any(p => p > RectangleD.EPSILON));
+                if (!crops.Any())
+                {
+                    yield return canvas;
+                }
+
+                foreach (var c in crops
+                             .Where(p => p.LTRB().Any(p => p > RectangleD.EPSILON))
+                             .Select(canvas.Crop)
+                             .Select(p => p.Crop(input.TargetSize.GetAspectRatio(), center))
+                             .SelectMany(p => IterateCrop(p, limit)))
+                {
+                    yield return c;
+                }
+            }
+
+
+            var maxArea = IterateCrop(canvas, limit)
+                .Union(IterateCrop(canvas, RectangleD.Empty))
+                .Distinct()
+                .Max(p => p.Area);
+
+
+            return IterateCrop(canvas, limit)
+                .Union(IterateCrop(canvas, RectangleD.Empty))
+                .Where(p => Math.Abs(p.Area - maxArea) < OverlayUtils.EPSILON)
+                .Aggregate((acc, c) => acc.Union(c))
+                .Crop(input.TargetSize.GetAspectRatio(), center);
+        }
+
+        public OverlayData GetOverlayData(OverlayInput input)
+        {
+            var canvas = GetCanvas(input);
+
+            var coef = input.TargetSize.AsSpace() / canvas;
+
+            var offset = -canvas.Location;
+            canvas = new RectangleD(Space.Empty, input.TargetSize);
+
+            
+            (Rectangle region, RectangleD crop, Warp warp) GetRegionAndCrop(RectangleD rect, SizeF size, Warp warpIn)
+            {
+                rect = rect.Offset(offset).Scale(coef);
+                var targetRect = RectangleD.Intersect(canvas, rect).Floor();
+                var crop = rect.Eval(targetRect, (t, u) => Math.Abs(t - u));
+                crop = crop.Scale(size.AsSpace() / rect.Size);
+                return (targetRect, crop.IsEmpty ? RectangleD.Empty : crop, warpIn.Scale(coef));
+            }
+
+            var (targetSrc, srcCrop, srcWarp) = GetRegionAndCrop(SourceRectangle, input.SourceSize, SourceWarp);
+            var (targetOver, overCrop, overWarp) = GetRegionAndCrop(OverlayRectangle, input.OverlaySize, OverlayWarp);
+
+            var extraClips = from p in input.ExtraClips
+                             let size = p.Item1
+                             let info = p.Item2.ScaleBySource(SourceSize)
+                             let regionAndCrop = GetRegionAndCrop(info.OverlayRectangle, size, info.OverlayWarp)
+                             select new OverlayData
+                             {
+                                 Diff = Diff,
+                                 SourceBaseSize = input.SourceSize,
+                                 Source = targetSrc,
+                                 SourceCrop = srcCrop,
+                                 SourceWarp = srcWarp,
+                                 OverlayBaseSize = size,
+                                 Overlay = regionAndCrop.region,
+                                 OverlayCrop = regionAndCrop.crop,
+                                 OverlayWarp = regionAndCrop.warp,
+                                 Coef = coef.X,
+                             };
+            var extraClipList = extraClips.ToList();
+
+            return new OverlayData
+            {
+                Diff = Diff,
+                SourceBaseSize = input.SourceSize,
+                Source = targetSrc,
+                SourceCrop = srcCrop,
+                SourceWarp = srcWarp,
+                OverlayBaseSize = input.OverlaySize,
+                Overlay = targetOver,
+                OverlayCrop = overCrop,
+                OverlayWarp = overWarp,
+                Coef = coef.X,
+                ExtraClips = extraClipList,
+                Union = extraClipList
+                    .Select(p => p.Overlay)
+                    .Aggregate(Rectangle.Union(targetSrc, targetOver), Rectangle.Union)
+            }.Also(data => data.ExtraClips.ForEach(p => p.Union = data.Union));
         }
     }
 }

@@ -401,3 +401,26 @@ function aoInterpolateOne(clip clp, int frame, bool "insert", int "removeGrain")
     interpolated = aoInterpolate(3, frame - 1, frame)
     return Trim(0, frame - 1) + interpolated.Trim(1,1) + Trim(frame, 0)
 }
+
+# Expand the black mask (mode=darken) or white mask (mode=lighten)
+function aoExpand(clip mask, int pixels, string mode, float "blur") {
+    blur = default(blur, 1.58)
+    mask
+    for (i = 0, pixels) {
+        Overlay(mask, 1, 0, mode = mode)
+        Overlay(mask, -1, 0, mode = mode)
+        Overlay(mask, 0, 1, mode = mode)
+        Overlay(mask, 0, -1, mode = mode)
+        mask = last
+    }
+	if (blur > 0) {
+		for (i = 0, pixels) {
+			mask = mask.Blur(blur)
+		}
+	}
+    return mask
+}
+
+function aoLight(clip clp, int level) {
+    return clp.ColorYUV(off_y=-level).ColorYUV(gamma_y=10000)
+}

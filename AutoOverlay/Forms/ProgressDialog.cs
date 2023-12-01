@@ -91,8 +91,7 @@ namespace AutoOverlay.Forms
                     if (frame == editor.CurrentFrame)
                         editor.UpdateControls(info);
                     if (interval.Contains(frame - 1) &&
-                        (editor.Engine.KeyFrames.Contains(frame) || !info.NearlyEquals(interval[frame - 1],
-                            editor.Engine.OverInfo.Size, editor.MaxDeviation)))
+                        (editor.Engine.KeyFrames.Contains(frame) || !info.NearlyEquals(interval[frame - 1], editor.MaxDeviation)))
                     {
                         var newInterval = new FrameInterval(info)
                         {

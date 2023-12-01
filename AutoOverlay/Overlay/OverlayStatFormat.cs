@@ -1,11 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
-using System.Linq;
-using System.Text;
 using AutoOverlay.Overlay;
 
-namespace AutoOverlay.Stat
+namespace AutoOverlay
 {
     public class OverlayStatFormat
     {
@@ -24,6 +22,8 @@ namespace AutoOverlay.Stat
                         return 38;
                     case 4:
                         return 38 + Warp.MAX_POINTS * 4 * 4;
+                    case 5:
+                        return 40 + Warp.MAX_POINTS * 4 * 4;
                     default: 
                         throw new InvalidOperationException();
                 }
@@ -42,7 +42,7 @@ namespace AutoOverlay.Stat
             switch (Version)
             {
                 case 1:
-                    return new OverlayInfo
+                    return new LegacyOverlayInfo
                     {
                         FrameNumber = num,
                         Diff = reader.ReadInt32() / 1000.0,
@@ -55,9 +55,9 @@ namespace AutoOverlay.Stat
                         CropRight = reader.ReadInt16(),
                         CropBottom = reader.ReadInt16(),
                         Angle = reader.ReadInt16()
-                    };
+                    }.Convert();
                 case 2:
-                    return new OverlayInfo
+                    return new LegacyOverlayInfo
                     {
                         FrameNumber = num,
                         Diff = reader.ReadInt32() / 10000.0,
@@ -70,9 +70,9 @@ namespace AutoOverlay.Stat
                         CropRight = reader.ReadInt16(),
                         CropBottom = reader.ReadInt16(),
                         Angle = reader.ReadInt16()
-                    };
+                    }.Convert();
                 case 3:
-                    return new OverlayInfo
+                    return new LegacyOverlayInfo
                     {
                         FrameNumber = num,
                         Diff = reader.ReadDouble(),
@@ -89,9 +89,9 @@ namespace AutoOverlay.Stat
                         BaseHeight = reader.ReadInt16(),
                         SourceWidth = reader.ReadInt16(),
                         SourceHeight = reader.ReadInt16()
-                    };
+                    }.Convert();
                 case 4:
-                    return new OverlayInfo
+                    return new LegacyOverlayInfo
                     {
                         FrameNumber = num,
                         Diff = reader.ReadDouble(),
@@ -109,6 +109,17 @@ namespace AutoOverlay.Stat
                         SourceWidth = reader.ReadInt16(),
                         SourceHeight = reader.ReadInt16(),
                         Warp = Warp.Read(reader)
+                    }.Convert();
+                case 5:
+                    return new OverlayInfo
+                    {
+                        FrameNumber = num,
+                        Diff = reader.ReadDouble(),
+                        Placement = new Space(reader.ReadSingle(), reader.ReadSingle()),
+                        SourceSize = new SizeD(reader.ReadSingle(), reader.ReadSingle()),
+                        OverlaySize = new SizeD(reader.ReadSingle(), reader.ReadSingle()),
+                        Angle = reader.ReadSingle(),
+                        OverlayWarp = Warp.Read(reader)
                     };
                 default:
                     throw new InvalidOperationException();
@@ -122,20 +133,14 @@ namespace AutoOverlay.Stat
                 case OverlayUtils.OVERLAY_FORMAT_VERSION:
                     writer.Write(info.FrameNumber + 1);
                     writer.Write(info.Diff);
-                    writer.Write((short) info.X);
-                    writer.Write((short) info.Y);
-                    writer.Write((short) info.Width);
-                    writer.Write((short) info.Height);
-                    writer.Write((short) info.CropLeft);
-                    writer.Write((short) info.CropTop);
-                    writer.Write((short) info.CropRight);
-                    writer.Write((short) info.CropBottom);
-                    writer.Write((short) info.Angle);
-                    writer.Write((short) info.BaseWidth);
-                    writer.Write((short) info.BaseHeight);
-                    writer.Write((short) info.SourceWidth);
-                    writer.Write((short) info.SourceHeight);
-                    info.Warp.Write(writer);
+                    writer.Write((float) info.Placement.X);
+                    writer.Write((float) info.Placement.Y);
+                    writer.Write((float) info.SourceSize.Width);
+                    writer.Write((float) info.SourceSize.Height);
+                    writer.Write((float) info.OverlaySize.Width);
+                    writer.Write((float) info.OverlaySize.Height);
+                    writer.Write(info.Angle);
+                    info.OverlayWarp.Write(writer);
                     break;
                 default:
                     throw new InvalidOperationException();

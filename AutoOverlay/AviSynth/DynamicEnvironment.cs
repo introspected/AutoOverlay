@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Dynamic;
 using System.Globalization;
@@ -188,9 +189,12 @@ namespace AutoOverlay.AviSynth
             {
                 var avsArgList = args.Select(p => p.ToAvsValue()).ToArray();
                 var avsArgs = new AVSValue(avsArgList);
-                var res = ((ScriptEnvironment)Env).Invoke(function, avsArgs, argNames);
+                var res = ((ScriptEnvironment) Env).Invoke(function, avsArgs, argNames);
+
+                if (res != null && res.IsClip())
+                    res = ((ScriptEnvironment) Env).Invoke("InternalCache", res);
+
                 var clip = res.AsClip();
-                clip?.SetCacheHints(CacheType.CACHE_25_ALL, 1);
 #if DEBUG && TRACE
                 Debug.WriteLine($"New clip cached @{clip?.GetHashCode()} {function}({printArgs()})");
 #endif
@@ -239,13 +243,37 @@ namespace AutoOverlay.AviSynth
                         yield return point.X;
                         yield return point.Y;
                         break;
+                    case PointF point:
+                        yield return point.X;
+                        yield return point.Y;
+                        break;
+                    case Space space:
+                        yield return space.X;
+                        yield return space.Y;
+                        break;
+                    case Rectangle rect:
+                        yield return rect.Left;
+                        yield return rect.Top;
+                        yield return rect.Right;
+                        yield return rect.Bottom;
+                        break;
                     case RectangleD rect:
                         yield return rect.Left;
                         yield return rect.Top;
                         yield return rect.Right;
                         yield return rect.Bottom;
                         break;
+                    case RectangleF rect:
+                        yield return rect.Left;
+                        yield return rect.Top;
+                        yield return rect.Right;
+                        yield return rect.Bottom;
+                        break;
                     case Size size:
+                        yield return size.Width;
+                        yield return size.Height;
+                        break;
+                    case SizeD size:
                         yield return size.Width;
                         yield return size.Height;
                         break;

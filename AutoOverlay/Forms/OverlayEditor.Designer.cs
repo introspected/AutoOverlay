@@ -49,15 +49,6 @@
             this.label20 = new System.Windows.Forms.Label();
             this.panelManage = new System.Windows.Forms.Panel();
             this.grid = new System.Windows.Forms.DataGridView();
-            this.intervalDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.xDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.yDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.Resolution = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.Crop = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.Angle = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.diffDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.Fixed = new System.Windows.Forms.DataGridViewCheckBoxColumn();
-            this.frameIntervalBindingSource = new System.Windows.Forms.BindingSource(this.components);
             this.panel2 = new System.Windows.Forms.Panel();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.gbScan = new System.Windows.Forms.GroupBox();
@@ -109,7 +100,6 @@
             this.label29 = new System.Windows.Forms.Label();
             this.nudCompare = new System.Windows.Forms.NumericUpDown();
             this.btnCompare = new System.Windows.Forms.Button();
-            this.btnResetCrop = new System.Windows.Forms.Button();
             this.nudX = new System.Windows.Forms.NumericUpDown();
             this.label8 = new System.Windows.Forms.Label();
             this.nudY = new System.Windows.Forms.NumericUpDown();
@@ -117,18 +107,9 @@
             this.nudAngle = new System.Windows.Forms.NumericUpDown();
             this.nudOverlayHeight = new System.Windows.Forms.NumericUpDown();
             this.label9 = new System.Windows.Forms.Label();
-            this.nudCropBottom = new System.Windows.Forms.NumericUpDown();
-            this.nudCropRight = new System.Windows.Forms.NumericUpDown();
-            this.nudCropTop = new System.Windows.Forms.NumericUpDown();
-            this.label16 = new System.Windows.Forms.Label();
-            this.nudCropLeft = new System.Windows.Forms.NumericUpDown();
-            this.label15 = new System.Windows.Forms.Label();
             this.nudOverlayWidth = new System.Windows.Forms.NumericUpDown();
-            this.label10 = new System.Windows.Forms.Label();
             this.label14 = new System.Windows.Forms.Label();
-            this.label7 = new System.Windows.Forms.Label();
             this.label28 = new System.Windows.Forms.Label();
-            this.label4 = new System.Windows.Forms.Label();
             this.label13 = new System.Windows.Forms.Label();
             this.label12 = new System.Windows.Forms.Label();
             this.toolStrip1 = new System.Windows.Forms.ToolStrip();
@@ -142,6 +123,14 @@
             this.btnDelete = new System.Windows.Forms.ToolStripButton();
             this.pictureBox = new System.Windows.Forms.PictureBox();
             this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
+            this.Resolution = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.Fixed = new System.Windows.Forms.DataGridViewCheckBoxColumn();
+            this.intervalDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.xDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.Angle = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.diffDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.frameIntervalBindingSource = new System.Windows.Forms.BindingSource(this.components);
+            this.btnResetInterval = new System.Windows.Forms.ToolStripButton();
             this.panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trackBar)).BeginInit();
             this.panel3.SuspendLayout();
@@ -152,7 +141,6 @@
             ((System.ComponentModel.ISupportInitialize)(this.nudCurrentFrame)).BeginInit();
             this.panelManage.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.grid)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.frameIntervalBindingSource)).BeginInit();
             this.panel2.SuspendLayout();
             this.groupBox3.SuspendLayout();
             this.gbScan.SuspendLayout();
@@ -174,13 +162,10 @@
             ((System.ComponentModel.ISupportInitialize)(this.nudY)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudAngle)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudOverlayHeight)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudCropBottom)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudCropRight)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudCropTop)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudCropLeft)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudOverlayWidth)).BeginInit();
             this.toolStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.frameIntervalBindingSource)).BeginInit();
             this.SuspendLayout();
             // 
             // panel1
@@ -189,9 +174,10 @@
             this.panel1.Controls.Add(this.trackBar);
             this.panel1.Controls.Add(this.panel3);
             this.panel1.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.panel1.Location = new System.Drawing.Point(0, 615);
+            this.panel1.Location = new System.Drawing.Point(0, 757);
+            this.panel1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(1184, 26);
+            this.panel1.Size = new System.Drawing.Size(1579, 32);
             this.panel1.TabIndex = 0;
             // 
             // trackBar
@@ -199,9 +185,10 @@
             this.trackBar.Dock = System.Windows.Forms.DockStyle.Fill;
             this.trackBar.LargeChange = 500;
             this.trackBar.Location = new System.Drawing.Point(0, 0);
+            this.trackBar.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.trackBar.Maximum = 999999;
             this.trackBar.Name = "trackBar";
-            this.trackBar.Size = new System.Drawing.Size(472, 24);
+            this.trackBar.Size = new System.Drawing.Size(630, 56);
             this.trackBar.TabIndex = 0;
             this.trackBar.TickStyle = System.Windows.Forms.TickStyle.None;
             this.trackBar.Scroll += new System.EventHandler(this.trackBar_Scroll);
@@ -225,9 +212,10 @@
             this.panel3.Controls.Add(this.chbEditor);
             this.panel3.Controls.Add(this.label20);
             this.panel3.Dock = System.Windows.Forms.DockStyle.Right;
-            this.panel3.Location = new System.Drawing.Point(472, 0);
+            this.panel3.Location = new System.Drawing.Point(630, 0);
+            this.panel3.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.panel3.Name = "panel3";
-            this.panel3.Size = new System.Drawing.Size(710, 24);
+            this.panel3.Size = new System.Drawing.Size(947, 30);
             this.panel3.TabIndex = 1;
             // 
             // chbDefective
@@ -236,9 +224,10 @@
             this.chbDefective.AutoSize = true;
             this.chbDefective.Checked = true;
             this.chbDefective.CheckState = System.Windows.Forms.CheckState.Indeterminate;
-            this.chbDefective.Location = new System.Drawing.Point(7, 3);
+            this.chbDefective.Location = new System.Drawing.Point(21, 4);
+            this.chbDefective.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.chbDefective.Name = "chbDefective";
-            this.chbDefective.Size = new System.Drawing.Size(94, 17);
+            this.chbDefective.Size = new System.Drawing.Size(114, 20);
             this.chbDefective.TabIndex = 14;
             this.chbDefective.Text = "Defective only";
             this.chbDefective.ThreeState = true;
@@ -249,14 +238,15 @@
             // 
             this.nudMaxDiff.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.nudMaxDiff.DecimalPlaces = 1;
-            this.nudMaxDiff.Location = new System.Drawing.Point(171, 2);
+            this.nudMaxDiff.Location = new System.Drawing.Point(228, 2);
+            this.nudMaxDiff.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.nudMaxDiff.Maximum = new decimal(new int[] {
             9999,
             0,
             0,
             65536});
             this.nudMaxDiff.Name = "nudMaxDiff";
-            this.nudMaxDiff.Size = new System.Drawing.Size(49, 20);
+            this.nudMaxDiff.Size = new System.Drawing.Size(65, 22);
             this.nudMaxDiff.TabIndex = 14;
             this.nudMaxDiff.Value = new decimal(new int[] {
             9999,
@@ -268,7 +258,8 @@
             // nudMinSceneLength
             // 
             this.nudMinSceneLength.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.nudMinSceneLength.Location = new System.Drawing.Point(311, 2);
+            this.nudMinSceneLength.Location = new System.Drawing.Point(415, 2);
+            this.nudMinSceneLength.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.nudMinSceneLength.Maximum = new decimal(new int[] {
             99999,
             0,
@@ -280,7 +271,7 @@
             0,
             0});
             this.nudMinSceneLength.Name = "nudMinSceneLength";
-            this.nudMinSceneLength.Size = new System.Drawing.Size(49, 20);
+            this.nudMinSceneLength.Size = new System.Drawing.Size(65, 22);
             this.nudMinSceneLength.TabIndex = 14;
             this.nudMinSceneLength.Value = new decimal(new int[] {
             1,
@@ -292,28 +283,30 @@
             // nudMinFrame
             // 
             this.nudMinFrame.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.nudMinFrame.Location = new System.Drawing.Point(406, 2);
+            this.nudMinFrame.Location = new System.Drawing.Point(541, 2);
+            this.nudMinFrame.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.nudMinFrame.Maximum = new decimal(new int[] {
             200000,
             0,
             0,
             0});
             this.nudMinFrame.Name = "nudMinFrame";
-            this.nudMinFrame.Size = new System.Drawing.Size(59, 20);
+            this.nudMinFrame.Size = new System.Drawing.Size(79, 22);
             this.nudMinFrame.TabIndex = 14;
             this.nudMinFrame.ValueChanged += new System.EventHandler(this.Reset);
             // 
             // nudMaxFrame
             // 
             this.nudMaxFrame.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.nudMaxFrame.Location = new System.Drawing.Point(479, 2);
+            this.nudMaxFrame.Location = new System.Drawing.Point(639, 2);
+            this.nudMaxFrame.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.nudMaxFrame.Maximum = new decimal(new int[] {
             999999,
             0,
             0,
             0});
             this.nudMaxFrame.Name = "nudMaxFrame";
-            this.nudMaxFrame.Size = new System.Drawing.Size(59, 20);
+            this.nudMaxFrame.Size = new System.Drawing.Size(79, 22);
             this.nudMaxFrame.TabIndex = 14;
             this.nudMaxFrame.Value = new decimal(new int[] {
             200000,
@@ -326,9 +319,10 @@
             // 
             this.label31.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.label31.AutoSize = true;
-            this.label31.Location = new System.Drawing.Point(99, 4);
+            this.label31.Location = new System.Drawing.Point(132, 5);
+            this.label31.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label31.Name = "label31";
-            this.label31.Size = new System.Drawing.Size(70, 13);
+            this.label31.Size = new System.Drawing.Size(84, 16);
             this.label31.TabIndex = 5;
             this.label31.Text = "Defective diff";
             // 
@@ -336,9 +330,10 @@
             // 
             this.label30.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.label30.AutoSize = true;
-            this.label30.Location = new System.Drawing.Point(221, 4);
+            this.label30.Location = new System.Drawing.Point(295, 5);
+            this.label30.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label30.Name = "label30";
-            this.label30.Size = new System.Drawing.Size(88, 13);
+            this.label30.Size = new System.Drawing.Size(107, 16);
             this.label30.TabIndex = 5;
             this.label30.Text = "Min scene length";
             // 
@@ -346,9 +341,10 @@
             // 
             this.label21.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.label21.AutoSize = true;
-            this.label21.Location = new System.Drawing.Point(365, 4);
+            this.label21.Location = new System.Drawing.Point(487, 5);
+            this.label21.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label21.Name = "label21";
-            this.label21.Size = new System.Drawing.Size(39, 13);
+            this.label21.Size = new System.Drawing.Size(48, 16);
             this.label21.TabIndex = 5;
             this.label21.Text = "Range";
             // 
@@ -356,23 +352,25 @@
             // 
             this.label19.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.label19.AutoSize = true;
-            this.label19.Location = new System.Drawing.Point(543, 4);
+            this.label19.Location = new System.Drawing.Point(724, 5);
+            this.label19.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label19.Name = "label19";
-            this.label19.Size = new System.Drawing.Size(36, 13);
+            this.label19.Size = new System.Drawing.Size(46, 16);
             this.label19.TabIndex = 5;
             this.label19.Text = "Frame";
             // 
             // nudCurrentFrame
             // 
             this.nudCurrentFrame.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.nudCurrentFrame.Location = new System.Drawing.Point(581, 2);
+            this.nudCurrentFrame.Location = new System.Drawing.Point(775, 2);
+            this.nudCurrentFrame.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.nudCurrentFrame.Maximum = new decimal(new int[] {
             999999,
             0,
             0,
             0});
             this.nudCurrentFrame.Name = "nudCurrentFrame";
-            this.nudCurrentFrame.Size = new System.Drawing.Size(66, 20);
+            this.nudCurrentFrame.Size = new System.Drawing.Size(88, 22);
             this.nudCurrentFrame.TabIndex = 4;
             this.nudCurrentFrame.ValueChanged += new System.EventHandler(this.nudCurrentFrame_ValueChanged);
             this.nudCurrentFrame.KeyDown += new System.Windows.Forms.KeyEventHandler(this.nudCurrentFrame_KeyDown);
@@ -383,9 +381,10 @@
             this.chbEditor.AutoSize = true;
             this.chbEditor.Checked = true;
             this.chbEditor.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.chbEditor.Location = new System.Drawing.Point(653, 3);
+            this.chbEditor.Location = new System.Drawing.Point(877, 4);
+            this.chbEditor.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.chbEditor.Name = "chbEditor";
-            this.chbEditor.Size = new System.Drawing.Size(53, 17);
+            this.chbEditor.Size = new System.Drawing.Size(64, 20);
             this.chbEditor.TabIndex = 3;
             this.chbEditor.Text = "Editor";
             this.chbEditor.UseVisualStyleBackColor = true;
@@ -395,9 +394,10 @@
             // 
             this.label20.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.label20.AutoSize = true;
-            this.label20.Location = new System.Drawing.Point(467, 4);
+            this.label20.Location = new System.Drawing.Point(623, 5);
+            this.label20.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label20.Name = "label20";
-            this.label20.Size = new System.Drawing.Size(10, 13);
+            this.label20.Size = new System.Drawing.Size(11, 16);
             this.label20.TabIndex = 7;
             this.label20.Text = "-";
             // 
@@ -407,9 +407,10 @@
             this.panelManage.Controls.Add(this.grid);
             this.panelManage.Controls.Add(this.panel2);
             this.panelManage.Dock = System.Windows.Forms.DockStyle.Right;
-            this.panelManage.Location = new System.Drawing.Point(744, 0);
+            this.panelManage.Location = new System.Drawing.Point(993, 0);
+            this.panelManage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.panelManage.Name = "panelManage";
-            this.panelManage.Size = new System.Drawing.Size(440, 615);
+            this.panelManage.Size = new System.Drawing.Size(586, 757);
             this.panelManage.TabIndex = 1;
             // 
             // grid
@@ -423,9 +424,7 @@
             this.grid.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
             this.intervalDataGridViewTextBoxColumn,
             this.xDataGridViewTextBoxColumn,
-            this.yDataGridViewTextBoxColumn,
             this.Resolution,
-            this.Crop,
             this.Angle,
             this.diffDataGridViewTextBoxColumn,
             this.Fixed});
@@ -440,87 +439,19 @@
             this.grid.DefaultCellStyle = dataGridViewCellStyle2;
             this.grid.Dock = System.Windows.Forms.DockStyle.Fill;
             this.grid.Location = new System.Drawing.Point(0, 0);
+            this.grid.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.grid.Name = "grid";
             this.grid.ReadOnly = true;
             this.grid.RowHeadersVisible = false;
+            this.grid.RowHeadersWidth = 51;
             this.grid.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.grid.Size = new System.Drawing.Size(438, 132);
+            this.grid.Size = new System.Drawing.Size(584, 163);
             this.grid.TabIndex = 1;
             this.grid.VirtualMode = true;
             this.grid.CellValueNeeded += new System.Windows.Forms.DataGridViewCellValueEventHandler(this.grid_CellValueNeeded);
             this.grid.RowPrePaint += new System.Windows.Forms.DataGridViewRowPrePaintEventHandler(this.grid_RowPrePaint);
             this.grid.KeyDown += new System.Windows.Forms.KeyEventHandler(this.SuppressKeyPress);
             this.grid.KeyUp += new System.Windows.Forms.KeyEventHandler(this.SuppressKeyPress);
-            // 
-            // intervalDataGridViewTextBoxColumn
-            // 
-            this.intervalDataGridViewTextBoxColumn.DataPropertyName = "Interval";
-            this.intervalDataGridViewTextBoxColumn.HeaderText = "Interval";
-            this.intervalDataGridViewTextBoxColumn.Name = "intervalDataGridViewTextBoxColumn";
-            this.intervalDataGridViewTextBoxColumn.ReadOnly = true;
-            this.intervalDataGridViewTextBoxColumn.Width = 67;
-            // 
-            // xDataGridViewTextBoxColumn
-            // 
-            this.xDataGridViewTextBoxColumn.DataPropertyName = "X";
-            this.xDataGridViewTextBoxColumn.HeaderText = "X";
-            this.xDataGridViewTextBoxColumn.Name = "xDataGridViewTextBoxColumn";
-            this.xDataGridViewTextBoxColumn.ReadOnly = true;
-            this.xDataGridViewTextBoxColumn.Width = 39;
-            // 
-            // yDataGridViewTextBoxColumn
-            // 
-            this.yDataGridViewTextBoxColumn.DataPropertyName = "Y";
-            this.yDataGridViewTextBoxColumn.HeaderText = "Y";
-            this.yDataGridViewTextBoxColumn.Name = "yDataGridViewTextBoxColumn";
-            this.yDataGridViewTextBoxColumn.ReadOnly = true;
-            this.yDataGridViewTextBoxColumn.Width = 39;
-            // 
-            // Resolution
-            // 
-            this.Resolution.DataPropertyName = "Size";
-            this.Resolution.HeaderText = "Size";
-            this.Resolution.Name = "Resolution";
-            this.Resolution.ReadOnly = true;
-            this.Resolution.Width = 52;
-            // 
-            // Crop
-            // 
-            this.Crop.DataPropertyName = "Crop";
-            this.Crop.HeaderText = "Crop";
-            this.Crop.Name = "Crop";
-            this.Crop.ReadOnly = true;
-            this.Crop.Width = 54;
-            // 
-            // Angle
-            // 
-            this.Angle.DataPropertyName = "Angle";
-            this.Angle.HeaderText = "Angle";
-            this.Angle.Name = "Angle";
-            this.Angle.ReadOnly = true;
-            this.Angle.Width = 59;
-            // 
-            // diffDataGridViewTextBoxColumn
-            // 
-            this.diffDataGridViewTextBoxColumn.DataPropertyName = "Diff";
-            dataGridViewCellStyle1.Format = "F1";
-            this.diffDataGridViewTextBoxColumn.DefaultCellStyle = dataGridViewCellStyle1;
-            this.diffDataGridViewTextBoxColumn.HeaderText = "Diff";
-            this.diffDataGridViewTextBoxColumn.Name = "diffDataGridViewTextBoxColumn";
-            this.diffDataGridViewTextBoxColumn.ReadOnly = true;
-            this.diffDataGridViewTextBoxColumn.Width = 48;
-            // 
-            // Fixed
-            // 
-            this.Fixed.DataPropertyName = "Fixed";
-            this.Fixed.HeaderText = "Fixed";
-            this.Fixed.Name = "Fixed";
-            this.Fixed.ReadOnly = true;
-            this.Fixed.Width = 38;
-            // 
-            // frameIntervalBindingSource
-            // 
-            this.frameIntervalBindingSource.DataSource = typeof(AutoOverlay.FrameInterval);
             // 
             // panel2
             // 
@@ -529,9 +460,10 @@
             this.panel2.Controls.Add(this.groupBox1);
             this.panel2.Controls.Add(this.toolStrip1);
             this.panel2.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.panel2.Location = new System.Drawing.Point(0, 132);
+            this.panel2.Location = new System.Drawing.Point(0, 163);
+            this.panel2.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.panel2.Name = "panel2";
-            this.panel2.Size = new System.Drawing.Size(438, 481);
+            this.panel2.Size = new System.Drawing.Size(584, 592);
             this.panel2.TabIndex = 2;
             // 
             // groupBox3
@@ -545,9 +477,11 @@
             this.groupBox3.Controls.Add(this.nudDistance);
             this.groupBox3.Controls.Add(this.nudDeviation);
             this.groupBox3.Controls.Add(this.label27);
-            this.groupBox3.Location = new System.Drawing.Point(5, 155);
+            this.groupBox3.Location = new System.Drawing.Point(7, 191);
+            this.groupBox3.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.groupBox3.Name = "groupBox3";
-            this.groupBox3.Size = new System.Drawing.Size(422, 130);
+            this.groupBox3.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox3.Size = new System.Drawing.Size(563, 160);
             this.groupBox3.TabIndex = 18;
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "Frame processing";
@@ -557,9 +491,11 @@
             this.gbScan.Controls.Add(this.btnScanClip);
             this.gbScan.Controls.Add(this.btnScanScene);
             this.gbScan.Controls.Add(this.btnScanFrame);
-            this.gbScan.Location = new System.Drawing.Point(143, 19);
+            this.gbScan.Location = new System.Drawing.Point(191, 23);
+            this.gbScan.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.gbScan.Name = "gbScan";
-            this.gbScan.Size = new System.Drawing.Size(63, 106);
+            this.gbScan.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.gbScan.Size = new System.Drawing.Size(84, 130);
             this.gbScan.TabIndex = 3;
             this.gbScan.TabStop = false;
             this.gbScan.Text = "Scan";
@@ -567,9 +503,10 @@
             // btnScanClip
             // 
             this.btnScanClip.BackColor = System.Drawing.SystemColors.MenuBar;
-            this.btnScanClip.Location = new System.Drawing.Point(6, 78);
+            this.btnScanClip.Location = new System.Drawing.Point(8, 96);
+            this.btnScanClip.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnScanClip.Name = "btnScanClip";
-            this.btnScanClip.Size = new System.Drawing.Size(51, 23);
+            this.btnScanClip.Size = new System.Drawing.Size(68, 28);
             this.btnScanClip.TabIndex = 0;
             this.btnScanClip.Text = "Clip";
             this.btnScanClip.UseVisualStyleBackColor = false;
@@ -578,9 +515,10 @@
             // btnScanScene
             // 
             this.btnScanScene.BackColor = System.Drawing.SystemColors.Info;
-            this.btnScanScene.Location = new System.Drawing.Point(6, 49);
+            this.btnScanScene.Location = new System.Drawing.Point(8, 60);
+            this.btnScanScene.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnScanScene.Name = "btnScanScene";
-            this.btnScanScene.Size = new System.Drawing.Size(51, 23);
+            this.btnScanScene.Size = new System.Drawing.Size(68, 28);
             this.btnScanScene.TabIndex = 0;
             this.btnScanScene.Text = "Scene";
             this.btnScanScene.UseVisualStyleBackColor = false;
@@ -589,9 +527,10 @@
             // btnScanFrame
             // 
             this.btnScanFrame.BackColor = System.Drawing.SystemColors.InactiveBorder;
-            this.btnScanFrame.Location = new System.Drawing.Point(6, 20);
+            this.btnScanFrame.Location = new System.Drawing.Point(8, 25);
+            this.btnScanFrame.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnScanFrame.Name = "btnScanFrame";
-            this.btnScanFrame.Size = new System.Drawing.Size(51, 23);
+            this.btnScanFrame.Size = new System.Drawing.Size(68, 28);
             this.btnScanFrame.TabIndex = 0;
             this.btnScanFrame.Text = "Frame";
             this.btnScanFrame.UseVisualStyleBackColor = false;
@@ -602,9 +541,11 @@
             this.gbAlign.Controls.Add(this.btnAlignScene);
             this.gbAlign.Controls.Add(this.btnAlignSingle);
             this.gbAlign.Controls.Add(this.btnAlignFrame);
-            this.gbAlign.Location = new System.Drawing.Point(5, 19);
+            this.gbAlign.Location = new System.Drawing.Point(7, 23);
+            this.gbAlign.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.gbAlign.Name = "gbAlign";
-            this.gbAlign.Size = new System.Drawing.Size(63, 106);
+            this.gbAlign.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.gbAlign.Size = new System.Drawing.Size(84, 130);
             this.gbAlign.TabIndex = 3;
             this.gbAlign.TabStop = false;
             this.gbAlign.Text = "Align";
@@ -612,9 +553,10 @@
             // btnAlignScene
             // 
             this.btnAlignScene.BackColor = System.Drawing.SystemColors.MenuBar;
-            this.btnAlignScene.Location = new System.Drawing.Point(6, 78);
+            this.btnAlignScene.Location = new System.Drawing.Point(8, 96);
+            this.btnAlignScene.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnAlignScene.Name = "btnAlignScene";
-            this.btnAlignScene.Size = new System.Drawing.Size(51, 23);
+            this.btnAlignScene.Size = new System.Drawing.Size(68, 28);
             this.btnAlignScene.TabIndex = 0;
             this.btnAlignScene.Text = "Scene";
             this.btnAlignScene.UseVisualStyleBackColor = false;
@@ -623,9 +565,10 @@
             // btnAlignSingle
             // 
             this.btnAlignSingle.BackColor = System.Drawing.SystemColors.Info;
-            this.btnAlignSingle.Location = new System.Drawing.Point(6, 49);
+            this.btnAlignSingle.Location = new System.Drawing.Point(8, 60);
+            this.btnAlignSingle.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnAlignSingle.Name = "btnAlignSingle";
-            this.btnAlignSingle.Size = new System.Drawing.Size(51, 23);
+            this.btnAlignSingle.Size = new System.Drawing.Size(68, 28);
             this.btnAlignSingle.TabIndex = 0;
             this.btnAlignSingle.Text = "Single";
             this.btnAlignSingle.UseVisualStyleBackColor = false;
@@ -634,9 +577,10 @@
             // btnAlignFrame
             // 
             this.btnAlignFrame.BackColor = System.Drawing.SystemColors.InactiveBorder;
-            this.btnAlignFrame.Location = new System.Drawing.Point(6, 20);
+            this.btnAlignFrame.Location = new System.Drawing.Point(8, 25);
+            this.btnAlignFrame.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnAlignFrame.Name = "btnAlignFrame";
-            this.btnAlignFrame.Size = new System.Drawing.Size(51, 23);
+            this.btnAlignFrame.Size = new System.Drawing.Size(68, 28);
             this.btnAlignFrame.TabIndex = 0;
             this.btnAlignFrame.Text = "Frame";
             this.btnAlignFrame.UseVisualStyleBackColor = false;
@@ -647,9 +591,11 @@
             this.gbAdjust.Controls.Add(this.btnAdjustClip);
             this.gbAdjust.Controls.Add(this.btnAdjustScene);
             this.gbAdjust.Controls.Add(this.btnAdjustFrame);
-            this.gbAdjust.Location = new System.Drawing.Point(74, 19);
+            this.gbAdjust.Location = new System.Drawing.Point(99, 23);
+            this.gbAdjust.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.gbAdjust.Name = "gbAdjust";
-            this.gbAdjust.Size = new System.Drawing.Size(63, 106);
+            this.gbAdjust.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.gbAdjust.Size = new System.Drawing.Size(84, 130);
             this.gbAdjust.TabIndex = 3;
             this.gbAdjust.TabStop = false;
             this.gbAdjust.Text = "Adjust";
@@ -657,9 +603,10 @@
             // btnAdjustClip
             // 
             this.btnAdjustClip.BackColor = System.Drawing.SystemColors.MenuBar;
-            this.btnAdjustClip.Location = new System.Drawing.Point(6, 78);
+            this.btnAdjustClip.Location = new System.Drawing.Point(8, 96);
+            this.btnAdjustClip.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnAdjustClip.Name = "btnAdjustClip";
-            this.btnAdjustClip.Size = new System.Drawing.Size(51, 23);
+            this.btnAdjustClip.Size = new System.Drawing.Size(68, 28);
             this.btnAdjustClip.TabIndex = 0;
             this.btnAdjustClip.Text = "Clip";
             this.btnAdjustClip.UseVisualStyleBackColor = false;
@@ -668,9 +615,10 @@
             // btnAdjustScene
             // 
             this.btnAdjustScene.BackColor = System.Drawing.SystemColors.Info;
-            this.btnAdjustScene.Location = new System.Drawing.Point(6, 49);
+            this.btnAdjustScene.Location = new System.Drawing.Point(8, 60);
+            this.btnAdjustScene.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnAdjustScene.Name = "btnAdjustScene";
-            this.btnAdjustScene.Size = new System.Drawing.Size(51, 23);
+            this.btnAdjustScene.Size = new System.Drawing.Size(68, 28);
             this.btnAdjustScene.TabIndex = 0;
             this.btnAdjustScene.Text = "Scene";
             this.btnAdjustScene.UseVisualStyleBackColor = false;
@@ -679,9 +627,10 @@
             // btnAdjustFrame
             // 
             this.btnAdjustFrame.BackColor = System.Drawing.SystemColors.InactiveBorder;
-            this.btnAdjustFrame.Location = new System.Drawing.Point(6, 20);
+            this.btnAdjustFrame.Location = new System.Drawing.Point(8, 25);
+            this.btnAdjustFrame.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnAdjustFrame.Name = "btnAdjustFrame";
-            this.btnAdjustFrame.Size = new System.Drawing.Size(51, 23);
+            this.btnAdjustFrame.Size = new System.Drawing.Size(68, 28);
             this.btnAdjustFrame.TabIndex = 0;
             this.btnAdjustFrame.Text = "Frame";
             this.btnAdjustFrame.UseVisualStyleBackColor = false;
@@ -690,31 +639,34 @@
             // label18
             // 
             this.label18.AutoSize = true;
-            this.label18.Location = new System.Drawing.Point(245, 51);
+            this.label18.Location = new System.Drawing.Point(327, 63);
+            this.label18.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label18.Name = "label18";
-            this.label18.Size = new System.Drawing.Size(51, 13);
+            this.label18.Size = new System.Drawing.Size(62, 16);
             this.label18.TabIndex = 2;
             this.label18.Text = "Scale, ‰";
             // 
             // label17
             // 
             this.label17.AutoSize = true;
-            this.label17.Location = new System.Drawing.Point(230, 25);
+            this.label17.Location = new System.Drawing.Point(307, 31);
+            this.label17.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label17.Name = "label17";
-            this.label17.Size = new System.Drawing.Size(66, 13);
+            this.label17.Size = new System.Drawing.Size(80, 16);
             this.label17.TabIndex = 2;
             this.label17.Text = "Distance, px";
             // 
             // nudScale
             // 
-            this.nudScale.Location = new System.Drawing.Point(302, 49);
+            this.nudScale.Location = new System.Drawing.Point(403, 60);
+            this.nudScale.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.nudScale.Maximum = new decimal(new int[] {
             999,
             0,
             0,
             0});
             this.nudScale.Name = "nudScale";
-            this.nudScale.Size = new System.Drawing.Size(45, 20);
+            this.nudScale.Size = new System.Drawing.Size(60, 22);
             this.nudScale.TabIndex = 1;
             this.nudScale.Value = new decimal(new int[] {
             3,
@@ -724,9 +676,10 @@
             // 
             // nudDistance
             // 
-            this.nudDistance.Location = new System.Drawing.Point(302, 23);
+            this.nudDistance.Location = new System.Drawing.Point(403, 28);
+            this.nudDistance.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.nudDistance.Name = "nudDistance";
-            this.nudDistance.Size = new System.Drawing.Size(45, 20);
+            this.nudDistance.Size = new System.Drawing.Size(60, 22);
             this.nudDistance.TabIndex = 1;
             this.nudDistance.Value = new decimal(new int[] {
             2,
@@ -742,23 +695,25 @@
             0,
             0,
             65536});
-            this.nudDeviation.Location = new System.Drawing.Point(302, 75);
+            this.nudDeviation.Location = new System.Drawing.Point(403, 92);
+            this.nudDeviation.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.nudDeviation.Maximum = new decimal(new int[] {
             99,
             0,
             0,
             0});
             this.nudDeviation.Name = "nudDeviation";
-            this.nudDeviation.Size = new System.Drawing.Size(45, 20);
+            this.nudDeviation.Size = new System.Drawing.Size(60, 22);
             this.nudDeviation.TabIndex = 11;
             this.nudDeviation.ValueChanged += new System.EventHandler(this.Reset);
             // 
             // label27
             // 
             this.label27.AutoSize = true;
-            this.label27.Location = new System.Drawing.Point(223, 77);
+            this.label27.Location = new System.Drawing.Point(297, 95);
+            this.label27.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label27.Name = "label27";
-            this.label27.Size = new System.Drawing.Size(73, 13);
+            this.label27.Size = new System.Drawing.Size(90, 16);
             this.label27.TabIndex = 3;
             this.label27.Text = "Max deviation";
             // 
@@ -788,9 +743,11 @@
             this.groupBox2.Controls.Add(this.label26);
             this.groupBox2.Controls.Add(this.label22);
             this.groupBox2.Controls.Add(this.label3);
-            this.groupBox2.Location = new System.Drawing.Point(5, 293);
+            this.groupBox2.Location = new System.Drawing.Point(7, 361);
+            this.groupBox2.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Size = new System.Drawing.Size(422, 157);
+            this.groupBox2.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox2.Size = new System.Drawing.Size(563, 193);
             this.groupBox2.TabIndex = 17;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Display settings";
@@ -798,18 +755,20 @@
             // label25
             // 
             this.label25.AutoSize = true;
-            this.label25.Location = new System.Drawing.Point(375, 130);
+            this.label25.Location = new System.Drawing.Point(500, 160);
+            this.label25.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label25.Name = "label25";
-            this.label25.Size = new System.Drawing.Size(41, 13);
+            this.label25.Size = new System.Drawing.Size(52, 16);
             this.label25.TabIndex = 3;
             this.label25.Text = "overlay";
             // 
             // chbColorAdjust
             // 
             this.chbColorAdjust.AutoSize = true;
-            this.chbColorAdjust.Location = new System.Drawing.Point(188, 130);
+            this.chbColorAdjust.Location = new System.Drawing.Point(251, 160);
+            this.chbColorAdjust.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.chbColorAdjust.Name = "chbColorAdjust";
-            this.chbColorAdjust.Size = new System.Drawing.Size(15, 14);
+            this.chbColorAdjust.Size = new System.Drawing.Size(18, 17);
             this.chbColorAdjust.TabIndex = 9;
             this.chbColorAdjust.UseVisualStyleBackColor = true;
             this.chbColorAdjust.CheckedChanged += new System.EventHandler(this.Render);
@@ -817,9 +776,10 @@
             // chbRGB
             // 
             this.chbRGB.AutoSize = true;
-            this.chbRGB.Location = new System.Drawing.Point(346, 46);
+            this.chbRGB.Location = new System.Drawing.Point(461, 57);
+            this.chbRGB.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.chbRGB.Name = "chbRGB";
-            this.chbRGB.Size = new System.Drawing.Size(49, 17);
+            this.chbRGB.Size = new System.Drawing.Size(58, 20);
             this.chbRGB.TabIndex = 9;
             this.chbRGB.Text = "RGB";
             this.chbRGB.UseVisualStyleBackColor = true;
@@ -828,10 +788,11 @@
             // tbColorAdjust
             // 
             this.tbColorAdjust.LargeChange = 25;
-            this.tbColorAdjust.Location = new System.Drawing.Point(257, 124);
+            this.tbColorAdjust.Location = new System.Drawing.Point(343, 153);
+            this.tbColorAdjust.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.tbColorAdjust.Maximum = 100;
             this.tbColorAdjust.Name = "tbColorAdjust";
-            this.tbColorAdjust.Size = new System.Drawing.Size(113, 45);
+            this.tbColorAdjust.Size = new System.Drawing.Size(151, 56);
             this.tbColorAdjust.SmallChange = 10;
             this.tbColorAdjust.TabIndex = 8;
             this.tbColorAdjust.TickFrequency = 50;
@@ -841,10 +802,11 @@
             // tbOpacity
             // 
             this.tbOpacity.LargeChange = 25;
-            this.tbOpacity.Location = new System.Drawing.Point(252, 73);
+            this.tbOpacity.Location = new System.Drawing.Point(336, 90);
+            this.tbOpacity.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.tbOpacity.Maximum = 100;
             this.tbOpacity.Name = "tbOpacity";
-            this.tbOpacity.Size = new System.Drawing.Size(118, 45);
+            this.tbOpacity.Size = new System.Drawing.Size(157, 56);
             this.tbOpacity.SmallChange = 10;
             this.tbOpacity.TabIndex = 8;
             this.tbOpacity.TickFrequency = 50;
@@ -856,9 +818,10 @@
             this.chbDebug.AutoSize = true;
             this.chbDebug.Checked = true;
             this.chbDebug.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.chbDebug.Location = new System.Drawing.Point(284, 19);
+            this.chbDebug.Location = new System.Drawing.Point(379, 23);
+            this.chbDebug.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.chbDebug.Name = "chbDebug";
-            this.chbDebug.Size = new System.Drawing.Size(80, 17);
+            this.chbDebug.Size = new System.Drawing.Size(99, 20);
             this.chbDebug.TabIndex = 7;
             this.chbDebug.Text = "Display info";
             this.chbDebug.UseVisualStyleBackColor = true;
@@ -870,9 +833,10 @@
             this.chbPreview.AutoSize = true;
             this.chbPreview.Checked = true;
             this.chbPreview.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.chbPreview.Location = new System.Drawing.Point(219, 19);
+            this.chbPreview.Location = new System.Drawing.Point(301, 23);
+            this.chbPreview.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.chbPreview.Name = "chbPreview";
-            this.chbPreview.Size = new System.Drawing.Size(64, 17);
+            this.chbPreview.Size = new System.Drawing.Size(77, 20);
             this.chbPreview.TabIndex = 3;
             this.chbPreview.Text = "Preview";
             this.chbPreview.UseVisualStyleBackColor = true;
@@ -882,9 +846,10 @@
             // 
             this.cbMatrix.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.cbMatrix.FormattingEnabled = true;
-            this.cbMatrix.Location = new System.Drawing.Point(257, 44);
+            this.cbMatrix.Location = new System.Drawing.Point(343, 54);
+            this.cbMatrix.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.cbMatrix.Name = "cbMatrix";
-            this.cbMatrix.Size = new System.Drawing.Size(83, 21);
+            this.cbMatrix.Size = new System.Drawing.Size(109, 24);
             this.cbMatrix.TabIndex = 6;
             this.cbMatrix.SelectedIndexChanged += new System.EventHandler(this.Render);
             // 
@@ -905,9 +870,10 @@
             "SoftLight",
             "HardLight",
             "Exclusion"});
-            this.cbOverlayMode.Location = new System.Drawing.Point(58, 71);
+            this.cbOverlayMode.Location = new System.Drawing.Point(77, 87);
+            this.cbOverlayMode.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.cbOverlayMode.Name = "cbOverlayMode";
-            this.cbOverlayMode.Size = new System.Drawing.Size(144, 21);
+            this.cbOverlayMode.Size = new System.Drawing.Size(191, 24);
             this.cbOverlayMode.TabIndex = 6;
             this.cbOverlayMode.SelectedIndexChanged += new System.EventHandler(this.Render);
             // 
@@ -915,36 +881,40 @@
             // 
             this.cbMode.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.cbMode.FormattingEnabled = true;
-            this.cbMode.Location = new System.Drawing.Point(58, 44);
+            this.cbMode.Location = new System.Drawing.Point(77, 54);
+            this.cbMode.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.cbMode.Name = "cbMode";
-            this.cbMode.Size = new System.Drawing.Size(144, 21);
+            this.cbMode.Size = new System.Drawing.Size(191, 24);
             this.cbMode.TabIndex = 6;
             this.cbMode.SelectedIndexChanged += new System.EventHandler(this.Render);
             // 
             // label23
             // 
             this.label23.AutoSize = true;
-            this.label23.Location = new System.Drawing.Point(119, 130);
+            this.label23.Location = new System.Drawing.Point(159, 160);
+            this.label23.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label23.Name = "label23";
-            this.label23.Size = new System.Drawing.Size(63, 13);
+            this.label23.Size = new System.Drawing.Size(79, 16);
             this.label23.TabIndex = 3;
             this.label23.Text = "Color Adjust";
             // 
             // label24
             // 
             this.label24.AutoSize = true;
-            this.label24.Location = new System.Drawing.Point(212, 130);
+            this.label24.Location = new System.Drawing.Point(283, 160);
+            this.label24.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label24.Name = "label24";
-            this.label24.Size = new System.Drawing.Size(39, 13);
+            this.label24.Size = new System.Drawing.Size(48, 16);
             this.label24.TabIndex = 3;
             this.label24.Text = "source";
             // 
             // label6
             // 
             this.label6.AutoSize = true;
-            this.label6.Location = new System.Drawing.Point(208, 79);
+            this.label6.Location = new System.Drawing.Point(277, 97);
+            this.label6.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label6.Name = "label6";
-            this.label6.Size = new System.Drawing.Size(43, 13);
+            this.label6.Size = new System.Drawing.Size(53, 16);
             this.label6.TabIndex = 3;
             this.label6.Text = "Opacity";
             // 
@@ -955,14 +925,15 @@
             0,
             0,
             0});
-            this.nudNoiseSize.Location = new System.Drawing.Point(151, 98);
+            this.nudNoiseSize.Location = new System.Drawing.Point(201, 121);
+            this.nudNoiseSize.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.nudNoiseSize.Maximum = new decimal(new int[] {
             500,
             0,
             0,
             0});
             this.nudNoiseSize.Name = "nudNoiseSize";
-            this.nudNoiseSize.Size = new System.Drawing.Size(51, 20);
+            this.nudNoiseSize.Size = new System.Drawing.Size(68, 22);
             this.nudNoiseSize.TabIndex = 5;
             this.nudNoiseSize.ValueChanged += new System.EventHandler(this.Render);
             // 
@@ -973,47 +944,52 @@
             0,
             0,
             0});
-            this.nudGradientSize.Location = new System.Drawing.Point(58, 98);
+            this.nudGradientSize.Location = new System.Drawing.Point(77, 121);
+            this.nudGradientSize.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.nudGradientSize.Maximum = new decimal(new int[] {
             500,
             0,
             0,
             0});
             this.nudGradientSize.Name = "nudGradientSize";
-            this.nudGradientSize.Size = new System.Drawing.Size(51, 20);
+            this.nudGradientSize.Size = new System.Drawing.Size(68, 22);
             this.nudGradientSize.TabIndex = 5;
             this.nudGradientSize.ValueChanged += new System.EventHandler(this.Render);
             // 
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(6, 20);
+            this.label1.Location = new System.Drawing.Point(8, 25);
+            this.label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(27, 13);
+            this.label1.Size = new System.Drawing.Size(33, 16);
             this.label1.TabIndex = 3;
             this.label1.Text = "Size";
             // 
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(110, 20);
+            this.label2.Location = new System.Drawing.Point(147, 25);
+            this.label2.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(12, 13);
+            this.label2.Size = new System.Drawing.Size(13, 16);
             this.label2.TabIndex = 2;
             this.label2.Text = "x";
             // 
             // label11
             // 
             this.label11.AutoSize = true;
-            this.label11.Location = new System.Drawing.Point(115, 100);
+            this.label11.Location = new System.Drawing.Point(153, 123);
+            this.label11.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label11.Name = "label11";
-            this.label11.Size = new System.Drawing.Size(34, 13);
+            this.label11.Size = new System.Drawing.Size(43, 16);
             this.label11.TabIndex = 3;
             this.label11.Text = "Noise";
             // 
             // nudOutputWidth
             // 
-            this.nudOutputWidth.Location = new System.Drawing.Point(58, 18);
+            this.nudOutputWidth.Location = new System.Drawing.Point(77, 22);
+            this.nudOutputWidth.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.nudOutputWidth.Maximum = new decimal(new int[] {
             10000,
             0,
@@ -1025,7 +1001,7 @@
             0,
             0});
             this.nudOutputWidth.Name = "nudOutputWidth";
-            this.nudOutputWidth.Size = new System.Drawing.Size(51, 20);
+            this.nudOutputWidth.Size = new System.Drawing.Size(68, 22);
             this.nudOutputWidth.TabIndex = 5;
             this.nudOutputWidth.Value = new decimal(new int[] {
             1920,
@@ -1037,15 +1013,17 @@
             // label5
             // 
             this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(6, 100);
+            this.label5.Location = new System.Drawing.Point(8, 123);
+            this.label5.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(47, 13);
+            this.label5.Size = new System.Drawing.Size(58, 16);
             this.label5.TabIndex = 3;
             this.label5.Text = "Gradient";
             // 
             // nudOutputHeight
             // 
-            this.nudOutputHeight.Location = new System.Drawing.Point(122, 18);
+            this.nudOutputHeight.Location = new System.Drawing.Point(163, 22);
+            this.nudOutputHeight.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.nudOutputHeight.Maximum = new decimal(new int[] {
             10000,
             0,
@@ -1057,7 +1035,7 @@
             0,
             0});
             this.nudOutputHeight.Name = "nudOutputHeight";
-            this.nudOutputHeight.Size = new System.Drawing.Size(51, 20);
+            this.nudOutputHeight.Size = new System.Drawing.Size(68, 22);
             this.nudOutputHeight.TabIndex = 4;
             this.nudOutputHeight.Value = new decimal(new int[] {
             1080,
@@ -1069,27 +1047,30 @@
             // label26
             // 
             this.label26.AutoSize = true;
-            this.label26.Location = new System.Drawing.Point(6, 74);
+            this.label26.Location = new System.Drawing.Point(8, 91);
+            this.label26.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label26.Name = "label26";
-            this.label26.Size = new System.Drawing.Size(43, 13);
+            this.label26.Size = new System.Drawing.Size(54, 16);
             this.label26.TabIndex = 3;
             this.label26.Text = "Overlay";
             // 
             // label22
             // 
             this.label22.AutoSize = true;
-            this.label22.Location = new System.Drawing.Point(216, 47);
+            this.label22.Location = new System.Drawing.Point(288, 58);
+            this.label22.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label22.Name = "label22";
-            this.label22.Size = new System.Drawing.Size(35, 13);
+            this.label22.Size = new System.Drawing.Size(42, 16);
             this.label22.TabIndex = 3;
             this.label22.Text = "Matrix";
             // 
             // label3
             // 
             this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(6, 47);
+            this.label3.Location = new System.Drawing.Point(8, 58);
+            this.label3.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(44, 13);
+            this.label3.Size = new System.Drawing.Size(56, 16);
             this.label3.TabIndex = 3;
             this.label3.Text = "Framing";
             // 
@@ -1100,7 +1081,6 @@
             this.groupBox1.Controls.Add(this.label29);
             this.groupBox1.Controls.Add(this.nudCompare);
             this.groupBox1.Controls.Add(this.btnCompare);
-            this.groupBox1.Controls.Add(this.btnResetCrop);
             this.groupBox1.Controls.Add(this.nudX);
             this.groupBox1.Controls.Add(this.label8);
             this.groupBox1.Controls.Add(this.nudY);
@@ -1108,32 +1088,26 @@
             this.groupBox1.Controls.Add(this.nudAngle);
             this.groupBox1.Controls.Add(this.nudOverlayHeight);
             this.groupBox1.Controls.Add(this.label9);
-            this.groupBox1.Controls.Add(this.nudCropBottom);
-            this.groupBox1.Controls.Add(this.nudCropRight);
-            this.groupBox1.Controls.Add(this.nudCropTop);
-            this.groupBox1.Controls.Add(this.label16);
-            this.groupBox1.Controls.Add(this.nudCropLeft);
-            this.groupBox1.Controls.Add(this.label15);
             this.groupBox1.Controls.Add(this.nudOverlayWidth);
-            this.groupBox1.Controls.Add(this.label10);
             this.groupBox1.Controls.Add(this.label14);
-            this.groupBox1.Controls.Add(this.label7);
             this.groupBox1.Controls.Add(this.label28);
-            this.groupBox1.Controls.Add(this.label4);
             this.groupBox1.Controls.Add(this.label13);
             this.groupBox1.Controls.Add(this.label12);
-            this.groupBox1.Location = new System.Drawing.Point(5, 6);
+            this.groupBox1.Location = new System.Drawing.Point(7, 7);
+            this.groupBox1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(422, 143);
+            this.groupBox1.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox1.Size = new System.Drawing.Size(563, 176);
             this.groupBox1.TabIndex = 16;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Overlay settings";
             // 
             // btnFix
             // 
-            this.btnFix.Location = new System.Drawing.Point(257, 17);
+            this.btnFix.Location = new System.Drawing.Point(369, 21);
+            this.btnFix.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnFix.Name = "btnFix";
-            this.btnFix.Size = new System.Drawing.Size(80, 23);
+            this.btnFix.Size = new System.Drawing.Size(81, 28);
             this.btnFix.TabIndex = 18;
             this.btnFix.Text = "Fix";
             this.btnFix.UseVisualStyleBackColor = true;
@@ -1141,19 +1115,21 @@
             // 
             // tbWarp
             // 
-            this.tbWarp.Location = new System.Drawing.Point(50, 99);
+            this.tbWarp.Location = new System.Drawing.Point(67, 85);
+            this.tbWarp.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.tbWarp.Multiline = true;
             this.tbWarp.Name = "tbWarp";
-            this.tbWarp.Size = new System.Drawing.Size(366, 36);
+            this.tbWarp.Size = new System.Drawing.Size(487, 80);
             this.tbWarp.TabIndex = 17;
             this.tbWarp.TextChanged += new System.EventHandler(this.Render);
             // 
             // label29
             // 
             this.label29.AutoSize = true;
-            this.label29.Location = new System.Drawing.Point(4, 102);
+            this.label29.Location = new System.Drawing.Point(12, 113);
+            this.label29.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label29.Name = "label29";
-            this.label29.Size = new System.Drawing.Size(33, 13);
+            this.label29.Size = new System.Drawing.Size(40, 16);
             this.label29.TabIndex = 16;
             this.label29.Text = "Warp";
             // 
@@ -1165,14 +1141,15 @@
             0,
             0,
             196608});
-            this.nudCompare.Location = new System.Drawing.Point(343, 45);
+            this.nudCompare.Location = new System.Drawing.Point(457, 55);
+            this.nudCompare.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.nudCompare.Maximum = new decimal(new int[] {
             1,
             0,
             0,
             0});
             this.nudCompare.Name = "nudCompare";
-            this.nudCompare.Size = new System.Drawing.Size(73, 20);
+            this.nudCompare.Size = new System.Drawing.Size(97, 22);
             this.nudCompare.TabIndex = 15;
             this.nudCompare.Value = new decimal(new int[] {
             999,
@@ -1183,27 +1160,25 @@
             // 
             // btnCompare
             // 
-            this.btnCompare.Location = new System.Drawing.Point(343, 17);
+            this.btnCompare.Location = new System.Drawing.Point(457, 21);
+            this.btnCompare.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.btnCompare.Name = "btnCompare";
-            this.btnCompare.Size = new System.Drawing.Size(73, 23);
+            this.btnCompare.Size = new System.Drawing.Size(97, 28);
             this.btnCompare.TabIndex = 14;
             this.btnCompare.Text = "Compare";
             this.btnCompare.UseVisualStyleBackColor = true;
             this.btnCompare.Click += new System.EventHandler(this.btnCompare_Click);
             // 
-            // btnResetCrop
-            // 
-            this.btnResetCrop.Location = new System.Drawing.Point(343, 70);
-            this.btnResetCrop.Name = "btnResetCrop";
-            this.btnResetCrop.Size = new System.Drawing.Size(73, 23);
-            this.btnResetCrop.TabIndex = 13;
-            this.btnResetCrop.Text = "Reset";
-            this.btnResetCrop.UseVisualStyleBackColor = true;
-            this.btnResetCrop.Click += new System.EventHandler(this.btnResetCrop_Click);
-            // 
             // nudX
             // 
-            this.nudX.Location = new System.Drawing.Point(24, 19);
+            this.nudX.DecimalPlaces = 2;
+            this.nudX.Increment = new decimal(new int[] {
+            25,
+            0,
+            0,
+            131072});
+            this.nudX.Location = new System.Drawing.Point(32, 23);
+            this.nudX.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.nudX.Maximum = new decimal(new int[] {
             10000,
             0,
@@ -1215,22 +1190,30 @@
             0,
             -2147483648});
             this.nudX.Name = "nudX";
-            this.nudX.Size = new System.Drawing.Size(51, 20);
+            this.nudX.Size = new System.Drawing.Size(80, 22);
             this.nudX.TabIndex = 6;
             this.nudX.ValueChanged += new System.EventHandler(this.Render);
             // 
             // label8
             // 
             this.label8.AutoSize = true;
-            this.label8.Location = new System.Drawing.Point(4, 21);
+            this.label8.Location = new System.Drawing.Point(5, 26);
+            this.label8.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label8.Name = "label8";
-            this.label8.Size = new System.Drawing.Size(14, 13);
+            this.label8.Size = new System.Drawing.Size(15, 16);
             this.label8.TabIndex = 7;
             this.label8.Text = "X";
             // 
             // nudY
             // 
-            this.nudY.Location = new System.Drawing.Point(101, 19);
+            this.nudY.DecimalPlaces = 2;
+            this.nudY.Increment = new decimal(new int[] {
+            25,
+            0,
+            0,
+            131072});
+            this.nudY.Location = new System.Drawing.Point(142, 23);
+            this.nudY.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.nudY.Maximum = new decimal(new int[] {
             10000,
             0,
@@ -1242,7 +1225,7 @@
             0,
             -2147483648});
             this.nudY.Name = "nudY";
-            this.nudY.Size = new System.Drawing.Size(51, 20);
+            this.nudY.Size = new System.Drawing.Size(80, 22);
             this.nudY.TabIndex = 6;
             this.nudY.ValueChanged += new System.EventHandler(this.Render);
             // 
@@ -1251,9 +1234,10 @@
             this.chbOverlaySizeSync.AutoSize = true;
             this.chbOverlaySizeSync.Checked = true;
             this.chbOverlaySizeSync.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.chbOverlaySizeSync.Location = new System.Drawing.Point(200, 46);
+            this.chbOverlaySizeSync.Location = new System.Drawing.Point(278, 56);
+            this.chbOverlaySizeSync.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.chbOverlaySizeSync.Name = "chbOverlaySizeSync";
-            this.chbOverlaySizeSync.Size = new System.Drawing.Size(50, 17);
+            this.chbOverlaySizeSync.Size = new System.Drawing.Size(59, 20);
             this.chbOverlaySizeSync.TabIndex = 12;
             this.chbOverlaySizeSync.Text = "Sync";
             this.chbOverlaySizeSync.UseVisualStyleBackColor = true;
@@ -1262,7 +1246,13 @@
             // nudAngle
             // 
             this.nudAngle.DecimalPlaces = 2;
-            this.nudAngle.Location = new System.Drawing.Point(200, 20);
+            this.nudAngle.Increment = new decimal(new int[] {
+            1,
+            0,
+            0,
+            65536});
+            this.nudAngle.Location = new System.Drawing.Point(293, 23);
+            this.nudAngle.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.nudAngle.Maximum = new decimal(new int[] {
             360,
             0,
@@ -1274,13 +1264,15 @@
             0,
             -2147483648});
             this.nudAngle.Name = "nudAngle";
-            this.nudAngle.Size = new System.Drawing.Size(51, 20);
+            this.nudAngle.Size = new System.Drawing.Size(68, 22);
             this.nudAngle.TabIndex = 6;
             this.nudAngle.ValueChanged += new System.EventHandler(this.Render);
             // 
             // nudOverlayHeight
             // 
-            this.nudOverlayHeight.Location = new System.Drawing.Point(135, 45);
+            this.nudOverlayHeight.DecimalPlaces = 2;
+            this.nudOverlayHeight.Location = new System.Drawing.Point(187, 55);
+            this.nudOverlayHeight.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.nudOverlayHeight.Maximum = new decimal(new int[] {
             10000,
             0,
@@ -1292,7 +1284,7 @@
             0,
             0});
             this.nudOverlayHeight.Name = "nudOverlayHeight";
-            this.nudOverlayHeight.Size = new System.Drawing.Size(51, 20);
+            this.nudOverlayHeight.Size = new System.Drawing.Size(80, 22);
             this.nudOverlayHeight.TabIndex = 10;
             this.nudOverlayHeight.Value = new decimal(new int[] {
             1080,
@@ -1304,129 +1296,18 @@
             // label9
             // 
             this.label9.AutoSize = true;
-            this.label9.Location = new System.Drawing.Point(81, 21);
+            this.label9.Location = new System.Drawing.Point(118, 26);
+            this.label9.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label9.Name = "label9";
-            this.label9.Size = new System.Drawing.Size(14, 13);
+            this.label9.Size = new System.Drawing.Size(16, 16);
             this.label9.TabIndex = 7;
             this.label9.Text = "Y";
             // 
-            // nudCropBottom
-            // 
-            this.nudCropBottom.DecimalPlaces = 4;
-            this.nudCropBottom.Increment = new decimal(new int[] {
-            1,
-            0,
-            0,
-            65536});
-            this.nudCropBottom.Location = new System.Drawing.Point(277, 71);
-            this.nudCropBottom.Maximum = new decimal(new int[] {
-            99,
-            0,
-            0,
-            0});
-            this.nudCropBottom.Name = "nudCropBottom";
-            this.nudCropBottom.Size = new System.Drawing.Size(60, 20);
-            this.nudCropBottom.TabIndex = 11;
-            this.nudCropBottom.Value = new decimal(new int[] {
-            99,
-            0,
-            0,
-            0});
-            this.nudCropBottom.ValueChanged += new System.EventHandler(this.Render);
-            // 
-            // nudCropRight
-            // 
-            this.nudCropRight.DecimalPlaces = 4;
-            this.nudCropRight.Increment = new decimal(new int[] {
-            1,
-            0,
-            0,
-            65536});
-            this.nudCropRight.Location = new System.Drawing.Point(203, 71);
-            this.nudCropRight.Maximum = new decimal(new int[] {
-            99,
-            0,
-            0,
-            0});
-            this.nudCropRight.Name = "nudCropRight";
-            this.nudCropRight.Size = new System.Drawing.Size(60, 20);
-            this.nudCropRight.TabIndex = 11;
-            this.nudCropRight.Value = new decimal(new int[] {
-            99,
-            0,
-            0,
-            0});
-            this.nudCropRight.ValueChanged += new System.EventHandler(this.Render);
-            // 
-            // nudCropTop
-            // 
-            this.nudCropTop.DecimalPlaces = 4;
-            this.nudCropTop.Increment = new decimal(new int[] {
-            1,
-            0,
-            0,
-            65536});
-            this.nudCropTop.Location = new System.Drawing.Point(127, 71);
-            this.nudCropTop.Maximum = new decimal(new int[] {
-            99,
-            0,
-            0,
-            0});
-            this.nudCropTop.Name = "nudCropTop";
-            this.nudCropTop.Size = new System.Drawing.Size(60, 20);
-            this.nudCropTop.TabIndex = 11;
-            this.nudCropTop.Value = new decimal(new int[] {
-            99,
-            0,
-            0,
-            0});
-            this.nudCropTop.ValueChanged += new System.EventHandler(this.Render);
-            // 
-            // label16
-            // 
-            this.label16.AutoSize = true;
-            this.label16.Location = new System.Drawing.Point(264, 73);
-            this.label16.Name = "label16";
-            this.label16.Size = new System.Drawing.Size(14, 13);
-            this.label16.TabIndex = 9;
-            this.label16.Text = "B";
-            // 
-            // nudCropLeft
-            // 
-            this.nudCropLeft.DecimalPlaces = 4;
-            this.nudCropLeft.Increment = new decimal(new int[] {
-            1,
-            0,
-            0,
-            65536});
-            this.nudCropLeft.Location = new System.Drawing.Point(50, 71);
-            this.nudCropLeft.Maximum = new decimal(new int[] {
-            99,
-            0,
-            0,
-            0});
-            this.nudCropLeft.Name = "nudCropLeft";
-            this.nudCropLeft.Size = new System.Drawing.Size(60, 20);
-            this.nudCropLeft.TabIndex = 11;
-            this.nudCropLeft.Value = new decimal(new int[] {
-            99,
-            0,
-            0,
-            0});
-            this.nudCropLeft.ValueChanged += new System.EventHandler(this.Render);
-            // 
-            // label15
-            // 
-            this.label15.AutoSize = true;
-            this.label15.Location = new System.Drawing.Point(188, 73);
-            this.label15.Name = "label15";
-            this.label15.Size = new System.Drawing.Size(15, 13);
-            this.label15.TabIndex = 9;
-            this.label15.Text = "R";
-            // 
             // nudOverlayWidth
             // 
-            this.nudOverlayWidth.Location = new System.Drawing.Point(73, 45);
+            this.nudOverlayWidth.DecimalPlaces = 2;
+            this.nudOverlayWidth.Location = new System.Drawing.Point(91, 55);
+            this.nudOverlayWidth.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.nudOverlayWidth.Maximum = new decimal(new int[] {
             10000,
             0,
@@ -1438,7 +1319,7 @@
             0,
             0});
             this.nudOverlayWidth.Name = "nudOverlayWidth";
-            this.nudOverlayWidth.Size = new System.Drawing.Size(51, 20);
+            this.nudOverlayWidth.Size = new System.Drawing.Size(80, 22);
             this.nudOverlayWidth.TabIndex = 11;
             this.nudOverlayWidth.Value = new decimal(new int[] {
             1920,
@@ -1447,72 +1328,50 @@
             0});
             this.nudOverlayWidth.ValueChanged += new System.EventHandler(this.Render);
             // 
-            // label10
-            // 
-            this.label10.AutoSize = true;
-            this.label10.Location = new System.Drawing.Point(112, 73);
-            this.label10.Name = "label10";
-            this.label10.Size = new System.Drawing.Size(14, 13);
-            this.label10.TabIndex = 9;
-            this.label10.Text = "T";
-            // 
             // label14
             // 
             this.label14.AutoSize = true;
-            this.label14.Location = new System.Drawing.Point(160, 21);
+            this.label14.Location = new System.Drawing.Point(243, 25);
+            this.label14.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label14.Name = "label14";
-            this.label14.Size = new System.Drawing.Size(34, 13);
+            this.label14.Size = new System.Drawing.Size(42, 16);
             this.label14.TabIndex = 7;
             this.label14.Text = "Angle";
-            // 
-            // label7
-            // 
-            this.label7.AutoSize = true;
-            this.label7.Location = new System.Drawing.Point(36, 73);
-            this.label7.Name = "label7";
-            this.label7.Size = new System.Drawing.Size(13, 13);
-            this.label7.TabIndex = 9;
-            this.label7.Text = "L";
             // 
             // label28
             // 
             this.label28.AutoSize = true;
-            this.label28.Location = new System.Drawing.Point(301, 47);
+            this.label28.Location = new System.Drawing.Point(403, 57);
+            this.label28.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label28.Name = "label28";
-            this.label28.Size = new System.Drawing.Size(39, 13);
+            this.label28.Size = new System.Drawing.Size(47, 16);
             this.label28.TabIndex = 9;
             this.label28.Text = "Min eq";
-            // 
-            // label4
-            // 
-            this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(4, 73);
-            this.label4.Name = "label4";
-            this.label4.Size = new System.Drawing.Size(29, 13);
-            this.label4.TabIndex = 9;
-            this.label4.Text = "Crop";
             // 
             // label13
             // 
             this.label13.AutoSize = true;
-            this.label13.Location = new System.Drawing.Point(125, 47);
+            this.label13.Location = new System.Drawing.Point(173, 59);
+            this.label13.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label13.Name = "label13";
-            this.label13.Size = new System.Drawing.Size(12, 13);
+            this.label13.Size = new System.Drawing.Size(13, 16);
             this.label13.TabIndex = 8;
             this.label13.Text = "x";
             // 
             // label12
             // 
             this.label12.AutoSize = true;
-            this.label12.Location = new System.Drawing.Point(4, 47);
+            this.label12.Location = new System.Drawing.Point(5, 58);
+            this.label12.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label12.Name = "label12";
-            this.label12.Size = new System.Drawing.Size(64, 13);
+            this.label12.Size = new System.Drawing.Size(81, 16);
             this.label12.TabIndex = 9;
             this.label12.Text = "Overlay size";
             // 
             // toolStrip1
             // 
             this.toolStrip1.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.toolStrip1.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.toolStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.btnSave,
             this.btnReset,
@@ -1521,10 +1380,11 @@
             this.btnJoinNext,
             this.btnJoinPrev,
             this.btnSeparate,
+            this.btnResetInterval,
             this.btnDelete});
-            this.toolStrip1.Location = new System.Drawing.Point(0, 456);
+            this.toolStrip1.Location = new System.Drawing.Point(0, 565);
             this.toolStrip1.Name = "toolStrip1";
-            this.toolStrip1.Size = new System.Drawing.Size(438, 25);
+            this.toolStrip1.Size = new System.Drawing.Size(584, 27);
             this.toolStrip1.TabIndex = 14;
             this.toolStrip1.Text = "toolStrip1";
             // 
@@ -1535,7 +1395,7 @@
             this.btnSave.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.btnSave.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnSave.Name = "btnSave";
-            this.btnSave.Size = new System.Drawing.Size(38, 22);
+            this.btnSave.Size = new System.Drawing.Size(45, 24);
             this.btnSave.Text = "Save";
             this.btnSave.Click += new System.EventHandler(this.SaveStat);
             // 
@@ -1546,7 +1406,7 @@
             this.btnReset.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.btnReset.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnReset.Name = "btnReset";
-            this.btnReset.Size = new System.Drawing.Size(43, 22);
+            this.btnReset.Size = new System.Drawing.Size(52, 24);
             this.btnReset.Text = "Reset";
             this.btnReset.Click += new System.EventHandler(this.Reset);
             // 
@@ -1557,7 +1417,7 @@
             this.btnResetCurrent.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.btnResetCurrent.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnResetCurrent.Name = "btnResetCurrent";
-            this.btnResetCurrent.Size = new System.Drawing.Size(49, 22);
+            this.btnResetCurrent.Size = new System.Drawing.Size(61, 24);
             this.btnResetCurrent.Text = "Reload";
             this.btnResetCurrent.Click += new System.EventHandler(this.ResetCurrent);
             // 
@@ -1568,7 +1428,7 @@
             this.btnJoinTo.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
             this.btnJoinTo.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnJoinTo.Name = "btnJoinTo";
-            this.btnJoinTo.Size = new System.Drawing.Size(46, 22);
+            this.btnJoinTo.Size = new System.Drawing.Size(57, 24);
             this.btnJoinTo.Text = "Join to";
             this.btnJoinTo.Click += new System.EventHandler(this.btnJoinTo_Click);
             // 
@@ -1579,7 +1439,7 @@
             this.btnJoinNext.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
             this.btnJoinNext.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnJoinNext.Name = "btnJoinNext";
-            this.btnJoinNext.Size = new System.Drawing.Size(48, 22);
+            this.btnJoinNext.Size = new System.Drawing.Size(59, 24);
             this.btnJoinNext.Text = "Join ->";
             this.btnJoinNext.Click += new System.EventHandler(this.btnJoinNext_Click);
             // 
@@ -1590,7 +1450,7 @@
             this.btnJoinPrev.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
             this.btnJoinPrev.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnJoinPrev.Name = "btnJoinPrev";
-            this.btnJoinPrev.Size = new System.Drawing.Size(48, 22);
+            this.btnJoinPrev.Size = new System.Drawing.Size(59, 24);
             this.btnJoinPrev.Text = "<- Join";
             this.btnJoinPrev.Click += new System.EventHandler(this.btnJoinPrev_Click);
             // 
@@ -1601,7 +1461,7 @@
             this.btnSeparate.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
             this.btnSeparate.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnSeparate.Name = "btnSeparate";
-            this.btnSeparate.Size = new System.Drawing.Size(56, 22);
+            this.btnSeparate.Size = new System.Drawing.Size(72, 24);
             this.btnSeparate.Text = "Separate";
             this.btnSeparate.Click += new System.EventHandler(this.btnSeparate_Click);
             // 
@@ -1614,7 +1474,7 @@
             this.btnDelete.Image = ((System.Drawing.Image)(resources.GetObject("btnDelete.Image")));
             this.btnDelete.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnDelete.Name = "btnDelete";
-            this.btnDelete.Size = new System.Drawing.Size(44, 22);
+            this.btnDelete.Size = new System.Drawing.Size(57, 24);
             this.btnDelete.Text = "Delete";
             this.btnDelete.Click += new System.EventHandler(this.btnDelete_Click);
             // 
@@ -1622,22 +1482,96 @@
             // 
             this.pictureBox.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pictureBox.Location = new System.Drawing.Point(0, 0);
+            this.pictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.pictureBox.Name = "pictureBox";
-            this.pictureBox.Size = new System.Drawing.Size(744, 615);
+            this.pictureBox.Size = new System.Drawing.Size(993, 757);
             this.pictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.pictureBox.TabIndex = 2;
             this.pictureBox.TabStop = false;
             // 
+            // Resolution
+            // 
+            this.Resolution.DataPropertyName = "Size";
+            this.Resolution.HeaderText = "Size";
+            this.Resolution.MinimumWidth = 6;
+            this.Resolution.Name = "Resolution";
+            this.Resolution.ReadOnly = true;
+            this.Resolution.Width = 62;
+            // 
+            // Fixed
+            // 
+            this.Fixed.DataPropertyName = "Fixed";
+            this.Fixed.HeaderText = "Fixed";
+            this.Fixed.MinimumWidth = 6;
+            this.Fixed.Name = "Fixed";
+            this.Fixed.ReadOnly = true;
+            this.Fixed.Width = 46;
+            // 
+            // intervalDataGridViewTextBoxColumn
+            // 
+            this.intervalDataGridViewTextBoxColumn.DataPropertyName = "Interval";
+            this.intervalDataGridViewTextBoxColumn.HeaderText = "Interval";
+            this.intervalDataGridViewTextBoxColumn.MinimumWidth = 6;
+            this.intervalDataGridViewTextBoxColumn.Name = "intervalDataGridViewTextBoxColumn";
+            this.intervalDataGridViewTextBoxColumn.ReadOnly = true;
+            this.intervalDataGridViewTextBoxColumn.Width = 79;
+            // 
+            // xDataGridViewTextBoxColumn
+            // 
+            this.xDataGridViewTextBoxColumn.DataPropertyName = "Placement";
+            this.xDataGridViewTextBoxColumn.HeaderText = "Location";
+            this.xDataGridViewTextBoxColumn.MinimumWidth = 6;
+            this.xDataGridViewTextBoxColumn.Name = "xDataGridViewTextBoxColumn";
+            this.xDataGridViewTextBoxColumn.ReadOnly = true;
+            this.xDataGridViewTextBoxColumn.Width = 87;
+            // 
+            // Angle
+            // 
+            this.Angle.DataPropertyName = "Angle";
+            this.Angle.HeaderText = "Angle";
+            this.Angle.MinimumWidth = 6;
+            this.Angle.Name = "Angle";
+            this.Angle.ReadOnly = true;
+            this.Angle.Width = 71;
+            // 
+            // diffDataGridViewTextBoxColumn
+            // 
+            this.diffDataGridViewTextBoxColumn.DataPropertyName = "Diff";
+            dataGridViewCellStyle1.Format = "F1";
+            this.diffDataGridViewTextBoxColumn.DefaultCellStyle = dataGridViewCellStyle1;
+            this.diffDataGridViewTextBoxColumn.HeaderText = "Diff";
+            this.diffDataGridViewTextBoxColumn.MinimumWidth = 6;
+            this.diffDataGridViewTextBoxColumn.Name = "diffDataGridViewTextBoxColumn";
+            this.diffDataGridViewTextBoxColumn.ReadOnly = true;
+            this.diffDataGridViewTextBoxColumn.Width = 55;
+            // 
+            // frameIntervalBindingSource
+            // 
+            this.frameIntervalBindingSource.DataSource = typeof(AutoOverlay.FrameInterval);
+            // 
+            // btnResetInterval
+            // 
+            this.btnResetInterval.BackColor = System.Drawing.Color.Cornsilk;
+            this.btnResetInterval.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.btnResetInterval.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.btnResetInterval.Image = ((System.Drawing.Image)(resources.GetObject("btnResetInterval.Image")));
+            this.btnResetInterval.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.btnResetInterval.Name = "btnResetInterval";
+            this.btnResetInterval.Size = new System.Drawing.Size(84, 24);
+            this.btnResetInterval.Text = "Reload All";
+            this.btnResetInterval.Click += new System.EventHandler(this.ResetInterval);
+            // 
             // OverlayEditor
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1184, 641);
+            this.ClientSize = new System.Drawing.Size(1579, 789);
             this.Controls.Add(this.pictureBox);
             this.Controls.Add(this.panelManage);
             this.Controls.Add(this.panel1);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
-            this.MinimumSize = new System.Drawing.Size(1000, 680);
+            this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.MinimumSize = new System.Drawing.Size(1327, 826);
             this.Name = "OverlayEditor";
             this.Text = "Overlay Editor";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.OverlayEditor_FormClosing);
@@ -1655,7 +1589,6 @@
             ((System.ComponentModel.ISupportInitialize)(this.nudCurrentFrame)).EndInit();
             this.panelManage.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.grid)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.frameIntervalBindingSource)).EndInit();
             this.panel2.ResumeLayout(false);
             this.panel2.PerformLayout();
             this.groupBox3.ResumeLayout(false);
@@ -1681,14 +1614,11 @@
             ((System.ComponentModel.ISupportInitialize)(this.nudY)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudAngle)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudOverlayHeight)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudCropBottom)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudCropRight)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudCropTop)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudCropLeft)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudOverlayWidth)).EndInit();
             this.toolStrip1.ResumeLayout(false);
             this.toolStrip1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.frameIntervalBindingSource)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -1736,16 +1666,6 @@
         private System.Windows.Forms.NumericUpDown nudNoiseSize;
         private System.Windows.Forms.Label label11;
         private System.Windows.Forms.GroupBox groupBox1;
-        private System.Windows.Forms.NumericUpDown nudCropBottom;
-        private System.Windows.Forms.NumericUpDown nudCropRight;
-        private System.Windows.Forms.NumericUpDown nudCropTop;
-        private System.Windows.Forms.Label label16;
-        private System.Windows.Forms.NumericUpDown nudCropLeft;
-        private System.Windows.Forms.Label label15;
-        private System.Windows.Forms.Label label10;
-        private System.Windows.Forms.Label label7;
-        private System.Windows.Forms.Label label4;
-        private System.Windows.Forms.Button btnResetCrop;
         private System.Windows.Forms.GroupBox groupBox3;
         private System.Windows.Forms.ToolStripButton btnJoinTo;
         private System.Windows.Forms.ToolStripButton btnJoinNext;
@@ -1780,14 +1700,6 @@
         private System.Windows.Forms.Label label28;
         private System.Windows.Forms.TextBox tbWarp;
         private System.Windows.Forms.Label label29;
-        private System.Windows.Forms.DataGridViewTextBoxColumn intervalDataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn xDataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn yDataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Resolution;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Crop;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Angle;
-        private System.Windows.Forms.DataGridViewTextBoxColumn diffDataGridViewTextBoxColumn;
-        private System.Windows.Forms.DataGridViewCheckBoxColumn Fixed;
         private System.Windows.Forms.Button btnFix;
         private System.Windows.Forms.Button btnAdjustFrame;
         private System.Windows.Forms.GroupBox gbAdjust;
@@ -1805,5 +1717,12 @@
         private System.Windows.Forms.Label label30;
         private System.Windows.Forms.NumericUpDown nudMaxDiff;
         private System.Windows.Forms.Label label31;
+        private System.Windows.Forms.DataGridViewTextBoxColumn intervalDataGridViewTextBoxColumn;
+        private System.Windows.Forms.DataGridViewTextBoxColumn xDataGridViewTextBoxColumn;
+        private System.Windows.Forms.DataGridViewTextBoxColumn Resolution;
+        private System.Windows.Forms.DataGridViewTextBoxColumn Angle;
+        private System.Windows.Forms.DataGridViewTextBoxColumn diffDataGridViewTextBoxColumn;
+        private System.Windows.Forms.DataGridViewCheckBoxColumn Fixed;
+        private System.Windows.Forms.ToolStripButton btnResetInterval;
     }
 }

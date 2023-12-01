@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using AutoOverlay.Stat;
 using AvsFilterNet;
 
 namespace AutoOverlay
@@ -136,24 +135,20 @@ namespace AutoOverlay
                 File.Copy(statFile, backupFile, true);
                 stream.Position = 0;
                 stream.WriteByte(format.Version);
-                using (var backup = new FileOverlayStat(backupFile, srcSize, overSize, header))
+                using var backup = new FileOverlayStat(backupFile, srcSize, overSize, header);
+                var writer = new BinaryWriter(stream);
+                for (var position = 1; position < stream.Length - 1; position += format.FrameSize)
                 {
-                    var writer = new BinaryWriter(stream);
-                    for (var position = 1; position < stream.Length - 1; position += format.FrameSize)
-                    {
-                        stream.Position = position;
-                        writer.Write(0);
-                    }
-
-                    Save(backup.Frames.Select(p =>
-                    {
-                        p.BaseWidth = overSize.Width;
-                        p.BaseHeight = overSize.Height;
-                        p.SourceWidth = srcSize.Width;
-                        p.SourceHeight = srcSize.Height;
-                        return p;
-                    }));
+                    stream.Position = position;
+                    writer.Write(0);
                 }
+
+                Save(backup.Frames.Select(p =>
+                {
+                    if (p.SourceSize.IsEmpty)
+                        p.SourceSize = srcSize;
+                    return p;
+                }));
             }
             else if (header != format.Version)
             {

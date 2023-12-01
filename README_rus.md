@@ -8,10 +8,8 @@
 - Math.NET Numerics (включено в поставку)
 - MVTools https://github.com/pinterf/mvtools/releases (для aoInterpolate, не включено в поставку)
 - RGTools https://github.com/pinterf/RgTools/releases (для aoInterpolate, не включено в поставку)
-- .NET framework 4.7+
+- .NET framework 4.8+
 - Windows 7+
-
-Windows XP и предыдущие версии AviSynth поддерживаются только в версиях плагина ниже 0.2.5.
 
 ### Установка
 - Скопировать файлы из папок x86/x64 в папки с плагинами AviSynth.
@@ -66,9 +64,9 @@ AviSynth+ поддерживает автоподключение плагино
 ### OverlayEngine                  
     OverlayEngine(clip source, clip overlay, string statFile, int backwardFrames, int forwardFrames, 
                   clip sourceMask, clip overlayMask, float maxDiff, float maxDiffIncrease, float maxDeviation, 
-                  int panScanDistance, float panScanScale, bool stabilize, float stickLevel, float stickDistance,
+                  int scanDistance, float scanScale, bool stabilize, float stickLevel, float stickDistance, 
                   clip configs, string presize, string resize, string rotate, bool editor, string mode, 
-                  float colorAdjust, string sceneFile, bool simd, bool debug)
+                  int colorAdjust, string sceneFile, bool simd, bool debug)
 
 Фильтр принимает на вход два клипа: основной и накладываемый и выполняет процедуру автовыравнивания с помощью изменения размера, вращения и сдвига накладываемого клипа, чтобы найти наименьшее значение diff. Оптимальные параметры наложения кодируются в выходной кадр, чтобы они могли быть считаны другими фильтрами. Последовательность таких параметров наложения кадра за кадром (статистика) может накапливаться в оперативной памяти, либо в файле для повторного использования без необходимости повторно выполнять дорогостоящую процедуру автовыравнивания. Файл статистики может быть проанализирован и отредактирован во встроенном графическом редакторе. 
 
@@ -81,8 +79,8 @@ AviSynth+ поддерживает автоподключение плагино
 - **maxDiff** (default 5) – diff ниже этого значения интерпретируются как успешные. Используется для детектирования сцен. 
 - **maxDiffIncrease** (default 1) – максимально допустимое превышение diff текущего кадра от среднего значения в последовательности (сцене).
 - **maxDeviation** (default 1) – максимально допустимая разница в процентах между объединением и пересечением двух конфигураций выравнивания для обнаружения сцен. Более высокие значения могут привести к ошибочному объединению нескольких сцен в одну, но обеспечивают лучшую стабилизацию в пределах сцены. 
-- **panScanDistance** (default 0) – максимально допустимый сдвиг накладываемого изображения между соседними кадрами в сцене. Используется, если источники не стабилизированы относительно друг друга.
-- **panScanScale** (default 3) – максимально допустимое изменения размера в промилле накладываемого изображения между соседними кадрами в сцене.
+- **scanDistance** (default 0) – максимально допустимый сдвиг накладываемого изображения между соседними кадрами в сцене. Используется, если источники не стабилизированы относительно друг друга.
+- **scanScale** (default 3) – максимально допустимое изменения размера в промилле накладываемого изображения между соседними кадрами в сцене.
 - **stabilize** (default true) – попытка стабилизировать кадры в самом начале сцены, когда еще не накоплено достаточное количество предыдущих кадров. Если true, то параметр `panScanDistance` должен быть 0.
 - **stickLevel** (default 0) - максимально допустимая разница между значениями DIFF для наилучших параметров наложения и тех, что приведут к приклеиванию накладываемого изображения к границам основного.
 - **stickDistance** (default 1) - максимально допустимое расстояние между краями накладываемого изображения для наилучших параметров наложения и тех, что приведут к приклеиванию накладываемого изображения к границам основного.
@@ -146,14 +144,15 @@ Separate - обособление кадра. Join prev - присоединит
 * A, Z - next/previous frame
 
 ### OverlayRender
-    OverlayRender(clip engine, clip source, clip overlay, clip sourceMask, clip overlayMask, string overlayMode, 
-                  int width, int height, string pixelType, int gradient, int noise, bool dynamicNoise, 
-				  int borderControl, float borderMaxDeviation, clip borderOffset, 
-				  clip srcColorBorderOffset, clip overColorBorderOffset, int mode, float opacity, 
-                  float colorAdjust, int colorFramesCount, float colorFramesDiff, float colorMaxDeviation, 
-				  string adjustChannels, string matrix, string upsize, string downsize, string rotate, 
-                  bool simd, bool debug, bool invert, bool extrapolation, int blankColor, float background, 
-				  int backBlur, int bitDepth)
+    OverlayRender(clip engine, clip source, clip overlay, clip sourceMask, clip overlayMask, clip extraClips, 
+                  clip innerBounds, clip outerBounds, float overlayBalanceX, float overlayBalanceY, bool fixedSource, 
+                  int overlayOrder, string overlayMode, int width, int height, string pixelType, int gradient, int noise, bool dynamicNoise, 
+                  int borderControl, float borderMaxDeviation, clip borderOffset, clip srcColorBorderOffset, clip overColorBorderOffset, 
+                  bool maskMode, float opacity, float colorAdjust, string colorInterpolation, float colorExclude, 
+                  int colorFramesCount, float colorFramesDiff, float colorMaxDeviation, string adjustChannels, string matrix, 
+                  string upsize, string downsize, string rotate, bool simd, bool debug, bool invert, bool extrapolation, 
+                  string background, clip backgroundClip, int blankColor, float backBalance, int backBlur, 
+                  bool fullScreen, string edgeGradient, int bitDepth)
                   
 Фильтр осуществляет рендеринг результата совмещения двух клипов с определенными настройками.
 
@@ -162,40 +161,47 @@ Separate - обособление кадра. Join prev - присоединит
 - **source** (required) - первый, основной клип.
 - **overlay** (required) - второй клип, накладываемый на первый. Поддерживаются планарные YUV (8-16 бит), RGB24 и RGB48 цветовые пространства.
 - **sourceMask** and **overlayMask** (default empty) - маски основного и накладываемого клипа. В отличие от OverlayEngine смысл этих масок такой же, как в обычном фильтре *Overlay*. Маски регулируют интенсивность наложения клипов относительно друга друга. Маски должны иметь ту же разрядность, что и накладываемый клип.
-- **overlayMode** (default blend) – режим наложения для встроенного фильтра `Overlay`
+- **extraClips** (default empty) - клип из склеенных клипов типа OverlayClip, описывающих дополнительные клипы для наложения.
+- **innerBounds** (default 0) - клип типа Rect, ограничивающий длину пустот внутри объединения клипов. Значения в диапазоне от 0 до 1 интерпретируются как коэффициент, а свыше 1 как абсолютное значение в пикселях от объединенной области.
+- **outerBounds** (default 0) - клип типа Rect, ограничивающий длину полей относительно результирующего клипа. Значения в диапазоне от 0 до 1 интерпретируются как коэффициент, а свыше 1 как абсолютное значение в пикселях. 
+- **overlayBalanceX** (default 0) - центрирование изображения по ширине относительно основного клипа (-1) или накладываемого (1) в диапазоне от -1 до 1.
+- **overlayBalanceY** (default 0) - центрирование изображения по высоте относительно основного клипа (-1) или накладываемого (1) в диапазоне от -1 до 1.
+- **fixedSource** (default false) - фиксированное центрирование результирующего клипа относительно основного.
+- **overlayOrder** (default 0) - номер слоя для накладываемого клипа. Позволяет наложить клип после дополнительных. 
+- **overlayMode** (default `blend`) – режим наложения для встроенного фильтра `Overlay`. Для оценки результата наложения рекомендуется использовать `difference`.
 - **width** и **height** - ширина и высота выходного изображения. По умолчанию соответствует основному клипу.
-- **pixelType** - не реализован. Вместо него для результирующего клипа используется цветовое пространство основного клипа. 
+- **pixelType** - цветовое пространство результирующего клипа, должен соответствовать типу цветового пространства накладываемых клипов (YUV или RGB). По умолчанию используется цветовое пространство основного клипа. 
 - **gradient** (default 0) - длина прозрачного градиента в пикселях по краям накладываемой области. Делает переход между изображениями более плавным.
 - **noise** (default 0) - длина градиента шума в пикселях по краям накладываемой области. Делает переход между изображениями более плавным.
 - **dynamicNoise** (default true) - динамический шум по краям изображения от кадра к кадру, если *noise* > 0.
 - **borderControl** (default 0) – количество соседних кадров в обе стороны для анализа какие стороны маски наложения должны быть включены для текущего кадра с учетом параметра *borderOffset*.
 - **borderMaxDeviation** (default 0.5) – максимальное отклонение общей площади текущего и соседнего кадра для использования в последовательности кадров при создании маски наложения.
 - **borderOffset** (default empty) - клип типа *Rect* для задания "пустых" границ изображения (left, top, right, bottom), которые будут проигнорированы при расчете градиентной маски.
-- **srcColorBorderOffset** (default empty) - клип типа *Rect* для определения "пустых" границ основного клипа (left, top, right, bottom), которые будут проигнорированы при цветокоррекции.
-- **overColorBorderOffset** (default empty) - клип типа *Rect* для определения "пустых" границ накладываемого клипа (left, top, right, bottom), которые будут проигнорированы при цветокоррекции.
-- **mode** (default 1) – overlay and cropping mode:  
-1 - обрезка по краям основного изображения.  
-2 - совмещение обоих изображений с обрезкой по краям выходного клипа.  
-3 - совмещение обоих изображений без обрезки.  
-4 - как 3, только с заполнением пустых углов по типу ambilight.  
-5 - как 3, только с заполнением всего пустого пространства по типу ambilight.  
-6 - маска режима 3. Используется для совмещения результата с еще одним клипом.   
+- **srcColorBorderOffset** (default empty) - (не реализовано) клип типа *Rect* для определения "пустых" границ основного клипа (left, top, right, bottom), которые будут проигнорированы при цветокоррекции.
+- **overColorBorderOffset** (default empty) - (не реализовано) клип типа *Rect* для определения "пустых" границ накладываемого клипа (left, top, right, bottom), которые будут проигнорированы при цветокоррекции.
+- **maskMode** (defualt false) - если true, замещает все клипы белой маской.
 - **opacity** (default 1) - степень непрозрачности накладываемого изображения от 0 до 1.
-- **colorAdjust** (default -1, disabled) - вещественное значение между 0 и 1. 0 - стремление к цвету основного клипа. 1 - накладываемого клипа. 0.5 - усредненный цвет. Цветокоррекция основана на сравнении гистограмм области пересечения.
+- **colorAdjust** (default -1, disabled) - вещественное значение между 0 и 1. 0 - стремление к цвету основного клипа. 1 - накладываемого клипа. 0.5 - усредненный цвет. С дополнительными клипами поддерживаются только значения -1, 0, 1. Цветокоррекция основана на сравнении гистограмм области пересечения.
+- **colorInterpolation** (default linear) - см. ColorAdjust.interpolation
+- **colorExclude** (default 0) - см. ColorAdjust.exclude
 - **colorFramesCount** (default 0) - количество соседних кадров в обе стороны, информация о которых включается в построение карты соответствия цветов для цветокоррекции
 - **colorFramesDiff** (default 1) -  максимальное среднеквадратическое отклонение гистограмм разницы цветов сэмпла и образца от текущего кадра к соседним для цветокоррекции
 - **colorMaxDeviation** (default 1) -  максимальное отклонение общей площади текущего и соседнего кадра для использования в последовательности кадров при цветокоррекции
 - **adjustChannels** (default empty) - в каких каналах регулировать цвет. Примеры: "yuv", "y", "rgb", "rg".
-- **matrix** (default empty). Если параметр задан, YUV изображение конвертируется в RGB по указанной матрице для цветокоррекции.
-- **downsize** и **upsize** (default *BicubicResize*) - функции для уменьшения и увеличения размера изображений.
+- **matrix** (default empty). Если параметр задан, YUV изображение конвертируется в RGB по указанной матрице на время обработки.
+- **downsize** и **upsize** (default *BicubicResize*) - функции для уменьшения и увеличения размера изображений. Если задан только один параметр, то второй заполняется тем же значением. 
 - **rotate** (default *BilinearRotate*) - функция вращения накладываемого изображения.
 - **simd** (default *true*) – использование SIMD Library для повышения производительности в некоторых случаях
 - **debug** - вывод параметров наложения.
 - **invert** - поменять местами основной и накладываемый клипы, "инвертировать" параметры наложения. 
-- **extrapolation** - то же самое, что ColorAdjust.extrapolation.
-- **blankColor** (default black) - цвет в HEX формате `0xFF8080` для заполнения пустот в режимах 3 и 4.
-- **background** (default 0) - вещественное значение между -1 и 1 для задания источника заблюренного фона в режимах 2,4,5. -1 - основной клип, 1 - накладываемый клип.
-- **backBlur** (default 15) - сила смазывания в режимах 2,4,5.
+- **extrapolation** - см. ColorAdjust.extrapolation.
+- **background** (default blank) - способ заполнения фона: blank (сплошная заливка), blur (растянутое изображение с заливкой), inpaint (не реализовано). 
+- **backgroundClip** (default empty) - если указан, клип используется в качестве фона, должен иметь то же разрешение, что и результирующий клип.
+- **blankColor** (default `0x008080` для YUV и `0x000000` для RGB) - цвет в HEX формате для заполнения пустот.
+- **backBalance** - вещественное значение в диапазоне от -1 до 1 для задания источника заблюренного фона, если background равен blur. -1 - основной клип, 1 - накладываемый клип.
+- **backBlur** (default 15) - сила смазывания, если background равен blur.
+- **fullScreen** (default false) - фоновое изображение заполняется на всю площадь изображения, а не только на область объединения изображений.
+- **edgeGradient** (default none) - градиент на границах изображений. none - отключено, inside - только внутри объединенной области, full - везде. 
 - **bitDepth** (default unused) - глубина цвета выходного изображения, а также входящих после трансформаций, но перед цветокоррекцией, для ее улучшения
 
 ### ColorAdjust
@@ -241,10 +247,15 @@ Separate - обособление кадра. Join prev - присоединит
 - **smooth** (default 0) - смазать маску наложения для снижения резкости.
 - **threads** (.NET default) - максимальное число потоков
 
+### ComplexityOverlayMany
+    ComplexityOverlayMany(clip source, clip[] overlays, string channels, int steps, int threads, bool debug)
+	
+Аналогичен ComplexityOverlay, но позволяет объединить произвольное количество клипов. 
+
 ### OverlayCompare
     OverlayCompare(clip engine, clip source, clip overlay, string sourceText, string overlayText, int sourceColor, 
                    int overlayColor, int borderSize, float opacity, int width, int height, bool debug)
-This filter generates comparison clip from source and overlay clips with borders and labels.
+Фильтр позволяет визуализировать совмещение двух клипов.
 
 #### Parameters
 - **engine** (required) - *OverlayEngine* clip.
@@ -261,48 +272,42 @@ This filter generates comparison clip from source and overlay clips with borders
 - **debug** (default false) - print align settings. 
 
 ### StaticOverlayRender
-    StaticOverlayRender(clip source, clip overlay, int x, int y, float angle, int overlayWidth, int overlayHeight, 
-                        float cropLeft, float cropTop, float cropRight, float cropBottom, float diff, 
-                        clip sourceMask, clip overlayMask, string overlayMode, int width, int height, 
-                        string pixelType, int gradient, int noise, bool dynamicNoise, clip borderOffset, 
-                        clip srcColorBorderOffset, clip overColorBorderOffset, int mode, float opacity,
-                        float colorAdjust, string adjustChannels, string matrix, string upsize, string downsize, 
-                        string rotate, bool simd, bool debug, bool invert, bool extrapolation, int blankColor, float background, int backBlur)
+    StaticOverlayRender(clip source, clip overlay, float x, float y, float angle, float overlayWidth, float overlayHeight,
+                        string warpPoints, float diff, clip sourceMask, clip overlayMask,
+                        clip innerBounds, clip outerBounds, float overlayBalanceX, float overlayBalanceY, bool fixedSource,
+                        int overlayOrder, string overlayMode, int width, int height, string pixelType, int gradient, int noise, bool dynamicNoise,
+                        int borderControl, float borderMaxDeviation, clip borderOffset, clip srcColorBorderOffset, clip overColorBorderOffset,
+                        bool maskMode, float opacity, float colorAdjust, string colorInterpolation, float colorExclude,
+                        int colorFramesCount, float colorFramesDiff, float colorMaxDeviation, string adjustChannels, string matrix,
+                        string upsize, string downsize, string rotate, bool simd, bool debug, bool invert, bool extrapolation,
+                        string background, clip backgroundClip, int blankColor, float backBalance, int backBlur,
+                        bool fullScreen, string edgeGradient, int bitDepth)
 
-As OverlayRender but with fixed align settings without OverlayEngine.
-
-#### Parameters
-- **source** (required) - first, base clip.
-- **overlay** (required) - second, overlaid clip.
-- **x** (required) - x coordinate.
-- **y** (required) - y coordinate.
-- **angle** (default 0) - rotation angle.
-- **overlayWidth** (overlay clip width by default) - width of overlay clip after resize.
-- **overlayHeight** (overlay clip height by default) - height of overlay clip after resize.
-- **cropLeft**, **cropTop**, **cropRight**, **cropBottom** (default 0) - crop overlay clip before resize for subpixel alignment.
-- **diff** (default 0) - DIFF value for debug output. 
-Other parameters are same as for *OverlayRender* filter.
+Аналогичен OverlayRender, но без OverlayEngine, параметры совмещения клипов задаются вручную.
 
 ### CustomOverlayRender
     CustomOverlayRender(clip engine, clip source, clip overlay, string function, int width, int height, bool debug)
-This filter allows to override default overlay algorithms by user using overlay settings from OverlayEngine. 
+	
+Фильтр позволяет визуализировать результат наложения с помощью пользовательский функции с параметрами `clip engine, clip source, clip overlay, int x, int y, float angle, int overlayWidth, int overlayHeight, float diff)`
 
 #### Parameters
 - **engine** (required) - *OverlayEngine* clip.
 - **source** (required) - first, base clip.
 - **overlay** (required) - second, overlaid clip.
-- **function** (required) - user function name. The function must have the following parameters: `clip engine, clip source, clip overlay, int x, int y, float angle, int overlayWidth, int overlayHeight, float cropLeft, float cropTop, float cropRight, float cropBottom, float diff)`
+- **function** (required) - user function name. The function must have the following parameters: 
 - **width** (source clip width by default) - output clip width.
 - **height** (source clip height by default) - output clip height.
 - **debug** (default false) - debug mode.
 
-## Rect
-    Rect(int left, int top, int right, int bottom, bool debug)
+### OverlayClip
+    OverlayClip(clip clip, clip mask, float opacity, bool debug)
+	
+Вспомогательный фильтр, позволяющий указать дополнительный клип, маску и уровень прозрачности для OverlayRender.
+
+### Rect
+    Rect(float left, float top, float right, float bottom, bool debug)
     
-Support filter to use as argument on other clips. It representes a rectangle. 
-    
-#### Parameters
-Left, top, right, bottom integer values. 
+Вспомогательный фильтр, позволяющий указать параметры для левой, верхней, правой и нижней части изображения соответственно. Если указан только left, то его значение распространяется на все. Если left и top, то right и bottom будут равны им же соответственно. 
 
 ### ColorRangeMask
     ColorRangeMask(clip, int low, int high, bool greyMask)
@@ -431,23 +436,33 @@ dither - уровень дизеринга для фильтра ColorAdjust
 Функция для дебага остальных функций пакета. 
 Для функции aoReplace будут удалены все кадры кроме заменяемых.
 
+### aoExpand
+    aoExpand(clip mask, int pixels, string mode, float "blur")
+	
+Expand the black mask (mode=darken) or white mask (mode=lighten)
+
 ## Examples
 #### Simple script 
-    OM=AviSource("c:\test\OpenMatte.avs") # YV12 clip
-    WS=AviSource("c:\test\Widescreen.avs") # YV12 clip
+    OM=AviSource("OpenMatte.avs")
+    WS=AviSource("Widescreen.avs")
     OverlayEngine(OM, WS, configs = OverlayConfig(subpixel=2)) 
     OverlayRender(OM, WS, debug = true)
-#### Analysis pass without render. Aspect ratio range was specified. Set editor=true after analysis pass.
-    OM=AviSource("c:\test\OpenMatte.avs") # YV12 clip
-    WS=AviSource("c:\test\Widescreen.avs") # YV12 clip
+#### Three clips 
+    OM=AviSource("OpenMatte.avs")
+    WS=AviSource("Widescreen.avs")
+	FS=AviSource("Fullscreen.avs")
+    wsEngine=OverlayEngine(OM, WS)
+	fsEngine=OverlayEngine(OM, FS)
+    wsEngine.OverlayRender(OM, WS, extraClips=fsEngine.OverlayClip(FS))
+#### Analysis pass without render
+    OM=AviSource("OpenMatte.avs")
+    WS=AviSource("Widescreen.avs")
+	# Aspect ratio range was specified
     config=OverlayConfig(aspectRatio1=2.3, aspectRatio2=2.5)
-    OverlayEngine(OM, WS, configs = config, statFile="c:\test\Overlay.stat", editor=false)
-#### Render after analysis pass
-    OM=AviSource("c:\test\OpenMatte.avs") # YV12 clip
-    WS=AviSource("c:\test\Widescreen.avs") # YV12 clip
-    OverlayEngine(OM, WS, statFile="c:\test\Overlay.stat")
-    OverlayRender(OM, WS, debug=true, noise=50, upsize="Spline64Resize")
-    ConvertToYV12()
+	# Set editor=true after analysis pass to edit align params
+    OverlayEngine(OM, WS, configs = config, statFile="Overlay.stat", editor=false)
+	# Uncomment to render aligned clips
+	# OverlayRender(OM, WS, debug=true, noise=50, upsize="Spline64Resize")
 	
 ## Варианты использования
 Описание будет позже. 
@@ -474,6 +489,14 @@ dither - уровень дизеринга для фильтра ColorAdjust
 ### Обнаружение сцен
 
 ## История изменений
+### 01.12.2023 v0.6
+1. OverlayRender: упразднен параметр mode
+2. OverlayRender: добавлены параметры extraClips, innerBounds, outerBounds, overlayBalanceX, overlayBalanceY, fixedSource, overlayOrder, maskMode, colorInterpolation, colorExclude, backgroundClip, backBalance, fullScreen, edgeGradient.
+3. OverlayRender: параметр background заменен на backBalance, а назначение background изменено.
+4. OverlayRender: добавлена поддержка наложения произвольного количества клипов.
+5. OverlayEngine: параметры panScanDistance и panScanScale переименованы в scanDistance и scanScale.
+6. Добавлен фильтр ComplexityOverlayMany.
+
 ### 17.01.2022 v0.5.2
 1. OverlayRender: исправлен mode=5
 2. ExtractScenes: исправлен тип параметра

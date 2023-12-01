@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using AutoOverlay;
 using AutoOverlay.AviSynth;
+using AutoOverlay.Overlay;
 using AvsFilterNet;
 
 [assembly: AvisynthFilterClass(typeof(OverlayConfig),
@@ -17,7 +18,7 @@ using AvsFilterNet;
 namespace AutoOverlay
 {
     [Serializable]
-    public class OverlayConfig : OverlayFilter
+    public class OverlayConfig : SupportFilter
     {
         [AvsArgument(Min = 0, Max = 100)]
         public double MinOverlayArea { get; set; }
@@ -38,7 +39,7 @@ namespace AutoOverlay
         public double Angle2 { get; set; }
 
         [AvsArgument(Max = 16)]
-        public List<Rectangle> WarpPoints { get; set; } = new List<Rectangle>();
+        public List<Rectangle> WarpPoints { get; set; } = new();
 
         [AvsArgument(Min = 1, Max = 10)]
         public int WarpSteps { get; set; } = 3;
@@ -103,102 +104,6 @@ namespace AutoOverlay
             if (Math.Abs(AspectRatio1 - AspectRatio2) >= double.Epsilon && FixedAspectRatio)
                 throw new AvisynthException("Aspect ratio must be fixed");
         }
-        
-        protected override VideoFrame GetFrame(int n)
-        {
-            var frame = base.GetFrame(n);
-            StaticEnv.MakeWritable(frame);
-            unsafe
-            {
-                using (var stream = new UnmanagedMemoryStream((byte*)frame.GetWritePtr().ToPointer(),
-                    frame.GetRowSize(), frame.GetRowSize(), FileAccess.Write))
-                using (var writer = new BinaryWriter(stream))
-                {
-                    writer.Write(nameof(OverlayConfig));
-                    writer.Write(MinOverlayArea);
-                    writer.Write(MinSourceArea);
-                    writer.Write(AspectRatio1);
-                    writer.Write(AspectRatio2);
-                    writer.Write(Angle1);
-                    writer.Write(Angle2);
-                    writer.Write(MinSampleArea);
-                    writer.Write(RequiredSampleArea);
-                    writer.Write(MaxSampleDiff);
-                    writer.Write(Subpixel);
-                    writer.Write(ScaleBase);
-                    writer.Write(Branches);
-                    writer.Write(AcceptableDiff);
-                    writer.Write(Correction);
-                    writer.Write(MinX);
-                    writer.Write(MaxX);
-                    writer.Write(MinY);
-                    writer.Write(MaxY);
-                    writer.Write(MinArea);
-                    writer.Write(MaxArea);
-                    writer.Write(FixedAspectRatio);
-                    writer.Write(BranchMaxDiff);
-                    writer.Write(WarpSteps);
-                    writer.Write(WarpOffset);
-                    writer.Write(WarpPoints.Count);
-                    foreach (var point in WarpPoints)
-                    {
-                        writer.Write(point.X);
-                        writer.Write(point.Y);
-                        writer.Write(point.Right);
-                        writer.Write(point.Bottom);
-                    }
-                }
-            }
-            return frame;
-        }
-
-        public static OverlayConfig FromFrame(VideoFrame frame)
-        {
-            unsafe
-            {
-                using (var stream = new UnmanagedMemoryStream((byte*)frame.GetReadPtr().ToPointer(),
-                    frame.GetRowSize(), frame.GetRowSize(), FileAccess.Read))
-                using (var reader = new BinaryReader(stream))
-                {
-                    var header = reader.ReadString();
-                    if (header != nameof(OverlayConfig))
-                        throw new AvisynthException();
-                    return new OverlayConfig
-                    {
-                        MinOverlayArea = reader.ReadDouble(),
-                        MinSourceArea = reader.ReadDouble(),
-                        AspectRatio1 = reader.ReadDouble(),
-                        AspectRatio2 = reader.ReadDouble(),
-                        Angle1 = reader.ReadDouble(),
-                        Angle2 = reader.ReadDouble(),
-                        MinSampleArea = reader.ReadInt32(),
-                        RequiredSampleArea = reader.ReadInt32(),
-                        MaxSampleDiff = reader.ReadDouble(),
-                        Subpixel = reader.ReadInt32(),
-                        ScaleBase = reader.ReadDouble(),
-                        Branches = reader.ReadInt32(),
-                        AcceptableDiff = reader.ReadDouble(),
-                        Correction = reader.ReadInt32(),
-                        MinX = reader.ReadInt32(),
-                        MaxX = reader.ReadInt32(),
-                        MinY = reader.ReadInt32(),
-                        MaxY = reader.ReadInt32(),
-                        MinArea = reader.ReadInt32(),
-                        MaxArea = reader.ReadInt32(),
-                        FixedAspectRatio = reader.ReadBoolean(),
-                        BranchMaxDiff = reader.ReadDouble(),
-                        WarpSteps = reader.ReadInt32(),
-                        WarpOffset = reader.ReadInt32(),
-                        WarpPoints = new List<Rectangle>(Enumerable.Range(0, reader.ReadInt32())
-                            .Select(i => new Rectangle(
-                                reader.ReadInt32(),
-                                reader.ReadInt32(),
-                                reader.ReadInt32(),
-                                reader.ReadInt32())))
-                    };
-                }
-            }
-        }
 
         public override string ToString()
         {
@@ -251,5 +156,34 @@ namespace AutoOverlay
                 return hashCode;
             }
         }
+
+        public OverlayConfigInstance GetInstance() => new()
+        {
+            MinOverlayArea = MinOverlayArea,
+            MinSourceArea = MinSourceArea,
+            AspectRatio1 = AspectRatio1,
+            AspectRatio2 = AspectRatio2,
+            Angle1 = Angle1,
+            Angle2 = Angle2,
+            MinSampleArea = MinSampleArea,
+            RequiredSampleArea = RequiredSampleArea,
+            MaxSampleDiff = MaxSampleDiff,
+            Subpixel = Subpixel,
+            ScaleBase = ScaleBase,
+            Branches = Branches,
+            AcceptableDiff = AcceptableDiff,
+            Correction = Correction,
+            BranchMaxDiff = BranchMaxDiff,
+            FixedAspectRatio = FixedAspectRatio,
+            MaxArea = MaxArea,
+            MaxX = MaxX,
+            MaxY = MaxY,
+            MinArea = MinArea,
+            MinX = MinX,
+            MinY = MinY,
+            WarpOffset = WarpOffset,
+            WarpPoints = WarpPoints,
+            WarpSteps = WarpSteps,
+        };
     }
 }

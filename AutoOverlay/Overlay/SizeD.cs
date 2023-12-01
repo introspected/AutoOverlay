@@ -5,6 +5,8 @@ namespace AutoOverlay.Overlay
 {
     public struct SizeD
     {
+        public static SizeD Empty = new();
+
         public const double EPSILON = 0.000001;
 
         public double Width { get; set; }
@@ -23,6 +25,8 @@ namespace AutoOverlay.Overlay
         {
             return new SizeD(1 / Width, 1 / Height);
         }
+
+        public bool IsEmpty => Empty.Equals(this);
 
         public double AspectRatio => Width / Height;
 
@@ -65,5 +69,7 @@ namespace AutoOverlay.Overlay
                 return (Width.GetHashCode() * 397) ^ Height.GetHashCode();
             }
         }
+
+        public override string ToString() => $"Width={Width}, Height={Height}";
     }
 }

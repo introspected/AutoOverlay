@@ -1,29 +1,40 @@
 ﻿using System;
+using System.Drawing;
 using System.IO;
+using System.Linq;
 using AutoOverlay;
 using AutoOverlay.AviSynth;
+using AutoOverlay.Overlay;
 using AvsFilterNet;
 
-[assembly: AvisynthFilterClass(typeof(Rect), nameof(Rect), "iiii[Debug]b", MtMode.NICE_FILTER)]
+[assembly: AvisynthFilterClass(typeof(Rect), nameof(Rect), "f[Top]f[Right]f[Bottom]f[Debug]b", MtMode.NICE_FILTER)]
 namespace AutoOverlay
 {
     [Serializable]
     public class Rect : OverlayFilter
     {
         [AvsArgument]
-        public int Left { get; protected set; }
+        public double Left { get; protected set; }
 
         [AvsArgument]
-        public int Top { get; protected set; }
+        public double Top { get; protected set; }
 
         [AvsArgument]
-        public int Right { get; protected set; }
+        public double Right { get; protected set; }
 
         [AvsArgument]
-        public int Bottom { get; protected set; }
+        public double Bottom { get; protected set; }
 
         [AvsArgument]
         public override bool Debug { get; protected set; }
+
+        protected override void Initialize(AVSValue args)
+        {
+            base.Initialize(args);
+            Top = args[1].AsFloat(Left);
+            Right = args[2].AsFloat(Left);
+            Bottom = args[3].AsFloat(Top);
+        }
 
         protected override VideoFrame GetFrame(int n)
         {
@@ -57,17 +68,20 @@ namespace AutoOverlay
                     throw new AvisynthException();
                 return new Rect
                 {
-                    Left = reader.ReadInt32(),
-                    Top = reader.ReadInt32(),
-                    Right = reader.ReadInt32(),
-                    Bottom = reader.ReadInt32()
+                    Left = reader.ReadDouble(),
+                    Top = reader.ReadDouble(),
+                    Right = reader.ReadDouble(),
+                    Bottom = reader.ReadDouble()
                 };
             }
         }
 
         protected bool Equals(Rect other)
         {
-            return Left == other.Left && Top == other.Top && Right == other.Right && Bottom == other.Bottom;
+            return Math.Abs(Left - other.Left) < OverlayUtils.EPSILON &&
+                   Math.Abs(Top - other.Top) < OverlayUtils.EPSILON &&
+                   Math.Abs(Right - other.Right) < OverlayUtils.EPSILON &&
+                   Math.Abs(Bottom - other.Bottom) < OverlayUtils.EPSILON;
         }
 
         public override bool Equals(object obj)
@@ -82,18 +96,34 @@ namespace AutoOverlay
         {
             unchecked
             {
-                var hashCode = Left;
-                hashCode = (hashCode * 397) ^ Top;
-                hashCode = (hashCode * 397) ^ Right;
-                hashCode = (hashCode * 397) ^ Bottom;
+                var hashCode = Left.GetHashCode();
+                hashCode = (hashCode * 397) ^ Top.GetHashCode();
+                hashCode = (hashCode * 397) ^ Right.GetHashCode();
+                hashCode = (hashCode * 397) ^ Bottom.GetHashCode();
                 return hashCode;
             }
         }
+
 
         public override string ToString()
         {
             return $"Rectangle ID: {GetHashCode()}:\n" +
                    $"LTRB: ({Left},{Top},{Right},{Bottom})";
+        }
+
+        public Rectangle ToRectangle()
+        {
+            if (new[] {Left, Top, Right, Bottom}.Any(p => p % 1 != 0))
+            {
+                throw new AvisynthException("Only integer values allowed");
+            }
+
+            return Rectangle.FromLTRB((int) Left, (int) Top, (int) Right, (int) Bottom);
+        }
+
+        public RectangleD ToRectangleD()
+        {
+            return RectangleD.FromLTRB(Left, Top, Right, Bottom);
         }
     }
 }

@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>AutoOverlay</RootNamespace>
     <AssemblyName>AutoOverlay_netautoload</AssemblyName>
-    <TargetFrameworkVersion>v4.7</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile>
     </TargetFrameworkProfile>
@@ -52,22 +52,36 @@
     <Reference Include="MathNet.Numerics, Version=4.12.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\packages\MathNet.Numerics.4.12.0\lib\net461\MathNet.Numerics.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.VisualBasic" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
-    <Reference Include="System.Numerics" />
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AviSynth\AvsArgumentAttribute.cs" />
-    <Compile Include="Filters\FrameContext.cs" />
+    <Compile Include="AviSynth\IsExternalInit.cs" />
+    <Compile Include="Enum\BackgroundMode.cs" />
+    <Compile Include="Enum\EdgeGradient.cs" />
+    <Compile Include="Filters\ComplexityOverlayMany.cs" />
+    <Compile Include="Filters\CustomOverlayRender.cs" />
+    <Compile Include="Filters\OverlayClip.cs" />
+    <Compile Include="Filters\SupportFilter.cs" />
+    <Compile Include="Forms\OverlayEditor.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\OverlayEditor.Designer.cs">
+      <DependentUpon>OverlayEditor.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Forms\ProgressDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\ProgressDialog.Designer.cs">
+      <DependentUpon>ProgressDialog.cs</DependentUpon>
+    </Compile>
     <Compile Include="Histogram\HistogramCache.cs" />
     <Compile Include="Enum\AvsMatrix.cs" />
     <Compile Include="Enum\ColorInterpolation.cs" />
@@ -75,7 +89,6 @@
     <Compile Include="Histogram\ColorMap.cs" />
     <Compile Include="Filters\ColorRangeMask.cs" />
     <Compile Include="Filters\ComplexityOverlay.cs" />
-    <Compile Include="Filters\CustomOverlayRender.cs" />
     <Compile Include="AviSynth\ExtraVideoInfo.cs" />
     <Compile Include="Filters\ExtractScenes.cs" />
     <Compile Include="Filters\ForceColorSpace.cs" />
@@ -83,22 +96,15 @@
     <Compile Include="AviSynth\FrameEventArgs.cs" />
     <Compile Include="Forms\KeyboardHook.cs" />
     <Compile Include="Filters\OverlayCompare.cs" />
-    <Compile Include="Forms\OverlayEditor.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Forms\OverlayEditor.Designer.cs">
-      <DependentUpon>OverlayEditor.cs</DependentUpon>
-    </Compile>
     <Compile Include="Enum\OverlayEngineMode.cs" />
     <Compile Include="Filters\OverlayFilter.cs" />
     <Compile Include="Filters\BilinearRotate.cs" />
     <Compile Include="AviSynth\DynamicEnvironment.cs" />
-    <Compile Include="Forms\ProgressDialog.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Forms\ProgressDialog.Designer.cs">
-      <DependentUpon>ProgressDialog.cs</DependentUpon>
-    </Compile>
+    <Compile Include="Overlay\OverlayConfigInstance.cs" />
+    <Compile Include="Overlay\OverlayDifference.cs" />
+    <Compile Include="Overlay\OverlayDifferenceD.cs" />
+    <Compile Include="Overlay\OverlayLayer.cs" />
+    <Compile Include="Overlay\Space.cs" />
     <Compile Include="Overlay\FileOverlayStat.cs" />
     <Compile Include="Overlay\FrameInterval.cs" />
     <Compile Include="Filters\OverlayMask.cs" />
@@ -106,12 +112,15 @@
     <Compile Include="Filters\DynamicOverlayRender.cs" />
     <Compile Include="Filters\OverlayRender.cs" />
     <Compile Include="Filters\StaticOverlayRender.cs" />
+    <Compile Include="Overlay\LegacyOverlayInfo.cs" />
     <Compile Include="Overlay\OverlayContext.cs" />
     <Compile Include="Overlay\OverlayUtils.cs" />
     <Compile Include="Overlay\IOverlayStat.cs" />
     <Compile Include="Filters\OverlayConfig.cs" />
     <Compile Include="Filters\OverlayEngine.cs" />
     <Compile Include="Overlay\OverlayInfo.cs" />
+    <Compile Include="Overlay\OverlayData.cs" />
+    <Compile Include="Overlay\OverlayInput.cs" />
     <Compile Include="Overlay\Warp.cs" />
     <Compile Include="Overlay\WarpIterator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -150,8 +159,9 @@
       <Name>AvsFilterNet</Name>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>copy /Y "$(SolutionDir)simd\bin\v142\x64\Release\simd.dll" "$(TargetDir)"</PostBuildEvent>
+    <PostBuildEvent>rem copy /Y "$(SolutionDir)simd\bin\v142\x64\Release\simd.dll" "$(TargetDir)"</PostBuildEvent>
   </PropertyGroup>
 </Project>

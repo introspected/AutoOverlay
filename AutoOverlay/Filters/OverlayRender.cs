@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using AutoOverlay.Filters;
@@ -17,6 +19,14 @@ namespace AutoOverlay
         public abstract Clip Overlay { get; protected set; }
         public abstract Clip SourceMask { get; protected set; }
         public abstract Clip OverlayMask { get; protected set; }
+        public abstract OverlayClip[] ExtraClips { get; protected set; }
+
+        public abstract RectangleD InnerBounds { get; protected set; } // 0-1
+        public abstract RectangleD OuterBounds { get; protected set; } // 0-1
+        public abstract Space OverlayBalance { get; set; } // 0-1 (0 - source, 1 - overlay)
+        public abstract bool FixedSource { get; protected set; }
+        public abstract int OverlayOrder { get; protected set; }
+
         public abstract string OverlayMode { get; protected set; }
         public abstract string AdjustChannels { get; protected set; }
         public abstract int Width { get; protected set; }
@@ -30,7 +40,7 @@ namespace AutoOverlay
         public abstract Rectangle BorderOffset { get; protected set; }
         public abstract Rectangle SrcColorBorderOffset { get; protected set; }
         public abstract Rectangle OverColorBorderOffset { get; protected set; }
-        public abstract FramingMode Mode { get; protected set; }
+        public abstract bool MaskMode { get; protected set; }
         public abstract double Opacity { get; protected set; }
         public abstract string Upsize { get; protected set; }
         public abstract string Downsize { get; protected set; }
@@ -44,12 +54,18 @@ namespace AutoOverlay
         public abstract string Matrix { get; protected set; }
         public abstract bool Invert { get; protected set; }
         public abstract bool Extrapolation { get; protected set; }
+        public abstract BackgroundMode Background { get; protected set; }
+        public abstract Clip BackgroundClip { get; protected set; }
         public abstract int BlankColor { get; protected set; }
-        public abstract double Background { get; protected set; }
+        public abstract double BackBalance { get; protected set; }
         public abstract int BackBlur { get; protected set; }
+        public abstract bool FullScreen { get; protected set; }
+        public abstract EdgeGradient EdgeGradient { get; protected set; }
         public abstract int BitDepth { get; protected set; }
         public abstract bool SIMD { get; protected set; }
         #endregion
+
+        public ColorSpaces ColorSpace { get; protected set; }
 
         private YUVPlanes[] planes;
 
@@ -62,6 +78,13 @@ namespace AutoOverlay
         protected override void Initialize(AVSValue args)
         {
             base.Initialize(args);
+            ExtraClips ??= Array.Empty<OverlayClip>();
+            if (OverlayOrder > ExtraClips.Length)
+                throw new AvisynthException("Overlay order should be less than extra clips count");
+            if (ColorAdjust is > float.Epsilon and < 1 - float.Epsilon && ExtraClips.Length > 0)
+                throw new AvisynthException("Color adjust only [-1, 0, 1] supported with extra clips");
+            if (Invert && ExtraClips.Any())
+                throw new AvisynthException("Invert mode is not compatible with extra overlay clips");
             if (Invert)
             {
                 if (ColorAdjust >= 0)
@@ -72,20 +95,21 @@ namespace AutoOverlay
             {
                 Initialize(Source, Overlay);
             }
+            Upsize ??= Downsize ?? OverlayUtils.DEFAULT_RESIZE_FUNCTION;
+            Downsize ??= Upsize;
+            OverlayMode ??= "blend";
             var cacheSize = ColorFramesCount * 2 + 1;
             var cacheKey = StaticEnv.GetEnv2() == null ? CacheType.CACHE_25_ALL : CacheType.CACHE_GENERIC;
-            Child.SetCacheHints(cacheKey, cacheSize);
-            Source.SetCacheHints(cacheKey, cacheSize);
-            Overlay.SetCacheHints(cacheKey, cacheSize);
-            SourceMask?.SetCacheHints(cacheKey, cacheSize);
-            OverlayMask?.SetCacheHints(cacheKey, cacheSize);
+            foreach (var clip in new[] { Child, Source, Overlay, SourceMask, OverlayMask })
+            {
+                clip?.SetCacheHints(cacheKey, cacheSize);
+            }
         }
 
         private void Initialize(Clip src, Clip over)
         {
             var srcInfo = src.GetVideoInfo();
             var overInfo = over.GetVideoInfo();
-
             var vi = src.GetVideoInfo();
             if (Width > 0)
                 vi.width = Width;
@@ -93,26 +117,40 @@ namespace AutoOverlay
                 vi.height = Height;
             var srcBitDepth = srcInfo.pixel_type.GetBitDepth();
             var overBitDepth = overInfo.pixel_type.GetBitDepth();
+            if (PixelType != null)
+            {
+                if (!Enum.TryParse("CS_" + PixelType, out vi.pixel_type))
+                    throw new AvisynthException("Invalid PixelType");
+            }
             if (vi.pixel_type.HasFlag(ColorSpaces.CS_UPlaneFirst))
                 vi.pixel_type = (vi.pixel_type ^ ColorSpaces.CS_UPlaneFirst) | ColorSpaces.CS_VPlaneFirst;
             if (srcBitDepth != overBitDepth && ColorAdjust > 0 && ColorAdjust < 1)
                 throw new AvisynthException("ColorAdjust -1, 0, 1 only allowed when video bit depth is different");
-            var targetBitDepth = BitDepth > 0 ? BitDepth : ColorAdjust >= 1 - double.Epsilon ? overBitDepth : srcBitDepth;
-            vi.pixel_type = vi.pixel_type.ChangeBitDepth(targetBitDepth);
+            BitDepth = BitDepth > 0 ? BitDepth : ColorAdjust >= 1 - double.Epsilon ? overBitDepth : srcBitDepth;
+            ColorSpace = vi.pixel_type = vi.pixel_type.ChangeBitDepth(BitDepth);
             vi.num_frames = Child.GetVideoInfo().num_frames;
             planes = OverlayUtils.GetPlanes(vi.pixel_type);
-            targetSubsample = new Size(srcInfo.pixel_type.GetWidthSubsample(), srcInfo.pixel_type.GetHeightSubsample());
+            targetSubsample = new Size(ColorSpace.GetWidthSubsample(), ColorSpace.GetHeightSubsample());
             SetVideoInfo(ref vi);
         }
 
         protected override void AfterInitialize()
         {
+            if (MaskMode)
+            {
+                Source = GetBlankClip(Source, true);
+                Overlay = GetBlankClip(Overlay, true);
+                foreach (var overlayClip in ExtraClips)
+                    overlayClip.Clip = GetBlankClip(overlayClip.Clip, true);
+            }
             BorderMaxDeviation /= 100.0;
             ColorMaxDeviation /= 100.0;
             if (!string.IsNullOrEmpty(Matrix))
             {
                 Source = ConvertToRgb(Source);
                 Overlay = ConvertToRgb(Overlay);
+                foreach (var overlayClip in ExtraClips)
+                    overlayClip.Clip = ConvertToRgb(overlayClip.Clip);
 
                 Clip ConvertToRgb(Clip clp)
                 {
@@ -138,7 +176,7 @@ namespace AutoOverlay
         {
             var history = GetOverlayInfo(n);
             if (Invert)
-                history = history.Select(p => p.Invert()).ToList();
+                history = history.Select(p => p.Invert().ScaleBySource(Overlay.GetSize())).ToList();
             var info = history.First();
 
             var res = NewVideoFrame(StaticEnv);
@@ -152,28 +190,23 @@ namespace AutoOverlay
             if (!GetVideoInfo().IsRGB() && !string.IsNullOrEmpty(Matrix))
             {
                 hybrid = hybrid.Invoke(OverlayUtils.GetConvertFunction(GetVideoInfo().pixel_type), matrix: Matrix);
-            } else if (GetVideoInfo().pixel_type != ((Clip) hybrid).GetVideoInfo().pixel_type)
+            }
+            else if (GetVideoInfo().pixel_type != ((Clip) hybrid).GetVideoInfo().pixel_type)
             {
                 hybrid = hybrid.Invoke(OverlayUtils.GetConvertFunction(GetVideoInfo().pixel_type));
             }
 
-            if (BlankColor >= 0 && Mode == FramingMode.Fill)
-            {
-                var ctx = contexts.First();
-                var frameParams = ctx.CalcFrame(info);
-
-                var mask = DynamicEnv.StaticOverlayRender(ctx.Source.ConvertToY8(), ctx.Overlay.ConvertToY8(),
-                    info.X, info.Y, info.Angle / 100.0, info.Width, info.Height, info.GetCrop(),
-                    width: frameParams.FinalWidth, height: frameParams.FinalHeight, mode: (int) FramingMode.Mask);
-                mask = InitClip(mask, ctx.TargetInfo.Width, ctx.TargetInfo.Height, 0xFF8080).Overlay(mask, frameParams.FinalX, frameParams.FinalY);
-                var background = InitClip(hybrid, ctx.TargetInfo.Width, ctx.TargetInfo.Height, ctx.BlankColor);
-                hybrid = hybrid.Overlay(background, mask: mask.Invert());
-            }
-
             if (Debug)
             {
-                var resizedInfo = info.Resize(contexts.First().SourceInfo.Size, contexts.First().OverlayInfo.Size);
-                hybrid = hybrid.Subtitle(resizedInfo.DisplayInfo().Replace("\n", "\\n"), lsp: 0);
+                //var resizedInfo = info.Resize(contexts.First().SourceInfo.Size, contexts.First().OverlayInfo.Size);
+                var alignParams = info.DisplayInfo();
+                var extra = ExtraClips.Select(p => p.GetOverlayInfo(n)).ToArray();
+                var layers = OverlayLayer.GetLayers(contexts.First(), history, extra);
+                var renderParams = layers[0].Data.ToString();
+                var debugInfo = alignParams + "\n\n" + renderParams;
+                hybrid = hybrid.Subtitle(debugInfo.Replace("\n", "\\n"), lsp: 0, size: 14);
+
+                RenderPreview(ref hybrid, contexts.First(), info, extra.Select(p => p.First()).ToList());
             }
 
             using VideoFrame frame = hybrid[info.FrameNumber];
@@ -188,244 +221,301 @@ namespace AutoOverlay
 
         protected dynamic RenderFrame(OverlayContext ctx, List<OverlayInfo> history)
         {
-            var frameCtx = new FrameContext(ctx, history.First());
-            var currentFrame = frameCtx.Info.FrameNumber;
+            var currentFrame = history.First().FrameNumber;
+            var extra = ExtraClips.Select(p => p.GetOverlayInfo(currentFrame)).ToArray();
+            var layers = OverlayLayer.GetLayers(ctx, history, extra);
+            var primary = layers.First();
+            var secondary = layers.Skip(1).First();
 
-            if (ctx.AdjustColor && Mode != FramingMode.Mask)
+            IEnumerable<(OverlayInfo, List<OverlayLayer>)> GetLayerHistory(int length, double deviation) => new[] { -1, 0, 1 }
+                .SelectMany(sign => history
+                    .Where(p => Math.Abs(p.FrameNumber - currentFrame) <= length)
+                    .Where(p => p.FrameNumber.CompareTo(currentFrame) == sign)
+                    .OrderBy(p => sign * p.FrameNumber)
+                    .Select(p => new
+                    {
+                        Info = p,
+                        Layers = OverlayLayer.GetLayers(ctx, new List<OverlayInfo>(1) { p },
+                            extra.Select(s => new List<OverlayInfo>(1) { s.First(d => d.FrameNumber == p.FrameNumber) })
+                                .ToArray())
+                    })
+                    .TakeWhile((p, i) =>
+                        p.Info.FrameNumber == (currentFrame + i * sign + sign) &&
+                        (!p.Info.KeyFrame || p.Info.FrameNumber == currentFrame) &&
+                        p.Info.NearlyEquals(history.First(), deviation)))
+                .Select(p => (p.Info, p.Layers));
+
+            if (ctx.AdjustColor && !MaskMode)
             {
-                frameCtx.Source = AdjustClip(ColorAdjust, p => p.Source, p => p.SourceTest, p => p.OverlayTest, p => p.MaskTest, ctx.SourceCache);
-                frameCtx.Overlay = AdjustClip(1 - ColorAdjust, p => p.Overlay, p => p.OverlayTest, p => p.SourceTest, p => p.MaskTest, ctx.OverlayCache);
+                primary.Clip = AdjustClip(ColorAdjust, primary, secondary, ctx.Cache?[primary.Index]);
+                secondary.Clip = AdjustClip(1 - ColorAdjust, secondary, primary, ctx.Cache?[secondary.Index]);
+                var extraReference = ColorAdjust.IsNearlyZero() ? primary : secondary;
+                foreach (var layer in layers.Skip(2))
+                    layer.Clip = AdjustClip(1, layer, extraReference, ctx.Cache?[layer.Index]);
 
-                dynamic AdjustClip(double intensity, Func<FrameContext, dynamic> source, Func<FrameContext, dynamic> sample, 
-                    Func<FrameContext, dynamic> reference, Func<FrameContext, dynamic> mask, HistogramCache cache)
+                dynamic GetMask(OverlayLayer source, OverlayLayer reference)
+                {
+                    var srcMask = Crop(source.Mask, source.Rectangle, reference.Rectangle);
+                    var refMask = Crop(reference.Mask, reference.Rectangle, source.Rectangle);
+                    return (srcMask, refMask) switch
+                    {
+                        (not null, not null) => srcMask.Mask.Overlay(refMask, mode: "darken"),
+                        _ => srcMask ?? refMask
+                    };
+                }
+
+                dynamic AdjustClip(double intensity, OverlayLayer source, OverlayLayer reference, HistogramCache cache)
                 {
                     if (intensity <= double.Epsilon || intensity - 1 >= double.Epsilon)
-                        return source(frameCtx);
+                        return source.Clip;
+                    var mask = GetMask(source, reference);
                     if (ColorFramesCount > 0)
                         using (new VideoFrameCollector())
                         {
                             var frames = new SortedSet<int>();
-                            foreach (var nearInfo in new[] {-1, 0, 1}.SelectMany(sign =>
-                                history
-                                    .Where(p => Math.Abs(p.FrameNumber - currentFrame) <= ColorFramesCount)
-                                    .Where(p => p.FrameNumber.CompareTo(currentFrame) == sign)
-                                    .OrderBy(p => sign * p.FrameNumber)
-                                    .TakeWhile((p, i) =>
-                                        p.FrameNumber == (currentFrame + i * sign + sign) &&
-                                        (!p.KeyFrame || p.FrameNumber == currentFrame) &&
-                                        p.NearlyEquals(history.First(), ColorMaxDeviation))))
+                            foreach (var (nearInfo, nearLayers) in GetLayerHistory(ColorFramesCount, ColorMaxDeviation))
                             {
-                                var nearCtx = new FrameContext(ctx, nearInfo);
                                 var nearFrame = nearInfo.FrameNumber;
-                                var colorMask = new Lazy<VideoFrame>(() => mask?.Invoke(nearCtx)?[nearFrame]);
+                                var colorMask = new Lazy<VideoFrame>(() => GetMask(
+                                        nearLayers[source.Index],
+                                        nearLayers[reference.Index])
+                                    ?[nearFrame]);
                                 cache.GetFrame(nearFrame,
-                                    () => Extrapolation ? source(nearCtx)[nearFrame] : null,
-                                    () => sample(nearCtx)[nearFrame],
-                                    () => reference(nearCtx)[nearFrame],
+                                    () => Extrapolation ? nearLayers[source.Index].Clip[nearFrame] : null,
+                                    () => Crop(nearLayers[source.Index].Clip, source.Rectangle, reference.Rectangle)[nearFrame],
+                                    () => Crop(nearLayers[reference.Index].Clip, reference.Rectangle, source.Rectangle)[nearFrame],
                                     () => colorMask.Value,
                                     () => colorMask.Value);
                                 frames.Add(nearInfo.FrameNumber);
                             }
                             cache = cache.SubCache(frames.First(), frames.Last());
                         }
-                    return source(frameCtx).ColorAdjust(sample(frameCtx), reference(frameCtx), mask(frameCtx), mask(frameCtx), 
-                        intensity: intensity, channels: ctx.AdjustChannels, debug: Debug, SIMD: SIMD, extrapolation: Extrapolation, exclude: ColorExclude,
-                        interpolation: ColorInterpolation,
+                    return source.Clip.ColorAdjust(
+                        Crop(source.Clip, source.Rectangle, reference.Rectangle),
+                        Crop(reference.Clip, reference.Rectangle, source.Rectangle), 
+                        mask, mask,
+                        intensity: intensity, channels: ctx.AdjustChannels, debug: Debug, SIMD: SIMD, 
+                        extrapolation: Extrapolation, exclude: ColorExclude, interpolation: ColorInterpolation,
                         cacheId: cache?.Id, adjacentFramesCount: ColorFramesCount, adjacentFramesDiff: ColorFramesDiff, dynamicNoise: DynamicNoise);
                 }
             }
 
-            var info = frameCtx.Info;
-            var src = frameCtx.Source;
-            var over = frameCtx.Overlay;
-            var overMask = frameCtx.OverlayMask;
-            var srcSize = frameCtx.SourceSize;
+            bool IsFullScreen(Rectangle rect) => rect.Location.IsEmpty && rect.Size == ctx.TargetInfo.Size;
 
-            dynamic GetOverMask(int length, bool gradientMask, bool noiseMask)
+            dynamic GetCanvas()
             {
-                var checkFrames = new[] {-1, 0, 1}.SelectMany(sign =>
-                    history
-                        .Where(p => Math.Abs(p.FrameNumber - info.FrameNumber) <= BorderControl)
-                        .Where(p => p.FrameNumber.CompareTo(info.FrameNumber) == sign)
-                        .OrderBy(p => sign * p.FrameNumber)
-                        .TakeWhile((p, i) => 
-                            p.FrameNumber == (info.FrameNumber + i * sign + sign) &&
-                            (!p.KeyFrame || p.FrameNumber == currentFrame) &&
-                            p.NearlyEquals(history.First(), BorderMaxDeviation))).ToList();
+                var size = FullScreen ? ctx.TargetInfo.Size : primary.Union.Size;
+                var blank = ctx.BackgroundClip ?? InitClip(ctx.Source, ctx.TargetInfo.Width, ctx.TargetInfo.Height, ctx.DefaultColor);
 
-                int GetLength(Func<OverlayInfo, bool> func) => checkFrames.Any(p => func(p) || p.Angle != 0) ? length : 0;
+                dynamic Finalize(dynamic background) => size == ctx.TargetInfo.Size
+                    ? background
+                    : blank.Overlay(background, primary.Union.Location);
 
-                return over.OverlayMask(
-                    left: GetLength(p => p.X > BorderOffset.Left),
-                    top: GetLength(p => p.Y > BorderOffset.Top),
-                    right: GetLength(p => p.SourceWidth - p.X - p.Width > BorderOffset.Right),
-                    bottom: GetLength(p => p.SourceHeight - p.Y - p.Height > BorderOffset.Bottom),
-                    gradient: gradientMask, noise: noiseMask,
-                    seed: DynamicNoise ? info.FrameNumber + (int) ctx.Plane : 0);
+                switch (Background)
+                {
+                    case BackgroundMode.BLANK:
+                        return ctx.BlankColor == -1 ? blank : Finalize(InitClip(ctx.Source, size.Width, size.Height, ctx.BlankColor));
+                    case BackgroundMode.BLUR:
+                        var background = primary.Clip.BilinearResize(size.Width / 3, size.Height / 3)
+                            .Overlay(secondary.Clip.BilinearResize(size.Width / 3, size.Height / 3),
+                                opacity: (BackBalance + 1) / 2,
+                                mask: secondary.Mask?.BilinearResize(size.Width / 3, size.Height / 3));
+                        for (var i = 0; i < BackBlur; i++)
+                            background = background.Blur(1.5);
+                        return Finalize(background.GaussResize(size, p: 3));
+                }
+                return blank;
             }
+            var maybeFullScreen = layers
+                .Skip(0)
+                .Reverse()
+                .First(p => !p.Opacity.IsNearlyZero());
 
-            dynamic GetSourceMask(int length, bool gradientMask, bool noiseMask)
-            {
-                return src.OverlayMask( //TODO BorderOffset
-                    left: info.X < 0 ? length : 0,
-                    top: info.Y < 0 ? length : 0,
-                    right: srcSize.Width - info.X - info.Width < 0 ? length : 0,
-                    bottom: srcSize.Height - info.Y - info.Height < 0 ? length : 0,
-                    gradient: gradientMask, noise: noiseMask,
-                    seed: DynamicNoise ? info.FrameNumber : 0);
-            }
+            if (OverlayMode == "blend" 
+                && maybeFullScreen.Opacity.IsNearlyEquals(1)
+                && IsFullScreen(maybeFullScreen.Rectangle))
+                return primary.Clip;
 
-            dynamic GetMask(Func<int, bool, bool, dynamic> func)
+            // Rendering
+            var hybrid = GetCanvas();
+
+            dynamic GetOverMask(
+                OverlayLayer layer,
+                EdgeGradient edgeGradient,
+                int gradient,
+                int noise)
             {
-                //if (Gradient > 0 && Gradient == Noise)
-                //    return func(Gradient, true, true);
+                if (gradient == 0 && noise == 0 || edgeGradient == EdgeGradient.NONE)
+                    return null;
+                var nearData = GetLayerHistory(BorderControl, BorderMaxDeviation)
+                    .Select(p => p.Item2[layer.Index])
+                    .ToList();
+                Rectangle GetBorders(int length)
+                {
+                    int GetLength(Func<OverlayLayer, bool> func) => nearData.Any(func) ? length : 0;
+
+                    int IfNotForced(int value) => edgeGradient == EdgeGradient.FULL ? 0 : value;
+
+                    return Rectangle.FromLTRB(
+                        GetLength(p => p.Rectangle.X > BorderOffset.Left + IfNotForced(p.Union.Left)),
+                        GetLength(p => p.Rectangle.Y > BorderOffset.Top + IfNotForced(p.Union.Top)),
+                        GetLength(p => ctx.TargetInfo.Size.Width - p.Rectangle.Right > BorderOffset.Right +
+                            IfNotForced(ctx.TargetInfo.Size.Width - p.Union.Right)),
+                        GetLength(p => ctx.TargetInfo.Size.Height - p.Rectangle.Bottom > BorderOffset.Bottom +
+                            IfNotForced(ctx.TargetInfo.Size.Height - p.Union.Bottom))
+                    );
+                }
+
                 dynamic mask = null;
-                if (Gradient > 0)
-                    mask = func(Gradient, true, false);
-                if (Noise > 0)
-                {
-                    var noiseMask = func(Noise, false, true);
-                    mask = mask == null ? noiseMask : noiseMask.Overlay(mask, mode: "lighten").Overlay(mask, mask: mask.Invert()); //mask.Overlay(noiseMask, mode: "darken");
-                }
-                return mask;
+                var gradientBorders = GetBorders(gradient);
+                var noiseBorders = GetBorders(gradient);
+                dynamic gradientMask = null, noiseMask = null;
+                if (gradient > 0 && !gradientBorders.IsEmpty)
+                    gradientMask = layer.Clip.OverlayMask(
+                        1, 1,
+                        gradientBorders,
+                        gradient: true);
+                if (noise > 0 && !noiseBorders.IsEmpty)
+                    noiseMask = layer.Clip.OverlayMask(
+                        1, 1,
+                        noiseBorders,
+                        gradient: gradient, noise: noise,
+                        seed: DynamicNoise ? currentFrame + (int)ctx.Plane : 0);
+                return gradientMask != null && noiseMask != null
+                    ? noiseMask.Overlay(gradientMask, mode: "lighten")
+                        .Overlay(gradientMask, mask: gradientMask.Invert())
+                    : gradientMask ?? noiseMask;
             }
 
-            dynamic Rotate(dynamic clip, bool invert) => clip == null
-                ? null
-                : (info.Angle == 0 ? clip : clip.Invoke(this.Rotate, (invert ? -info.Angle : info.Angle) / 100.0));
-
-            dynamic GetBackground(int width, int height)
+            void OverlayOnTop(
+                OverlayLayer layer, 
+                bool withMask,
+                string overlayMode,
+                double opacity,
+                EdgeGradient edgeGradient)
             {
-                var background = src.BilinearResize(width / 3, height / 3)
-                    .Overlay(over.BilinearResize(width / 3, height / 3),
-                        opacity: (Background + 1) / 2,
-                        mask: overMask?.BilinearResize(width / 3, height / 3));
-                for (var i = 0; i < BackBlur; i++)
-                    background = background.Blur(1.5);
-                return background.GaussResize(width, height, p: 3);
-            }
-
-            var frameParams = ctx.CalcFrame(info);
-
-            var maskOver = GetMask(GetOverMask);
-            if (overMask != null)
-                maskOver = maskOver == null ? overMask : maskOver.Overlay(overMask, mode: "darken");
-            if (ctx.SourceMask != null && maskOver != null)
-                maskOver = maskOver.Overlay(Rotate(ctx.SourceMask.Invert(), true), -info.X, -info.Y, mode: "lighten");
-            if (maskOver == null && info.Angle != 0)
-                maskOver = GetBlankClip((Clip) over, true).Dynamic();
-            maskOver = Rotate(maskOver, false);
-            var rotationMask = info.Angle == 0 ? null : Rotate(GetBlankClip((Clip) over, true).Dynamic(), false);
-
-            var overRotated = Rotate(over, false);
-
-            switch (Mode)
-            {
-                case FramingMode.Fit:
+                if (overlayMode == "blend" 
+                    && IsFullScreen(layer.Rectangle) 
+                    && opacity.IsNearlyEquals(1)
+                    && (!withMask || layer.Mask == null))
                 {
-                    return Opacity <= double.Epsilon ? 
-                        src : 
-                        src.Overlay(overRotated, info.X, info.Y, mask: maskOver, opacity: Opacity, mode: OverlayMode);
+                    hybrid = layer.Clip;
+                    return;
                 }
-                case FramingMode.Fill:
+                var edgeMask = GetOverMask(layer, edgeGradient, Gradient, Noise);
+                var mask = !withMask || layer.Mask == null ? edgeMask : layer.Mask.Overlay(edgeMask, mode: "darken");
+                if (mask != null)
+                    Log(() => $"Layer: {((Clip)layer.Clip).GetVideoInfo().GetSize()} mask: {((Clip)mask).GetVideoInfo().GetSize()}");
+                if (!opacity.IsNearlyZero())
+                    hybrid = hybrid.Overlay(
+                        layer.Clip,
+                        layer.Rectangle.Location,
+                        mode: overlayMode,
+                        opacity: opacity,
+                        mask: mask);
+
+                void FillChromeBorder(int length, Func<int, dynamic> crop, Func<int, (int, int)> location)
+                {
+                    if (length > 0)
                     {
-                        var maskSrc = GetMask(GetSourceMask);
-                        dynamic hybrid = InitClip(src, frameParams.MergedWidth, frameParams.MergedHeight, ctx.BlankColor);
-                        if (maskSrc != null || Opacity - 1 <= -double.Epsilon)
-                            hybrid = hybrid.Overlay(src, Math.Max(0, -info.X), Math.Max(0, -info.Y));
-                        if (maskOver != null || Opacity - 1 < double.Epsilon)
-                            hybrid = hybrid.Overlay(overRotated, Math.Max(0, info.X), Math.Max(0, info.Y), mask: rotationMask);
-
-                        var merged = hybrid.Overlay(src, Math.Max(0, -info.X), Math.Max(0, -info.Y), mask: maskSrc)
-                            .Overlay(overRotated, 
-                                Math.Max(0, info.X), Math.Max(0, info.Y),
-                                opacity: Opacity, mask: maskOver, mode: OverlayMode);
-
-                        //var edgeMask = InitClip(src.ConvertToY8(), frameParams.MergedWidth, frameParams.MergedHeight, 0xFF8080)
-                        //    .Overlay(GetBlankClip((Clip) src.ConvertToY8(), false), Math.Max(0, -info.X), Math.Max(0, -info.Y))
-                        //    .Overlay(GetBlankClip((Clip) overRotated.ConvertToY8(), false), Math.Max(0, -info.X), Math.Max(0, -info.Y), mask: rotationMask);
-                        //edgeMask = DynamicEnv.MergeARGB(edgeMask, edgeMask, edgeMask, edgeMask);
-
-                        //merged = merged.InpaintLogo(edgeMask, sharpness: 45, preBlur: 6.5, postBlur: 4, radius: 8);
-
-                        var resized = merged.Invoke(Downsize, frameParams.FinalWidth, frameParams.FinalHeight);
-
-                        return InitClip(src, ctx.TargetInfo.Width, ctx.TargetInfo.Height, ctx.DefaultColor)
-                            .Overlay(resized, frameParams.FinalX, frameParams.FinalY);
+                        var coordinates = location(length);
+                        Clip cropped = crop(length);
+                        Log($"Fix borders at {coordinates}: {cropped.GetVideoInfo().GetSize()}");
+                        hybrid = hybrid.Overlay(
+                            cropped,
+                            coordinates.Item1,
+                            coordinates.Item2,
+                            mode: overlayMode,
+                            opacity: opacity);
                     }
-                case FramingMode.FillRectangle:
-                case FramingMode.FitBorders:
-                    {
-                        var maskSrc = GetMask(GetSourceMask);
-                        var background = GetBackground(frameParams.MergedWidth, frameParams.MergedHeight);
-                        if (Opacity - 1 <= -double.Epsilon)
-                            background = background.Overlay(overRotated, Math.Max(0, info.X), Math.Max(0, info.Y), mask: maskOver);
-                        var hybrid = background.Overlay(src, Math.Max(0, -info.X), Math.Max(0, -info.Y), mask: maskSrc)
-                            .Overlay(overRotated,
-                                x: Math.Max(0, info.X),
-                                y: Math.Max(0, info.Y),
-                                mask: maskOver,
-                                mode: OverlayMode,
-                                opacity: Opacity)
-                            .Invoke(Downsize, frameParams.FinalWidth, frameParams.FinalHeight);
-                        if (Mode == FramingMode.FillRectangle)
-                            return InitClip(src, ctx.TargetInfo.Width, ctx.TargetInfo.Height, ctx.BlankColor)
-                                .Overlay(hybrid, frameParams.FinalX, frameParams.FinalY);
-                        var srcRect = new Rectangle(0, 0, srcSize.Width, srcSize.Height);
-                        var overRect = new Rectangle(info.X, info.Y, info.Width, info.Height);
-                        var union = Rectangle.Union(srcRect, overRect);
-                        var intersect = Rectangle.Intersect(srcRect, overRect);
-                        var cropLeft = intersect.Left - union.Left;
-                        var cropTop = intersect.Top - union.Top;
-                        var cropRight = union.Right - intersect.Right;
-                        var cropBottom = union.Bottom - intersect.Bottom;
-                        var cropWidthCoef = cropRight == 0 ? 1 : ((double)cropLeft / cropRight) / ((double)cropLeft / cropRight + 1);
-                        var cropHeightCoef = cropBottom == 0 ? 1 : ((double)cropTop / cropBottom) / ((double)cropTop / cropBottom + 1);
-                        cropLeft = (int)((frameParams.FinalWidth - ctx.TargetInfo.Width) * cropWidthCoef);
-                        cropTop = (int)((frameParams.FinalHeight - ctx.TargetInfo.Height) * cropHeightCoef);
-                        cropRight = frameParams.FinalWidth - ctx.TargetInfo.Width - cropLeft;
-                        cropBottom = frameParams.FinalHeight - ctx.TargetInfo.Height - cropTop;
-                        return hybrid.Crop(cropLeft, cropTop, -cropRight, -cropBottom);
-                    }
-                case FramingMode.FillFull:
-                    {
-                        frameParams.FinalWidth = frameParams.Wider ? frameParams.MergedWidth : (int)Math.Round(frameParams.MergedHeight * frameParams.OutAr);
-                        frameParams.FinalHeight = frameParams.Wider ? (int)Math.Round(frameParams.MergedWidth / frameParams.OutAr) : frameParams.MergedHeight;
-                        frameParams.FinalX = (frameParams.FinalWidth - frameParams.MergedWidth) / 2;
-                        frameParams.FinalY = (frameParams.FinalHeight - frameParams.MergedHeight) / 2;
-                        var hybrid = GetBackground(frameParams.FinalWidth, frameParams.FinalHeight);
-                        var maskSrc = GetMask(GetSourceMask);
-                        if (maskSrc != null || Opacity - 1 <= -double.Epsilon)
-                            hybrid = hybrid.Overlay(src, frameParams.FinalX + Math.Max(0, -info.X), frameParams.FinalY + Math.Max(0, -info.Y));
-                        if (maskOver != null)
-                            hybrid = hybrid.Overlay(overRotated, 
-                                frameParams.FinalX + Math.Max(0, info.X), frameParams.FinalY + Math.Max(0, info.Y), mask: rotationMask);
-                        return hybrid.Overlay(src, frameParams.FinalX + Math.Max(0, -info.X), frameParams.FinalY + Math.Max(0, -info.Y), mask: maskSrc)
-                                .Overlay(overRotated, 
-                                    frameParams.FinalX + Math.Max(0, info.X), frameParams.FinalY + Math.Max(0, info.Y), 
-                                    mask: maskOver)
-                                .Invoke(Downsize, ctx.TargetInfo.Width, ctx.TargetInfo.Height);
-                    }
-                case FramingMode.Mask:
-                    {
-                        if (ctx.Plane.IsChroma())
-                            return InitClip(src, ctx.TargetInfo.Width, ctx.TargetInfo.Height, ctx.DefaultColor);
-                        src = GetBlankClip((Clip) src, true).Dynamic();
-                        if (ctx.SourceMask != null)
-                            src = src.Overlay(ctx.SourceMask, mode: "darken");
-                        over = GetBlankClip((Clip) over, true).Dynamic();
-                        return InitClip(src, frameParams.MergedWidth, frameParams.MergedHeight, ctx.DefaultColor)
-                            .Overlay(src, Math.Max(0, -info.X), Math.Max(0, -info.Y))
-                            .Overlay(over.Invoke(this.Rotate, info.Angle / 100.0), Math.Max(0, info.X), Math.Max(0, info.Y), mask: rotationMask)
-                            .Invoke(Downsize, frameParams.FinalWidth, frameParams.FinalHeight)
-                            .ColorRangeMask((1 << ctx.TargetInfo.ColorSpace.GetBitDepth()) - 1)
-                            .AddBorders(frameParams.FinalX, frameParams.FinalY, ctx.TargetInfo.Width - frameParams.FinalX - frameParams.FinalWidth,
-                                ctx.TargetInfo.Height - frameParams.FinalY - frameParams.FinalHeight);
-                    }
-                default:
-                    throw new AvisynthException();
+                }
+
+                FillChromeBorder(layer.ExtraBorders.Left,
+                    length => layer.Clip.Crop(0, 0, length - layer.Rectangle.Width, 0),
+                    length => (layer.Rectangle.Left - length, layer.Rectangle.Top));
+                FillChromeBorder(layer.ExtraBorders.Top,
+                    length => layer.Clip.Crop(0, 0, 0, length - layer.Rectangle.Height),
+                    length => (layer.Rectangle.Left, layer.Rectangle.Top - length));
+                FillChromeBorder(layer.ExtraBorders.Right,
+                    length => layer.Clip.Crop(layer.Rectangle.Width - length, 0, 0, 0),
+                    length => (layer.Rectangle.Right, layer.Rectangle.Top));
+                FillChromeBorder(layer.ExtraBorders.Bottom,
+                    length => layer.Clip.Crop(0, layer.Rectangle.Height - length, 0, 0),
+                    length => (layer.Rectangle.Left, layer.Rectangle.Bottom));
             }
+
+            foreach (var layer in layers.Where(p => p.Mask != null || !p.Opacity.IsNearlyEquals(1) || Gradient > 0 || Noise > 0 || OverlayMode != "blend"))
+                OverlayOnTop(layer, false, "blend", 1, EdgeGradient);
+
+            foreach (var layer in layers)
+                OverlayOnTop(layer, true, 
+                    layer.Index == 0 ? "blend" : OverlayMode, 
+                    layer.Opacity, 
+                    EdgeGradient == EdgeGradient.NONE ? EdgeGradient.INSIDE : EdgeGradient);
+
+            return hybrid;
         }
+
+        protected void RenderPreview(ref dynamic hybrid, OverlayContext ctx, OverlayInfo info, List<OverlayInfo> extra)
+        {
+            var previewSize = (Size)(ctx.TargetInfo.Size.AsSpace() / 3).Eval(p => p - p % 2);
+            var previewRect = new RectangleF(new Point(ctx.TargetInfo.Width - previewSize.Width - 10, 10), previewSize).Floor();
+
+            var input = new OverlayInput
+            {
+                TargetSize = ctx.TargetInfo.Size,
+                OuterBounds = OuterBounds,
+                InnerBounds = InnerBounds,
+                OverlayBalance = OverlayBalance,
+                FixedSource = FixedSource,
+                ExtraClips = ctx.ExtraClips
+                    .Select((p, i) => Tuple.Create(p.GetVideoInfo().GetSize(), extra[i]))
+                    .ToList()
+            };
+            var canvasReal = info.GetCanvas(input);
+
+            var union = extra
+                .Select(p => p.ScaleBySource(info.SourceSize))
+                .Select(p => p.OverlayRectangle)
+                .Aggregate(RectangleD.Empty, RectangleD.Union)
+                .Union(info.SourceRectangle)
+                .Union(info.OverlayRectangle);
+
+            var totalArea = canvasReal.Union(union);
+            var coef = (previewSize.AsSpace() / totalArea).SelectMin();
+            var offset = Space.Max(-canvasReal.Location, -union.Location);
+
+            var canvas = (Rectangle) canvasReal.Offset(offset).Scale(coef);
+            var src = (Rectangle) info.SourceRectangle.Offset(offset).Scale(coef);
+            var over = (Rectangle) info.OverlayRectangle.Offset(offset).Scale(coef);
+            var extraClips = extra
+                .Select(p => p.ScaleBySource(info.SourceSize))
+                .Select(p => (Rectangle) p.OverlayRectangle.Offset(offset).Scale(coef));
+
+            dynamic PreviewClip(Size size, int color) =>
+                DynamicEnv.BlankClip(width: size.Width, height: size.Height, color: color);
+
+            dynamic PreviewMask(Size size) =>
+                PreviewClip(size.Eval(p => p - 4), 0).AddBorders(2, 2, 2, 2, color: 0xFFFFFF);
+
+            var preview = hybrid
+                .Crop(previewRect.Location, previewRect.Right - ctx.TargetInfo.Width, previewRect.Bottom - ctx.TargetInfo.Height)
+                .ConvertToRgb24()
+                .Overlay(PreviewClip(canvas.Size, 0x0000FF), canvas.Location, mask: PreviewMask(canvas.Size), opacity: 0.75)
+                .Overlay(PreviewClip(src.Size, 0xFF0000), src.Location, mask: PreviewMask(src.Size), opacity: 0.75)
+                .Overlay(PreviewClip(over.Size, 0x00FF00), over.Location, mask: PreviewMask(over.Size), opacity: 0.75);
+            foreach (var extraClip in extraClips)
+                preview = preview.Overlay(PreviewClip(extraClip.Size, 0x808080), extraClip.Location, mask: PreviewMask(extraClip.Size), opacity: 0.75);
+
+            hybrid = hybrid.Overlay(preview, previewRect.Location);
+        }
+
+        private static dynamic Crop(dynamic clip, Rectangle src, Rectangle over) => clip?.Crop(
+            Math.Max(0, over.Left - src.Left),
+            Math.Max(0, over.Top - src.Top),
+            -Math.Max(0, src.Right - over.Right),
+            -Math.Max(0, src.Bottom - over.Bottom)
+        );
 
         protected sealed override void Dispose(bool A_0)
         {

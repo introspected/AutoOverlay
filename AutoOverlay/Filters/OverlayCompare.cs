@@ -25,7 +25,7 @@ namespace AutoOverlay
         [AvsArgument]
         public int OverlayColor { get; private set; }= 0xFF00;
         [AvsArgument(Min = 1, Max = 10)]
-        public int BorderSize { get; private set; } = 2;
+        public int BorderSize { get; private set; } = 4;
         [AvsArgument(Min = 0, Max = 1)]
         public double Opacity { get; private set; } = 0.51;
         [AvsArgument(Min = 1)]
@@ -53,8 +53,8 @@ namespace AutoOverlay
             var overCropped = Overlay.Dynamic()
                 .Crop(BorderSize, BorderSize, -BorderSize, -BorderSize)
                 .AddBorders(BorderSize, BorderSize, BorderSize, BorderSize, OverlayColor);
-            return Child.Dynamic().OverlayRender(srcCropped, overCropped, 
-                opacity: Opacity, mode: (int) FramingMode.Fill,
+            return Child.Dynamic().OverlayRender(srcCropped, overCropped,
+                opacity: Opacity, innerBounds: DynamicEnv.Rect(1), outerBounds: DynamicEnv.Rect(1),
                 width: GetVideoInfo().width, height: GetVideoInfo().height, debug: Debug)
                 .Subtitle(SourceText, size: 32, text_color: SourceColor, align: 1)
                 .Subtitle(OverlayText, size: 32, text_color: OverlayColor, align: 3)[n];

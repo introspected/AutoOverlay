@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
 using AutoOverlay.AviSynth;
@@ -25,17 +26,20 @@ namespace AutoOverlay.Overlay
 
         public ExtraVideoInfo TargetInfo { get; }
 
+        public List<Clip> ExtraClips { get; }
+        public List<dynamic> ExtraMasks { get; }
+        public List<double> ExtraOpacity { get; }
+
         public YUVPlanes Plane { get; }
+        public dynamic BackgroundClip { get; }
 
         public bool AdjustColor { get; }
         public string AdjustChannels { get; }
 
-        public FramingMode Mode { get; }
         public int DefaultColor { get; }
-        public int BlankColor { get; }
+        public int BlankColor { get; } = -1;
 
-        public HistogramCache SourceCache { get; }
-        public HistogramCache OverlayCache { get; }
+        public List<HistogramCache> Cache { get; }
 
         private readonly HashSet<IDisposable> disposables = new();
 
@@ -43,25 +47,29 @@ namespace AutoOverlay.Overlay
         {
             Render = render;
             Plane = plane;
-            Mode = render.Mode;
             AdjustColor = render.ColorAdjust > -double.Epsilon &&
                           (string.IsNullOrEmpty(render.AdjustChannels) || 
                            (render.AdjustChannels.ToUpper() + default(YUVPlanes).GetLetter()).Contains(plane.GetLetter()));
 
             Static = render.Invert
-                ? new StaticContext(render.Overlay, render.Source, render.OverlayMask, render.SourceMask, plane)
-                : new StaticContext(render.Source, render.Overlay, render.SourceMask, render.OverlayMask, plane);
+                ? new StaticContext(render.Overlay, render.Source, render.OverlayMask, render.SourceMask, render.BackgroundClip, plane)
+                : new StaticContext(render.Source, render.Overlay, render.SourceMask, render.OverlayMask, render.BackgroundClip, plane);
 
             Source = Static.Source.Dynamic();
             Overlay = Static.Overlay.Dynamic();
+            
+            ExtraClips = Render.ExtraClips.Select(p => p.Clip.ExtractPlane(plane)).ToList();
 
             SourceInfo = Static.Source.GetVideoInfo();
             OverlayInfo = Static.Overlay.GetVideoInfo();
+            BackgroundClip = Static.BackgroundClip?.Dynamic();
 
             TargetInfo = render.GetVideoInfo();
 
             SourceMask = PrepareMask(Static.SourceMask, Static.SourceBase.GetVideoInfo());
             OverlayMask = PrepareMask(Static.OverlayMask, Static.OverlayBase.GetVideoInfo());
+            ExtraMasks = Render.ExtraClips.Select(p => PrepareMask(p.Mask, p.Clip.GetVideoInfo())).ToList();
+            ExtraOpacity = Render.ExtraClips.Select(p => p.Opacity).ToList();
 
             disposables.Add(render.Source);
             disposables.Add(render.Overlay);
@@ -72,19 +80,22 @@ namespace AutoOverlay.Overlay
             disposables.Add(Static.SourceMask);
             disposables.Add(Static.OverlayMask);
 
-
             if (plane.IsChroma())
             {
                 TargetInfo = TargetInfo.Chroma;
             }
 
-            DefaultColor = Plane.IsChroma() ? 0x808080 : TargetInfo.Info.IsRGB() ? 0 : 0x008080;
-            BlankColor = render.BlankColor >= 0 ? render.BlankColor : TargetInfo.Info.IsRGB() ? 0 : 0x008080;
-            if (Plane == YUVPlanes.PLANAR_U)
-                BlankColor <<= 8;
-            else if (Plane == YUVPlanes.PLANAR_V)
-                BlankColor <<= 16;
-            BlankColor &= 0xFFFFFF;
+            var isRgb = TargetInfo.Info.IsRGB() || render.Matrix != null;
+            DefaultColor = Plane.IsChroma() ? 0x808080 : isRgb ? 0 : 0x008080;
+            if (render.BlankColor != -1)
+            {
+                BlankColor = render.BlankColor >= 0 ? render.BlankColor : isRgb ? 0 : 0x008080;
+                if (Plane == YUVPlanes.PLANAR_U)
+                    BlankColor <<= 8;
+                else if (Plane == YUVPlanes.PLANAR_V)
+                    BlankColor <<= 16;
+                BlankColor &= 0xFFFFFF;
+            }
 
             if (AdjustColor)
             {
@@ -100,12 +111,16 @@ namespace AutoOverlay.Overlay
                     var channels = TargetInfo.ColorSpace.HasFlag(ColorSpaces.CS_PLANAR)
                         ? new[] { 0 }
                         : (AdjustChannels ?? "rgb").ToLower().ToCharArray().Select(p => "bgr".IndexOf(p)).ToArray();
-                    SourceCache = new HistogramCache(planes, channels, render.SIMD, true, 
-                        SourceInfo.ColorSpace, OverlayInfo.ColorSpace, 
-                        SourceInfo.ColorSpace, render.ColorFramesCount, true, new ParallelOptions());
-                    OverlayCache = new HistogramCache(planes, channels, render.SIMD, true, 
-                        OverlayInfo.ColorSpace, SourceInfo.ColorSpace, 
-                        OverlayInfo.ColorSpace, render.ColorFramesCount, true, new ParallelOptions());
+                    Cache = new List<HistogramCache>(2 + ExtraClips.Count)
+                    {
+                        new(planes, channels, render.SIMD, true,
+                            SourceInfo.ColorSpace, OverlayInfo.ColorSpace,
+                            SourceInfo.ColorSpace, render.ColorFramesCount, true, new ParallelOptions())
+                    };
+                    Cache.AddRange(Enumerable.Range(0, 1 + ExtraClips.Count)
+                        .Select(i => new HistogramCache(planes, channels, render.SIMD, true,
+                            OverlayInfo.ColorSpace, SourceInfo.ColorSpace,
+                            OverlayInfo.ColorSpace, render.ColorFramesCount, true, new ParallelOptions())));
                 }
             }
 
@@ -124,24 +139,6 @@ namespace AutoOverlay.Overlay
             }
         }
 
-        public FrameParams CalcFrame(OverlayInfo info)
-        {
-            var frame = new FrameParams();
-            var srcSize = SourceInfo.Size;
-            frame.MergedWidth = srcSize.Width + Math.Max(-info.X, 0) + Math.Max(info.Width + info.X - srcSize.Width, 0);
-            frame.MergedHeight = srcSize.Height + Math.Max(-info.Y, 0) + Math.Max(info.Height + info.Y - srcSize.Height, 0);
-            frame.MergedAr = frame.MergedWidth / (double) frame.MergedHeight;
-            frame.OutAr = TargetInfo.Width / (double) TargetInfo.Height;
-            frame.Wider = frame.MergedAr > frame.OutAr;
-            if (Mode == FramingMode.FitBorders)
-                frame.Wider = !frame.Wider;
-            frame.FinalWidth = frame.Wider ? TargetInfo.Width : (int) Math.Round(TargetInfo.Width * (frame.MergedAr / frame.OutAr));
-            frame.FinalHeight = frame.Wider ? (int) Math.Round(TargetInfo.Height * (frame.OutAr / frame.MergedAr)) : TargetInfo.Height;
-            frame.FinalX = frame.Wider ? 0 : (TargetInfo.Width - frame.FinalWidth) / 2;
-            frame.FinalY = frame.Wider ? (TargetInfo.Height - frame.FinalHeight) / 2 : 0;
-            return frame;
-        }
-        
         public object Clone()
         {
             return MemberwiseClone();
@@ -153,10 +150,7 @@ namespace AutoOverlay.Overlay
             {
                 disposable?.Dispose();
             }
-            if (SourceCache != null)
-                HistogramCache.Dispose(SourceCache.Id);
-            if (OverlayCache != null)
-                HistogramCache.Dispose(OverlayCache.Id);
+            Cache?.ForEach(p => HistogramCache.Dispose(p.Id));
         }
 
         public class StaticContext
@@ -167,22 +161,17 @@ namespace AutoOverlay.Overlay
             public Clip Overlay { get; }
             public Clip SourceMask { get; }
             public Clip OverlayMask { get; }
+            public Clip BackgroundClip { get; }
 
-            public StaticContext(Clip source, Clip overlay, Clip sourceMask, Clip overlayMask, YUVPlanes plane)
+            public StaticContext(Clip source, Clip overlay, Clip sourceMask, Clip overlayMask, Clip backgroundClip, YUVPlanes plane)
             {
                 SourceBase = source;
                 OverlayBase = overlay;
-                Source = ExtractPlane(SourceBase, plane);
-                Overlay = ExtractPlane(OverlayBase, plane);
+                Source = SourceBase.ExtractPlane(plane);
+                Overlay = OverlayBase.ExtractPlane(plane);
                 SourceMask = sourceMask;
                 OverlayMask = overlayMask;
-            }
-
-            Clip ExtractPlane(Clip clip, YUVPlanes plane)
-            {
-                return plane == default
-                    ? clip
-                    : clip.Dynamic().Invoke("Extract" + plane.GetLetter());
+                BackgroundClip = backgroundClip?.ExtractPlane(plane);
             }
         }
 

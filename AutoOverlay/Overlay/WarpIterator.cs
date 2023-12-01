@@ -113,14 +113,6 @@ namespace AutoOverlay.Overlay
                         step /= 2;
                     return current + step;
                 }
-
-                double step2(int sign, Func<RectangleD, double> dimension)
-                {
-                    var step = sign * dimension(point) * Math.Pow(2, -iteration);
-                    if (super.IsEmpty)
-                        return step;
-                    return dimension(super[i]) + step;
-                }
             }
         }
 

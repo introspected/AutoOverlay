@@ -1,8 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Drawing;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using AutoOverlay.AviSynth;
 using AutoOverlay.Overlay;
@@ -16,15 +17,24 @@ namespace AutoOverlay
 
         public dynamic DynamicEnv => DynamicEnvironment.Env;
         public ScriptEnvironment StaticEnv => DynamicEnvironment.Env ?? topLevel;
-
-        private static ISet<OverlayFilter> Filters { get; } = new HashSet<OverlayFilter>();
-
         private DynamicEnvironment topLevel;
+
+        protected static ConcurrentDictionary<string, OverlayFilter> Filters { get; } = new();
+        public string FilterId { get; } = Guid.NewGuid().ToString();
+        private long references = 1;
 
         protected OverlayFilter()
         {
-            Filters.Add(this);
+            Filters[FilterId] = this;
         }
+
+        public OverlayFilter Attach()
+        {
+            Interlocked.Increment(ref references);
+            return this;
+        }
+
+        public static T FindFilter<T>(string filterId) where T : OverlayFilter => Filters[filterId] as T;
 
         public sealed override void Initialize(AVSValue args, ScriptEnvironment env)
         {
@@ -130,26 +140,27 @@ namespace AutoOverlay
                 : clip.BlankClip(width: width, height: height, color_yuv: color);
         }
 
-        public dynamic ResizeRotate(Clip clip, string resizeFunc, string rotateFunc, OverlayInfo info)
+        public dynamic ResizeRotate(Clip clip, string resizeFunc, string rotateFunc, OverlayData data)
         {
-            return ResizeRotate(clip, resizeFunc, rotateFunc, info.Width, info.Height, info.Angle, info.GetCrop(), info.Warp);
+            return ResizeRotate(clip, resizeFunc, rotateFunc,
+                data.Overlay.Width, data.Overlay.Height,
+                data.OverlayAngle, data.OverlayCrop, data.OverlayWarp);
         }
 
         public dynamic ResizeRotate(
-            Clip clip, 
-            string resizeFunc, string rotateFunc, 
-            int width, int height, int angle = 0,
+            Clip clip,
+            string resizeFunc, string rotateFunc,
+            int width, int height, double angle = 0,
             RectangleD crop = default, Warp warp = default)
         {
             if (clip == null)
                 return null;
             var dynamic = clip.Dynamic();
             if (warp != null && !warp.IsEmpty)
-                dynamic = dynamic.Warp(warp.ToArray(), relative: true, resample: OverlayUtils.GetWarpResampleMode(resizeFunc));
+                dynamic = dynamic.Warp(warp.ToArray(), relative: true,
+                    resample: OverlayUtils.GetWarpResampleMode(resizeFunc));
 
             var vi = clip.GetVideoInfo();
-            if (crop.IsEmpty && width == vi.width && height == vi.height)
-                return dynamic;
 
             var intCrop = Rectangle.FromLTRB(
                 (int) Math.Floor(crop.Left),
@@ -167,12 +178,23 @@ namespace AutoOverlay
                     crop.Bottom - intCrop.Bottom
                 );
             }
+
             if (crop.IsEmpty)
-                dynamic = dynamic.Invoke(resizeFunc, width, height);
-            else dynamic = dynamic.Invoke(resizeFunc, width, height,
-                src_left: crop.Left, src_top: crop.Top, 
-                src_width: -crop.Right, src_height: -crop.Bottom);
-            return angle == 0 ? dynamic : dynamic.Invoke(rotateFunc, angle / 100.0);
+            {
+                if (width != vi.width - intCrop.Left - intCrop.Right ||
+                    height != vi.height - intCrop.Top - intCrop.Bottom)
+                {
+                    dynamic = dynamic.Invoke(resizeFunc, width, height);
+                }
+            }
+            else
+            {
+                dynamic = dynamic.Invoke(resizeFunc, width, height,
+                    src_left: crop.Left, src_top: crop.Top,
+                    src_width: -crop.Right, src_height: -crop.Bottom);
+            }
+            //TODO rotate first
+            return angle == 0 ? dynamic : dynamic.Invoke(rotateFunc, angle);
         }
 
         protected void Log(Func<string> supplier)
@@ -196,16 +218,18 @@ namespace AutoOverlay
 
         protected override void Dispose(bool disposing)
         {
-            Filters.Remove(this);
-            base.Dispose(disposing);
-            OverlayUtils.Dispose(this);
-            topLevel?.Dispose();
-            topLevel = null;
+            if (disposing && Interlocked.Decrement(ref references) == 0 && Filters.TryRemove(FilterId, out _))
+            {
+                base.Dispose(disposing);
+                OverlayUtils.Dispose(this);
+                topLevel?.Dispose();
+                topLevel = null;
+            }
         }
 
         private static void DisposeAll()
         {
-            foreach (var filter in Filters.ToArray())
+            foreach (var filter in Filters.Values.ToArray())
                 filter.Dispose();
         }
 
@@ -222,6 +246,24 @@ namespace AutoOverlay
             var res = NewVideoFrame(StaticEnv);
             Copy(frame, res, OverlayUtils.GetPlanes(GetVideoInfo().pixel_type));
             return res;
+        }
+
+        protected bool Equals(OverlayFilter other)
+        {
+            return FilterId == other.FilterId;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(null, obj)) return false;
+            if (ReferenceEquals(this, obj)) return true;
+            if (obj.GetType() != this.GetType()) return false;
+            return Equals((OverlayFilter)obj);
+        }
+
+        public override int GetHashCode()
+        {
+            return (FilterId != null ? FilterId.GetHashCode() : 0);
         }
     }
 }

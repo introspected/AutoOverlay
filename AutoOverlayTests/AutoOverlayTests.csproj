@@ -10,7 +10,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>AutoOverlayTests</RootNamespace>
     <AssemblyName>AutoOverlayTests</AssemblyName>
-    <TargetFrameworkVersion>v4.7</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile>
     </TargetFrameworkProfile>
@@ -60,7 +60,6 @@
     <Compile Include="ColorAdjustTest.cs" />
     <Compile Include="EnumTests.cs" />
     <Compile Include="FilterDescGenerator.cs" />
-    <Compile Include="OverlayInfoTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

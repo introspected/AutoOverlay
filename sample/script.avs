@@ -1,5 +1,6 @@
-portrait=ImageSource("E:\DEV\AutoOverlay\sample\Lenna.portrait.jpg").ConvertToYV24()
-landscape=ImageSource("E:\DEV\AutoOverlay\sample\Lenna.landscape.jpg").ConvertToYV24()
+portrait=ImageSource("Lenna.portrait.jpg")
+landscape=ImageSource("Lenna.landscape.jpg")
 
 OverlayEngine(portrait, landscape)
-OverlayRender(portrait, landscape, colorAdjust=2, mode=2, gradient=20, width=500, height=500, upsize="Spline64Resize", downsize="Spline64Resize")
+OverlayRender(portrait, landscape, colorAdjust=1, outerBounds=Rect(1), innerBounds=Rect(1), \
+              background="blur", edgeGradient="full", gradient=80, width=500, height=500)

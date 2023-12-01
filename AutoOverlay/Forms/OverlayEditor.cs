@@ -162,18 +162,13 @@ namespace AutoOverlay.Forms
             update = true;
             Interval?.ClearCache();
 
-            nudX.Value = info.X;
-            nudY.Value = info.Y;
-            nudAngle.Value = (decimal)(info.Angle / 100.0);
-            nudOverlayWidth.Value = info.Width;
-            nudOverlayHeight.Value = info.Height;
-            var crop = info.GetCrop();
-            nudCropLeft.Value = (decimal)crop.Left;
-            nudCropTop.Value = (decimal)crop.Top;
-            nudCropRight.Value = (decimal)crop.Right;
-            nudCropBottom.Value = (decimal)crop.Bottom;
-            tbWarp.Text = info.Warp.ToString();
-            chbOverlaySizeSync.Checked = Round(Engine.OverInfo.Width / info.GetAspectRatio(Engine.OverInfo.Size)) == Engine.OverInfo.Height;
+            nudX.Value = (decimal)info.Placement.X;
+            nudY.Value = (decimal)info.Placement.Y;
+            nudAngle.Value = (decimal)info.Angle;
+            nudOverlayWidth.Value = (decimal)info.OverlaySize.Width;
+            nudOverlayHeight.Value = (decimal)info.OverlaySize.Height;
+            tbWarp.Text = info.OverlayWarp.ToString();
+            chbOverlaySizeSync.Checked = Round(Engine.OverInfo.Width / info.OverlayAspectRatio) == Engine.OverInfo.Height;
 
             update = false;
         }
@@ -332,11 +327,6 @@ namespace AutoOverlay.Forms
         {
             e.Handled = true;
         }
-
-        private void btnResetCrop_Click(object sender, EventArgs e)
-        {
-            nudCropLeft.Value = nudCropTop.Value = nudCropRight.Value = nudCropBottom.Value = 0;
-        }
         #endregion
 
         #region Stat
@@ -356,7 +346,7 @@ namespace AutoOverlay.Forms
             using (var refStat = compareFilename == null ? null : new FileOverlayStat(compareFilename, Engine.SrcInfo.Size, Engine.OverInfo.Size))
                 foreach (var info in Engine.OverlayStat.Frames.Where(p => p.FrameNumber >= min && p.FrameNumber <= max))
                 {
-                    info.Comparison = refStat?[info.FrameNumber]?.Compare(info, Engine.OverInfo.Size) ?? 2;
+                    info.Comparison = refStat?[info.FrameNumber]?.Compare(info) ?? 2;
                     var compareFailed = info.Comparison < compareLimit;
                     var diffFailed = info.Diff > MaxDiff;
                     var valid = !diffFailed && !compareFailed;
@@ -365,7 +355,7 @@ namespace AutoOverlay.Forms
                         continue;
                     if (lastInterval == null
                         || lastFrame.FrameNumber != info.FrameNumber - 1
-                        || (MaxDeviation.NearlyZero() ? !lastFrame.Equals(info) : !lastFrame.NearlyEquals(info, overSize, MaxDeviation))
+                        || (MaxDeviation.IsNearlyZero() ? !lastFrame.Equals(info) : !lastFrame.NearlyEquals(info, MaxDeviation))
                         || Engine.KeyFrames.Contains(info.FrameNumber))
                     {
                         if (initial && Intervals.Count == 2000)
@@ -440,7 +430,7 @@ namespace AutoOverlay.Forms
                     {
                         var refFrame = refStat[frame.FrameNumber];
                         if (refFrame == null) continue;
-                        frame.Comparison = refFrame.Compare(frame, Engine.OverInfo.Size);
+                        frame.Comparison = refFrame.Compare(frame);
                     }
                 grid.Refresh();
             }
@@ -458,13 +448,13 @@ namespace AutoOverlay.Forms
             if ((sender == chbOverlaySizeSync || sender == nudOverlayWidth) && chbOverlaySizeSync.Checked)
             {
                 nudOverlayHeight.ValueChanged -= Render;
-                nudOverlayHeight.Value = Round((double)nudOverlayWidth.Value / CurrentFrameInfo.GetAspectRatio(Engine.OverInfo.Size));
+                nudOverlayHeight.Value = (decimal)((double)nudOverlayWidth.Value / CurrentFrameInfo.OverlayAspectRatio);
                 nudOverlayHeight.ValueChanged += Render;
             }
             else if (sender == nudOverlayHeight && chbOverlaySizeSync.Checked)
             {
                 nudOverlayWidth.ValueChanged -= Render;
-                nudOverlayWidth.Value = Round((double)nudOverlayHeight.Value * CurrentFrameInfo.GetAspectRatio(Engine.OverInfo.Size));
+                nudOverlayWidth.Value = (decimal)((double)nudOverlayHeight.Value * CurrentFrameInfo.OverlayAspectRatio);
                 nudOverlayWidth.ValueChanged += Render;
             }
 
@@ -473,25 +463,15 @@ namespace AutoOverlay.Forms
 
         private OverlayInfo GetOverlayInfo()
         {
-            Func<decimal, int> crop = val => (int) (val * OverlayInfo.CROP_VALUE_COUNT);
             var currentFrame = prevInterval?[CurrentFrame] ?? Interval?[CurrentFrame];
             return new OverlayInfo
             {
                 FrameNumber = CurrentFrame,
-                X = (int) nudX.Value,
-                Y = (int) nudY.Value,
-                Angle = (int) (nudAngle.Value*100),
-                Warp = Warp.Parse(tbWarp.Text),
-                Width = (int) nudOverlayWidth.Value,
-                Height = (int) nudOverlayHeight.Value,
-                CropLeft = crop(nudCropLeft.Value),
-                CropTop = crop(nudCropTop.Value),
-                CropRight = crop(nudCropRight.Value),
-                CropBottom = crop(nudCropBottom.Value),
-                SourceWidth = currentFrame?.SourceWidth ?? Engine.SrcInfo.Width,
-                SourceHeight = currentFrame?.SourceHeight ?? Engine.SrcInfo.Height,
-                BaseWidth = currentFrame?.BaseWidth ?? Engine.OverInfo.Width,
-                BaseHeight = currentFrame?.BaseHeight ?? Engine.OverInfo.Height,
+                Placement = new Space((double)nudX.Value, (double)nudY.Value),
+                Angle = (float)nudAngle.Value,
+                OverlayWarp = Warp.Parse(tbWarp.Text),
+                OverlaySize = new SizeD((double)nudOverlayWidth.Value, (double)nudOverlayHeight.Value),
+                SourceSize = currentFrame?.SourceSize ?? new SizeD(Engine.SrcInfo.Width, Engine.SrcInfo.Height),
                 Diff = currentFrame?.Diff ?? -1
             };
         }
@@ -500,7 +480,7 @@ namespace AutoOverlay.Forms
         {
             var request = new RenderRequest
             {
-                info = GetOverlayInfo().Resize(Engine.SrcInfo.Size, Engine.OverInfo.Size),
+                info = GetOverlayInfo().ScaleBySource(Engine.SrcInfo.Size),
                 env = Env,
                 outSize = new Size((int) nudOutputWidth.Value, (int) nudOutputHeight.Value),
                 preview = chbPreview.Checked,
@@ -512,7 +492,6 @@ namespace AutoOverlay.Forms
                     : null,
                 gradient = (int) nudGradientSize.Value,
                 noise = (int) nudNoiseSize.Value,
-                mode = (int) cbMode.SelectedItem,
                 overlayMode = cbOverlayMode.SelectedItem.ToString(),
                 opacity = tbOpacity.Value / 100.0,
                 colorAdjust = chbColorAdjust.Checked ? tbColorAdjust.Value / 100.0 : -1,
@@ -538,7 +517,6 @@ namespace AutoOverlay.Forms
             public bool rgb;
             public string matrix;
             public int gradient, noise;
-            public int mode;
             public string overlayMode;
             public double opacity;
             public double colorAdjust;
@@ -551,14 +529,12 @@ namespace AutoOverlay.Forms
             using dynamic invoker = new DynamicEnvironment(request.env);
             using var collector = new VideoFrameCollector();
             var engine = request.engine;
-            var crop = info.GetCrop();
             var outClip = request.preview
                         ? invoker.StaticOverlayRender(
                             engine.Source, engine.Overlay,
-                            info.X, info.Y, info.Angle / 100.0,
-                            info.Width, info.Height,
-                            crop.Left, crop.Top, crop.Right, crop.Bottom,
-                            warpPoints: info.Warp.ToString(),
+                            info.Placement.X, info.Placement.Y, info.Angle,
+                            info.OverlaySize.Width, info.OverlaySize.Height,
+                            warpPoints: info.OverlayWarp.ToString(),
                             diff: info.Diff,
                             sourceMask: engine.SourceMask,
                             overlayMask: engine.OverlayMask,
@@ -567,7 +543,6 @@ namespace AutoOverlay.Forms
                             gradient: request.gradient,
                             noise: request.noise,
                             dynamicNoise: true,
-                            mode: request.mode,
                             overlayMode: request.overlayMode,
                             opacity: request.opacity,
                             colorAdjust: request.colorAdjust,
@@ -651,6 +626,18 @@ namespace AutoOverlay.Forms
             var info = Engine.OverlayStat[CurrentFrame];
             Interval[CurrentFrame] = info;
             UpdateControls(info);
+            RenderImpl();
+        }
+
+
+        private void ResetInterval(object sender = null, EventArgs e = null)
+        {
+            foreach (var i in Enumerable.Range(Interval.First, Interval.Length))
+            {
+                var info = Engine.OverlayStat[i];
+                Interval[i] = info;
+            }
+            UpdateControls(Interval[CurrentFrame]);
             RenderImpl();
         }
 
@@ -837,7 +824,7 @@ namespace AutoOverlay.Forms
             Post(CurrentFrame, frame => Engine.AutoOverlayImpl(frame), (frame, info) =>
             {
                 Interval[CurrentFrame] = info;
-                if (Interval.Contains(CurrentFrame - 1) && !info.NearlyEquals(Interval[CurrentFrame - 1], Engine.OverInfo.Size, MaxDeviation))
+                if (Interval.Contains(CurrentFrame - 1) && !info.NearlyEquals(Interval[CurrentFrame - 1], MaxDeviation))
                 {
                     btnSeparate_Click(sender, e);
                     UpdateControls(info);
@@ -885,7 +872,7 @@ namespace AutoOverlay.Forms
             Post(new
                 {
                     Frame = CurrentFrame,
-                    KeyInfo = keyFrame().Resize(Engine.SrcInfo.Size, Engine.OverInfo.Size),
+                    KeyInfo = keyFrame(),
                     Delta = (int)nudDistance.Value,
                     Scale = (double)nudScale.Value / 1000
                 },
@@ -906,7 +893,6 @@ namespace AutoOverlay.Forms
                 var delta = (int) nudDistance.Value;
                 var scale = (double) nudScale.Value / 1000;
                 var keyFrame = interval == Interval ? Interval[currentFrame] : interval.First();
-                keyFrame = keyFrame.Resize(Engine.SrcInfo.Size, Engine.OverInfo.Size);
                 return Engine.PanScanImpl(keyFrame, frame, delta, scale, false);
             })
             {
@@ -922,9 +908,8 @@ namespace AutoOverlay.Forms
                 var delta = (int) nudDistance.Value;
                 var scale = (double) nudScale.Value / 1000;
                 var keyFrame = interval[frame - 1] ?? interval[frame];
-                keyFrame = keyFrame.Resize(Engine.SrcInfo.Size, Engine.OverInfo.Size);
                 if (interval == Interval)
-                    keyFrame.Warp = Interval[currentFrame].Warp;
+                    keyFrame.OverlayWarp = Interval[currentFrame].OverlayWarp;
                 return Engine.PanScanImpl(keyFrame, frame, delta, scale, false);
             })
             {

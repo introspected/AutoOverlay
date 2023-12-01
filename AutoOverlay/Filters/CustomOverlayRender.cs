@@ -48,23 +48,19 @@ namespace AutoOverlay
             OverlayInfo info;
             lock (Child)
                 using (var infoFrame = Child.GetFrame(n, StaticEnv))
-                    info = OverlayInfo.FromFrame(infoFrame).First();
-            var crop = info.GetCrop();
+                    info = OverlayInfo.FromFrame(infoFrame).First().ScaleBySource(Source.GetVideoInfo().GetSize());
             var hybrid = DynamicEnv.Invoke(Function,
-                Engine, Source, Overlay, info.X, info.Y, info.Angle / 100.0, info.Width, info.Height, 
-                crop.Left, crop.Top, crop.Right, crop.Bottom, info.Diff);
+                Engine, Source, Overlay, info.Placement, info.Angle, info.OverlaySize, info.Diff);
             if (Debug)
                 hybrid = hybrid.Subtitle(info.ToString().Replace("\n", "\\n"), lsp: 0);
             var res = NewVideoFrame(StaticEnv);
-            using (VideoFrame frame = hybrid[n])
+            using VideoFrame frame = hybrid[n];
+            Parallel.ForEach(new[] { YUVPlanes.PLANAR_Y, YUVPlanes.PLANAR_U, YUVPlanes.PLANAR_V }, plane =>
             {
-                Parallel.ForEach(new[] { YUVPlanes.PLANAR_Y, YUVPlanes.PLANAR_U, YUVPlanes.PLANAR_V }, plane =>
-                {
-                    for (var y = 0; y < frame.GetHeight(plane); y++)
-                        OverlayUtils.CopyMemory(res.GetWritePtr(plane) + y * res.GetPitch(plane),
-                            frame.GetReadPtr(plane) + y * frame.GetPitch(plane), res.GetRowSize(plane));
-                });
-            }
+                for (var y = 0; y < frame.GetHeight(plane); y++)
+                    OverlayUtils.CopyMemory(res.GetWritePtr(plane) + y * res.GetPitch(plane),
+                        frame.GetReadPtr(plane) + y * frame.GetPitch(plane), res.GetRowSize(plane));
+            });
             return res;
         }
     }

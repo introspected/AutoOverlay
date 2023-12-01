@@ -23,7 +23,7 @@
     <ProjectGuid>{901C78BA-C997-418D-90CC-3D5EE93EE220}</ProjectGuid>
     <RootNamespace>AutoOverlayNative</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <TargetFrameworkVersion>4.7</TargetFrameworkVersion>
+    <TargetFrameworkVersion>4.8</TargetFrameworkVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -139,12 +139,12 @@
     <ClCompile Include="FastRandom.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\simd\prj\vs2019\Simd.vcxproj">
-      <Project>{c809d7a3-6c52-4e36-8582-00ced929317d}</Project>
-    </ProjectReference>
+    <ResourceCompile Include="App.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="App.rc" />
+    <ProjectReference Include="..\Simd\prj\vs2022\Simd.vcxproj">
+      <Project>{c809d7a3-6c52-4e36-8582-00ced929317d}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

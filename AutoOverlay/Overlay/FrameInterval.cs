@@ -10,7 +10,7 @@ namespace AutoOverlay
     {
         private readonly SortedDictionary<int, OverlayInfo> frames = new SortedDictionary<int, OverlayInfo>();
 
-        private readonly Dictionary<object, string> cache = new Dictionary<object, string>();
+        private readonly Dictionary<object, string> cache = new();
 
         public FrameInterval(OverlayInfo frame)
         {
@@ -72,16 +72,11 @@ namespace AutoOverlay
 
         public string Interval => First == Last ? First.ToString() : $"{First} ({Length})";
 
-        public string X => CheckFixed(p => p.X);
+        public string Placement => CheckFixed(p => p.Placement, p => $"{p.X:F2} : {p.Y:F2}");
 
-        public string Y => CheckFixed(p => p.Y);
+        public string Size => CheckFixed(p => p.OverlaySize, p => $"{p.Width:F2} : {p.Height:F2}");
 
-        public string Size => CheckFixed(p => new Size(p.Width, p.Height), p => $"{p.Width}x{p.Height}");
-
-        public string Warp => CheckFixed(p => p.Warp, p => "fixed");
-
-        public string Crop => CheckFixed(p => p.GetCrop().Scale(100), 
-            p => $"{p.Left:F0},{p.Top:F0},{p.Right:F0},{p.Bottom:F0}");
+        public string Warp => CheckFixed(p => p.OverlayWarp, p => "fixed");
 
         public string Angle => CheckFixed(p => p.Angle);
 
