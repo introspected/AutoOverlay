@@ -100,6 +100,7 @@
     <Compile Include="Filters\OverlayFilter.cs" />
     <Compile Include="Filters\BilinearRotate.cs" />
     <Compile Include="AviSynth\DynamicEnvironment.cs" />
+    <Compile Include="Overlay\ExtraClip.cs" />
     <Compile Include="Overlay\OverlayConfigInstance.cs" />
     <Compile Include="Overlay\OverlayDifference.cs" />
     <Compile Include="Overlay\OverlayDifferenceD.cs" />

@@ -489,6 +489,9 @@ Expand the black mask (mode=darken) or white mask (mode=lighten)
 ### Обнаружение сцен
 
 ## История изменений
+### 02.12.2023 v0.6.1
+1. OverlayEngine: warp and colorAdjust bugfix
+
 ### 01.12.2023 v0.6
 1. OverlayRender: упразднен параметр mode
 2. OverlayRender: добавлены параметры extraClips, innerBounds, outerBounds, overlayBalanceX, overlayBalanceY, fixedSource, overlayOrder, maskMode, colorInterpolation, colorExclude, backgroundClip, backBalance, fullScreen, edgeGradient.

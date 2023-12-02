@@ -227,10 +227,8 @@ namespace AutoOverlay
         {
             if (input.FixedSource)
                 return SourceRectangle.Expand(input.TargetSize.GetAspectRatio());
-            var extraClips = input.ExtraClips
+            var union = input.ExtraClips
                 .Select(p => p.Item2.ScaleBySource(SourceSize))
-                .ToList();
-            var union = extraClips
                 .Select(p => p.Union)
                 .Aggregate(Union, (acc, rect) => acc.Union(rect));
 
@@ -313,7 +311,6 @@ namespace AutoOverlay
 
             var offset = -canvas.Location;
             canvas = new RectangleD(Space.Empty, input.TargetSize);
-
             
             (Rectangle region, RectangleD crop, Warp warp) GetRegionAndCrop(RectangleD rect, SizeF size, Warp warpIn)
             {
@@ -328,9 +325,9 @@ namespace AutoOverlay
             var (targetOver, overCrop, overWarp) = GetRegionAndCrop(OverlayRectangle, input.OverlaySize, OverlayWarp);
 
             var extraClips = from p in input.ExtraClips
-                             let size = p.Item1
+                             let tuple = p.Item1
                              let info = p.Item2.ScaleBySource(SourceSize)
-                             let regionAndCrop = GetRegionAndCrop(info.OverlayRectangle, size, info.OverlayWarp)
+                             let regionAndCrop = GetRegionAndCrop(info.OverlayRectangle, tuple.Info.Size, info.OverlayWarp)
                              select new OverlayData
                              {
                                  Diff = Diff,
@@ -338,7 +335,7 @@ namespace AutoOverlay
                                  Source = targetSrc,
                                  SourceCrop = srcCrop,
                                  SourceWarp = srcWarp,
-                                 OverlayBaseSize = size,
+                                 OverlayBaseSize = tuple.Info.Size,
                                  Overlay = regionAndCrop.region,
                                  OverlayCrop = regionAndCrop.crop,
                                  OverlayWarp = regionAndCrop.warp,

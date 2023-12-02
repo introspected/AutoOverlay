@@ -27,7 +27,7 @@ namespace AutoOverlay
         public const int FRACTION = 7;
         public static readonly double EPSILON = Math.Pow(10, -FRACTION);
 
-        public static readonly Size NO_SUB_SAMPLE = new Size(1, 1);
+        public static readonly Size NO_SUB_SAMPLE = new(1, 1);
 
         [DllImport("kernel32.dll", EntryPoint = "CopyMemory", SetLastError = false)]
         public static extern void CopyMemory(IntPtr dest, IntPtr src, int count);
@@ -240,6 +240,10 @@ namespace AutoOverlay
                     break;
                 case PixelFormat.Format24bppRgb:
                     bmp = new Bitmap(frame.GetRowSize() / 3, frame.GetHeight(), frame.GetPitch(), pixelFormat, frame.GetReadPtr());
+                    bmp.RotateFlip(RotateFlipType.Rotate180FlipX);
+                    break;
+                case PixelFormat.Format32bppPArgb:
+                    bmp = new Bitmap(frame.GetRowSize() / 4, frame.GetHeight(), frame.GetPitch(), pixelFormat, frame.GetReadPtr());
                     bmp.RotateFlip(RotateFlipType.Rotate180FlipX);
                     break;
                 default:
@@ -590,6 +594,24 @@ namespace AutoOverlay
         {
             action(obj);
             return obj;
+        }
+
+        public static IEnumerable<T> Enumerate<T>(this T obj)
+        {
+            yield return obj;
+        }
+
+        public static Size Fit(this Size size, Size other)
+        {
+            var ar = size.GetAspectRatio();
+            var otherAr = other.GetAspectRatio();
+            if (ar > otherAr)
+            {
+                var height = (int)Math.Round(other.Width / ar);
+                return new Size(other.Width, height);
+            }
+            var width = (int)Math.Round(other.Height * ar);
+            return new Size(width, other.Height);
         }
     }
 }

@@ -31,7 +31,7 @@ namespace AutoOverlay.Overlay
                 OverlayBalance = ctx.Render.OverlayBalance,
                 FixedSource = ctx.Render.FixedSource,
                 ExtraClips = ctx.ExtraClips
-                    .Select((p, i) => Tuple.Create(p.GetVideoInfo().GetSize(), extra[i].First()))
+                    .Select((p, i) => Tuple.Create(p, extra[i].First()))
                     .ToList()
             };
             var data = history.First().GetOverlayData(input);
@@ -46,7 +46,7 @@ namespace AutoOverlay.Overlay
                 new(data, true, ctx.Source, ctx.SourceMask, 1, ctx.Render, lumaData, history)
             };
             var extraLayers = ctx.ExtraClips
-                .Select((clip, i) => new OverlayLayer(data.ExtraClips[i], false, clip, ctx.ExtraMasks[i], ctx.ExtraOpacity[i], ctx.Render, lumaData?.ExtraClips[i], extra[i]));
+                .Select((tuple, i) => new OverlayLayer(data.ExtraClips[i], false, tuple.Clip, tuple.Mask, tuple.Opacity, ctx.Render, lumaData?.ExtraClips[i], extra[i]));
             layers.AddRange(extraLayers);
             layers.Insert(ctx.Render.OverlayOrder + 1, new(data, false, ctx.Overlay, ctx.OverlayMask, ctx.Render.Opacity, ctx.Render, lumaData, history));
             for (var i = 0; i < layers.Count; i++)

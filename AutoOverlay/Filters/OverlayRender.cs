@@ -469,7 +469,7 @@ namespace AutoOverlay
                 OverlayBalance = OverlayBalance,
                 FixedSource = FixedSource,
                 ExtraClips = ctx.ExtraClips
-                    .Select((p, i) => Tuple.Create(p.GetVideoInfo().GetSize(), extra[i]))
+                    .Select((p, i) => Tuple.Create(p, extra[i]))
                     .ToList()
             };
             var canvasReal = info.GetCanvas(input);

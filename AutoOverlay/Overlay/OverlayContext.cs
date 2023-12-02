@@ -26,9 +26,7 @@ namespace AutoOverlay.Overlay
 
         public ExtraVideoInfo TargetInfo { get; }
 
-        public List<Clip> ExtraClips { get; }
-        public List<dynamic> ExtraMasks { get; }
-        public List<double> ExtraOpacity { get; }
+        public List<ExtraClip> ExtraClips { get; }
 
         public YUVPlanes Plane { get; }
         public dynamic BackgroundClip { get; }
@@ -58,7 +56,14 @@ namespace AutoOverlay.Overlay
             Source = Static.Source.Dynamic();
             Overlay = Static.Overlay.Dynamic();
             
-            ExtraClips = Render.ExtraClips.Select(p => p.Clip.ExtractPlane(plane)).ToList();
+            ExtraClips = Render.ExtraClips.Select(p => new ExtraClip
+            {
+                Clip = p.Clip.ExtractPlane(plane),
+                Mask = PrepareMask(p.Mask, p.Clip.GetVideoInfo()),
+                Info = p.Clip.GetVideoInfo(),
+                Opacity = p.Opacity,
+                Minor = p.Minor
+            }).ToList();
 
             SourceInfo = Static.Source.GetVideoInfo();
             OverlayInfo = Static.Overlay.GetVideoInfo();
@@ -68,8 +73,6 @@ namespace AutoOverlay.Overlay
 
             SourceMask = PrepareMask(Static.SourceMask, Static.SourceBase.GetVideoInfo());
             OverlayMask = PrepareMask(Static.OverlayMask, Static.OverlayBase.GetVideoInfo());
-            ExtraMasks = Render.ExtraClips.Select(p => PrepareMask(p.Mask, p.Clip.GetVideoInfo())).ToList();
-            ExtraOpacity = Render.ExtraClips.Select(p => p.Opacity).ToList();
 
             disposables.Add(render.Source);
             disposables.Add(render.Overlay);

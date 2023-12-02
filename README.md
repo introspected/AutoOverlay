@@ -525,7 +525,10 @@ Expand the black mask (mode=darken) or white mask (mode=lighten)
 ### Scene detection
 
 ## Changelist
-### 01.12.2023 v0.6
+### 02.12.2023 v0.6.1
+1. OverlayEngine: warp and colorAdjust bugfix
+
+### 01.12.2023 v0.6.0
 1. OverlayRender: parameter mode deleted.
 2. OverlayRender: added parameters extraClips, innerBounds, outerBounds, overlayBalanceX, overlayBalanceY, fixedSource, overlayOrder, maskMode, colorInterpolation, colorExclude, backgroundClip, backBalance, fullScreen, edgeGradient.
 3. OverlayRender: parameter background replaced with backBalance, the aim of background parameter was changed.

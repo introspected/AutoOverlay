@@ -11,7 +11,7 @@ namespace AutoOverlay.Overlay
         public Size OverlaySize { get; set; }
         public Size TargetSize { get; set; }
 
-        public List<Tuple<Size, OverlayInfo>> ExtraClips { get; set; } = new();
+        public List<Tuple<ExtraClip, OverlayInfo>> ExtraClips { get; set; } = new();
 
         public RectangleD InnerBounds { get; set; } // 0-1
         public RectangleD OuterBounds { get; set; } // 0-1

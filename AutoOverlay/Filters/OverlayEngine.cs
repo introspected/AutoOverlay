@@ -843,8 +843,6 @@ namespace AutoOverlay
                         }
 
                         var adjustedClip = AdjustClip(srcPrepared, overPrepared, subResultSet.First());
-                        adjustedClip.GetFrame(n,StaticEnv).ToBitmap(PixelFormat.Format8bppIndexed).Save(@"C:\MEDIA\WATCHMEN\testAdjusted.png");
-                        overPrepared.GetFrame(n, StaticEnv).ToBitmap(PixelFormat.Format8bppIndexed).Save(@"C:\MEDIA\WATCHMEN\test.png");
                         if (ColorAdjust == 0)
                             overPrepared = adjustedClip;
                         else srcPrepared = adjustedClip;
@@ -1259,8 +1257,6 @@ namespace AutoOverlay
 #if DEBUG
                 diffWatch.Start();
 #endif
-                //task.over.ToBitmap(PixelFormat.Format8bppIndexed).Save($@"e:\test\sample{task.GetHashCode()}.png");
-
 
                 OverlayData stat = FindBestIntersect(
                     task.src, task.srcMask, task.srcSize,

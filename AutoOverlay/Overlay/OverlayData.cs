@@ -13,9 +13,6 @@ namespace AutoOverlay.Overlay
             Diff = double.MaxValue
         };
 
-        public static Func<OverlayData, Rectangle> SourceGetter => p => p.Source;
-        public static Func<OverlayData, Rectangle> OverlayGetter => p => p.Overlay;
-
         public double Diff { get; set; }
 
         public Warp SourceWarp { get; set; } = Warp.Empty;
@@ -55,8 +52,8 @@ namespace AutoOverlay.Overlay
                 Diff = Diff,
                 SourceSize = CalcSize(SourceBaseSize, srcScale),
                 OverlaySize = CalcSize(OverlayBaseSize, overScale),
-                SourceWarp = SourceWarp.Scale(srcScale),
-                OverlayWarp = OverlayWarp.Scale(overScale),
+                SourceWarp = SourceWarp,
+                OverlayWarp = OverlayWarp,
                 Angle = OverlayAngle,
                 Placement = Overlay.Location.AsSpace() - OverlayCrop.Location
             };
