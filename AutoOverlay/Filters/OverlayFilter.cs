@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Threading.Tasks;
 using AutoOverlay.AviSynth;
 using AutoOverlay.Overlay;
@@ -19,19 +19,19 @@ namespace AutoOverlay
         public ScriptEnvironment StaticEnv => DynamicEnvironment.Env ?? topLevel;
         private DynamicEnvironment topLevel;
 
-        protected static ConcurrentDictionary<string, OverlayFilter> Filters { get; } = new();
+        private static ConcurrentDictionary<string, OverlayFilter> Filters { get; } = new();
         public string FilterId { get; } = Guid.NewGuid().ToString();
-        private long references = 1;
+
+        private readonly LinkedList<Clip> attached = new();
 
         protected OverlayFilter()
         {
             Filters[FilterId] = this;
         }
 
-        public OverlayFilter Attach()
+        public void Attach(Clip clip)
         {
-            Interlocked.Increment(ref references);
-            return this;
+            attached.AddLast(clip);
         }
 
         public static T FindFilter<T>(string filterId) where T : OverlayFilter => Filters[filterId] as T;
@@ -126,20 +126,6 @@ namespace AutoOverlay
             return subtitled[0];
         }
 
-        public Clip GetBlankClip(Clip clip, bool white)
-        {
-            return clip.GetVideoInfo().IsRGB() ? 
-                (Clip) DynamicEnv.BlankClip(clip, color: white ? 0xFFFFFF : 0) : 
-                (Clip) DynamicEnv.BlankClip(clip, color_yuv: white ? 0xFF8080 : 0x008080);
-        }
-
-        protected dynamic InitClip(dynamic clip, int width, int height, int color)
-        {
-            return ((Clip) clip).GetVideoInfo().IsRGB()
-                ? clip.BlankClip(width: width, height: height, color: color)
-                : clip.BlankClip(width: width, height: height, color_yuv: color);
-        }
-
         public dynamic ResizeRotate(Clip clip, string resizeFunc, string rotateFunc, OverlayData data)
         {
             return ResizeRotate(clip, resizeFunc, rotateFunc,
@@ -218,13 +204,16 @@ namespace AutoOverlay
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing && Interlocked.Decrement(ref references) == 0 && Filters.TryRemove(FilterId, out _))
+            if (disposing)
             {
-                base.Dispose(disposing);
                 OverlayUtils.Dispose(this);
                 topLevel?.Dispose();
                 topLevel = null;
+                foreach (var clip in attached)
+                    clip.Dispose();
             }
+            Filters.TryRemove(FilterId, out _);
+            base.Dispose(disposing);
         }
 
         private static void DisposeAll()
@@ -244,7 +233,7 @@ namespace AutoOverlay
         protected VideoFrame Copy(VideoFrame frame)
         {
             var res = NewVideoFrame(StaticEnv);
-            Copy(frame, res, OverlayUtils.GetPlanes(GetVideoInfo().pixel_type));
+            Copy(frame, res, GetVideoInfo().pixel_type.GetPlanes());
             return res;
         }
 

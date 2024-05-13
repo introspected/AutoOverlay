@@ -49,8 +49,8 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="MathNet.Numerics, Version=4.12.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\MathNet.Numerics.4.12.0\lib\net461\MathNet.Numerics.dll</HintPath>
+    <Reference Include="MathNet.Numerics, Version=5.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\MathNet.Numerics.5.0.0\lib\net48\MathNet.Numerics.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -64,8 +64,10 @@
   <ItemGroup>
     <Compile Include="AviSynth\AvsArgumentAttribute.cs" />
     <Compile Include="AviSynth\IsExternalInit.cs" />
+    <Compile Include="AviSynth\Presets.cs" />
     <Compile Include="Enum\BackgroundMode.cs" />
     <Compile Include="Enum\EdgeGradient.cs" />
+    <Compile Include="Enum\OverlayRenderPreset.cs" />
     <Compile Include="Filters\ComplexityOverlayMany.cs" />
     <Compile Include="Filters\CustomOverlayRender.cs" />
     <Compile Include="Filters\OverlayClip.cs" />
@@ -82,6 +84,8 @@
     <Compile Include="Forms\ProgressDialog.Designer.cs">
       <DependentUpon>ProgressDialog.cs</DependentUpon>
     </Compile>
+    <Compile Include="Histogram\ColorMapper.cs" />
+    <Compile Include="Histogram\ColorHistogram.cs" />
     <Compile Include="Histogram\HistogramCache.cs" />
     <Compile Include="Enum\AvsMatrix.cs" />
     <Compile Include="Enum\ColorInterpolation.cs" />
@@ -100,16 +104,20 @@
     <Compile Include="Filters\OverlayFilter.cs" />
     <Compile Include="Filters\BilinearRotate.cs" />
     <Compile Include="AviSynth\DynamicEnvironment.cs" />
+    <Compile Include="Filters\ColorMatch.cs" />
+    <Compile Include="Overlay\ConstantInterpolator.cs" />
     <Compile Include="Overlay\ExtraClip.cs" />
+    <Compile Include="Overlay\MinMax.cs" />
     <Compile Include="Overlay\OverlayConfigInstance.cs" />
     <Compile Include="Overlay\OverlayDifference.cs" />
     <Compile Include="Overlay\OverlayDifferenceD.cs" />
     <Compile Include="Overlay\OverlayLayer.cs" />
+    <Compile Include="Overlay\OverlayMapper.cs" />
+    <Compile Include="Overlay\OverlaySequence.cs" />
     <Compile Include="Overlay\Space.cs" />
     <Compile Include="Overlay\FileOverlayStat.cs" />
     <Compile Include="Overlay\FrameInterval.cs" />
     <Compile Include="Filters\OverlayMask.cs" />
-    <Compile Include="Enum\FramingMode.cs" />
     <Compile Include="Filters\DynamicOverlayRender.cs" />
     <Compile Include="Filters\OverlayRender.cs" />
     <Compile Include="Filters\StaticOverlayRender.cs" />
@@ -147,9 +155,6 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\AutoOverlayNative\AutoOverlayNative.vcxproj">
       <Project>{901c78ba-c997-418d-90cc-3d5ee93ee220}</Project>
       <Name>AutoOverlayNative</Name>
@@ -160,7 +165,9 @@
       <Name>AvsFilterNet</Name>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>rem copy /Y "$(SolutionDir)simd\bin\v142\x64\Release\simd.dll" "$(TargetDir)"</PostBuildEvent>

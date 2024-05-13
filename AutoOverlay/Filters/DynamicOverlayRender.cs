@@ -7,11 +7,11 @@ using AvsFilterNet;
 
 [assembly: AvisynthFilterClass(typeof(DynamicOverlayRender),
     nameof(OverlayRender),
-    "ccc[SourceMask]c[OverlayMask]c[ExtraClips]c" +
+    "ccc[SourceMask]c[OverlayMask]c[ExtraClips]c[Preset]s" +
     "[InnerBounds]c[OuterBounds]c[OverlayBalanceX]f[OverlayBalanceY]f[FixedSource]b[OverlayOrder]i" +
     "[OverlayMode]s[Width]i[Height]i[PixelType]s[Gradient]i[Noise]i[DynamicNoise]b" +
     "[BorderControl]i[BorderMaxDeviation]f[BorderOffset]c[SrcColorBorderOffset]c[OverColorBorderOffset]c" +
-    "[MaskMode]b[Opacity]f[ColorAdjust]f[ColorInterpolation]s[ColorExclude]f[ColorFramesCount]i[ColorFramesDiff]f" +
+    "[MaskMode]b[Opacity]f[ColorAdjust]f[ColorBuckets]i[ColorInterpolation]s[ColorExclude]f[ColorFramesCount]i[ColorFramesDiff]f" +
     "[ColorMaxDeviation]f[AdjustChannels]s[Matrix]s[Upsize]s[Downsize]s[Rotate]s[SIMD]b[Debug]b[Invert]b" +
     "[Extrapolation]b[Background]s[BackgroundClip]c[BlankColor]i" +
     "[BackBalance]f[BackBlur]i[FullScreen]b[EdgeGradient]s[BitDepth]i",
@@ -37,6 +37,9 @@ namespace AutoOverlay
 
         [AvsArgument]
         public override OverlayClip[] ExtraClips { get; protected set; }
+
+        [AvsArgument]
+        public override OverlayRenderPreset Preset { get; protected set; }
 
         [AvsArgument(Min = 0)]
         public override RectangleD InnerBounds { get; protected set; }
@@ -97,6 +100,9 @@ namespace AutoOverlay
 
         [AvsArgument(Min = -1, Max = 1)]
         public override double ColorAdjust { get; protected set; } = -1;
+
+        [AvsArgument(Min = 3, Max = 1000000)]
+        public override int ColorBuckets { get; protected set; } = 1024;
 
         [AvsArgument]
         public override ColorInterpolation ColorInterpolation { get; protected set; } = ColorInterpolation.Linear;

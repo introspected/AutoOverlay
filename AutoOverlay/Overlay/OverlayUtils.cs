@@ -3,10 +3,13 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Drawing.Printing;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using AutoOverlay.AviSynth;
 using AutoOverlay.Overlay;
@@ -29,16 +32,61 @@ namespace AutoOverlay
 
         public static readonly Size NO_SUB_SAMPLE = new(1, 1);
 
+        private static readonly Dictionary<int, string> ColorSpaceMap = Enum.GetNames(typeof(ColorSpaces))
+            .GroupBy(p => (int)Enum.Parse(typeof(ColorSpaces), p))
+            .ToDictionary(p => p.Key, p => p
+                .Select(val => val.ToString().Replace("CS_", "").Replace("BGR", "RGB"))
+                .First(val => !val.Contains("GENERIC")));
+
+        private static readonly Dictionary<ColorSpaces, int> BitDepths = new()
+        {
+            { ColorSpaces.CS_Sample_Bits_14, 14 },
+            { ColorSpaces.CS_Sample_Bits_12, 12 },
+            { ColorSpaces.CS_Sample_Bits_10, 10 },
+            { ColorSpaces.CS_Sample_Bits_16, 16 },
+            { ColorSpaces.CS_Sample_Bits_32, 32 },
+            { ColorSpaces.CS_Sample_Bits_8, 8 }
+        };
+
+        private static readonly Dictionary<int, PlaneChannel[]> PlaneChannels = Enum.GetValues(typeof(ColorSpaces))
+            .Cast<ColorSpaces>()
+            .Select(p => (int)p)
+            .Distinct()
+            .Select(p => (ColorSpaces)p)
+            .ToDictionary(p => (int)p, space => space switch
+            {
+                ColorSpaces.CS_YUY2 => [
+                    new(default, YUVPlanes.PLANAR_Y, 0, 2, 8),
+                    new(default, YUVPlanes.PLANAR_U, 1, 4, 8),
+                    new(default, YUVPlanes.PLANAR_V, 3, 4, 8)],
+                _ when space.HasFlag(ColorSpaces.CS_GENERIC_RGBP) => Planar(space.GetBitDepth(), YUVPlanes.PLANAR_R, YUVPlanes.PLANAR_G, YUVPlanes.PLANAR_B),
+                _ when space.HasFlag(ColorSpaces.CS_GENERIC_RGBAP) => Planar(space.GetBitDepth(), YUVPlanes.PLANAR_R, YUVPlanes.PLANAR_G, YUVPlanes.PLANAR_B, YUVPlanes.PLANAR_A),
+                _ when space.HasFlag(ColorSpaces.CS_RGB_TYPE | ColorSpaces.CS_INTERLEAVED) => Interleaved(3, space.GetBitDepth(), YUVPlanes.PLANAR_B, YUVPlanes.PLANAR_G, YUVPlanes.PLANAR_R),
+                _ when space.HasFlag(ColorSpaces.CS_RGBA_TYPE | ColorSpaces.CS_INTERLEAVED) => Interleaved(4, space.GetBitDepth(), YUVPlanes.PLANAR_B, YUVPlanes.PLANAR_G, YUVPlanes.PLANAR_R, YUVPlanes.PLANAR_A),
+                _ when space.HasFlag(ColorSpaces.CS_GENERIC_Y) => Planar(space.GetBitDepth(), YUVPlanes.PLANAR_Y),
+                _ when space.HasFlag(ColorSpaces.CS_PLANAR) => Planar(space.GetBitDepth(), YUVPlanes.PLANAR_Y, YUVPlanes.PLANAR_U, YUVPlanes.PLANAR_V),
+                _ => Array.Empty<PlaneChannel>()
+            });
+
+        public static PlaneChannel[] Interleaved(int channelCount, int depth, params YUVPlanes[] effectivePlanes) => Enumerable.Range(0, channelCount)
+            .Select(i => new PlaneChannel(default, effectivePlanes[i], i, channelCount, depth)).ToArray();
+
+        public static PlaneChannel[] Planar(int depth, params YUVPlanes[] planes) =>
+            planes.Select(p => new PlaneChannel(p, p, 0, 1, depth)).ToArray();
+
         [DllImport("kernel32.dll", EntryPoint = "CopyMemory", SetLastError = false)]
         public static extern void CopyMemory(IntPtr dest, IntPtr src, int count);
 
         [DllImport("msvcrt.dll", EntryPoint = "memset", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
         public static extern IntPtr MemSet(IntPtr dest, int c, int count);
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsNearlyZero(this double number) => Math.Abs(number) < EPSILON;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsNearlyZero(this float number) => Math.Abs(number) < EPSILON;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsNearlyEquals(this double a, double b) => Math.Abs(a - b) < EPSILON;
 
         public static IEnumerable<T> Append<T>(this IEnumerable<T> e, T item)
@@ -88,7 +136,7 @@ namespace AutoOverlay
             var ctor = typeof(AVSValue).GetConstructor(new[] {val.GetType()});
             if (ctor == null)
                 throw new AvisynthException($"Wrong type '{val.GetType()}' for {nameof(AVSValue)} instantiation");
-            return (AVSValue) ctor.Invoke(new[] {val});
+            return (AVSValue) ctor.Invoke(new[] { val });
         }
 
         public static dynamic Dynamic(this Clip clip) => new DynamicEnvironment(clip);
@@ -155,8 +203,8 @@ namespace AutoOverlay
         {
             if (control.InvokeRequired)
                 if (async)
-                    control.BeginInvoke(action, new object[] {control});
-                else control.Invoke(action, new object[] {control});
+                    control.BeginInvoke(action, new object[] { control });
+                else control.Invoke(action, new object[] { control });
             else
                 action(control);
         }
@@ -164,7 +212,7 @@ namespace AutoOverlay
         public static V SafeInvoke<T, V>(this T control, Func<T, V> func) where T : ISynchronizeInvoke
         {
             if (control.InvokeRequired)
-                return (V) control.Invoke(func, new object[] {control});
+                return (V) control.Invoke(func, new object[] { control });
             else
                 return func(control);
         }
@@ -190,20 +238,15 @@ namespace AutoOverlay
             return new Size(colorSpace.GetWidthSubsample(), colorSpace.GetHeightSubsample());
         }
 
+        public static string GetName(this ColorSpaces colorSpace)
+        {
+            return ColorSpaceMap[(int)colorSpace];
+        }
+
         public static bool WithoutSubSample(this ColorSpaces colorSpace)
         {
             return colorSpace.GetSubSample() == NO_SUB_SAMPLE;
         }
-
-        private static readonly Dictionary<ColorSpaces, int> BitDepths = new()
-        {
-            { ColorSpaces.CS_Sample_Bits_14, 14 },
-            { ColorSpaces.CS_Sample_Bits_12, 12 },
-            { ColorSpaces.CS_Sample_Bits_10, 10 },
-            { ColorSpaces.CS_Sample_Bits_16, 16 },
-            { ColorSpaces.CS_Sample_Bits_32, 32 },
-            { ColorSpaces.CS_Sample_Bits_8, 8 }
-        };
 
         public static int GetBitDepth(this ColorSpaces colorSpace)
         {
@@ -216,12 +259,18 @@ namespace AutoOverlay
             return (colorSpace & ~ColorSpaces.CS_Sample_Bits_Mask) | en;
         }
 
-        public static YUVPlanes[] GetPlanes(ColorSpaces colorSpace)
+        public static YUVPlanes[] GetPlanes(this ColorSpaces colorSpace)
         {
             if (colorSpace.HasFlag(ColorSpaces.CS_INTERLEAVED))
                 return new[] {default(YUVPlanes)};
+            if (colorSpace.HasFlag(ColorSpaces.CS_RGBP))
+                return new[] { YUVPlanes.PLANAR_R, YUVPlanes.PLANAR_G, YUVPlanes.PLANAR_B };
+            if (colorSpace.HasFlag(ColorSpaces.CS_RGBAP))
+                return new[] { YUVPlanes.PLANAR_R, YUVPlanes.PLANAR_G, YUVPlanes.PLANAR_B, YUVPlanes.PLANAR_A };
             return new[] { YUVPlanes.PLANAR_Y, YUVPlanes.PLANAR_U, YUVPlanes.PLANAR_V };
         }
+
+        public static PlaneChannel[] GetPlaneChannels(this ColorSpaces colorSpace) => PlaneChannels[(int)colorSpace];
 
         public static Bitmap ToBitmap(this VideoFrame frame, PixelFormat pixelFormat, YUVPlanes plane = default(YUVPlanes))
         {
@@ -270,37 +319,52 @@ namespace AutoOverlay
             var argsDefined = annotatedProperties.Sum(p => p.Item1.PropertyType == typeof(Space) ? 2 : 1);
             if (argsDefined != args.ArraySize() && argsDefined != args.ArraySize() - 1)
                 throw new AvisynthException("Instance attributes count not match to declared");
-            var zeroBased = argsDefined == args.ArraySize();
-
-            var argIndex = zeroBased ? 0 : 1;
-            var annotatedPropertiesWithArguments = annotatedProperties.Select(p => new
-            {
-                Argument = p.Item1.PropertyType == typeof(Space)
-                    ? new AVSValue(args[argIndex++], args[argIndex++])
-                    : args[argIndex++],
-                Property = p.Item1,
-                Attribute = p.Item2
-            }).ToList();
 
             var filterName = filter.GetType().Assembly
-                                 .GetCustomAttributes(typeof(AvisynthFilterClassAttribute), true)
-                                 .OfType<AvisynthFilterClassAttribute>()
-                                 .FirstOrDefault(p => p.FilterType == filter.GetType())
-                                 ?.FilterName ?? filter.GetType().Name;
+                .GetCustomAttributes(typeof(AvisynthFilterClassAttribute), true)
+                .OfType<AvisynthFilterClassAttribute>()
+                .FirstOrDefault(p => p.FilterType == filter.GetType())
+                ?.FilterName ?? filter.GetType().Name;
 
-            foreach (var tuple in annotatedPropertiesWithArguments)
+            var zeroBased = argsDefined == args.ArraySize();
+            var argIndex = zeroBased ? 0 : 1;
+            var annotatedPropertiesWithArguments = annotatedProperties.Select(p =>
             {
-                var propertyName = $"{filterName}.{tuple.Property.Name}";
-                var propType = tuple.Property.PropertyType;
-                var isDefined = tuple.Argument.Defined();
-                if (tuple.Attribute.Required && !isDefined)
-                    throw new AvisynthException($"{propertyName} is required but not defined");
-                if (!isDefined)
+                AVSValue argument;
+                if (p.Item1.PropertyType == typeof(Space))
                 {
-                    if (propType.IsArray)
+                    argument = new AVSValue(args[argIndex++], args[argIndex++]);
+                    if (!argument[0].Defined() && !argument[1].Defined())
+                        argument = new AVSValue();
+                }
+                else
+                {
+                    argument = args[argIndex++];
+                }
+
+                var property = p.Item1;
+                return new
+                {
+                    Argument = argument,
+                    Property = p.Item1,
+                    Name = property.Name,
+                    QualifiedName = $"{filterName}.{property.Name}",
+                    Type = property.PropertyType,
+                    Defined = argument.Defined(),
+                    Attribute = p.Item2
+                };
+            }).ToDictionary(p => p.Name, p => p);
+
+            foreach (var tuple in annotatedPropertiesWithArguments.Values)
+            {
+                if (tuple.Attribute.Required && !tuple.Defined)
+                    throw new AvisynthException($"{tuple.QualifiedName} is required but not defined");
+                if (!tuple.Defined)
+                {
+                    if (tuple.Type.IsArray)
                     {
-                        var emptyArray = Array.CreateInstance(propType.GetElementType(), 0);
-                        tuple.Property.GetSetMethod(true).Invoke(filter, new object[] { emptyArray });
+                        var emptyArray = Array.CreateInstance(tuple.Type.GetElementType(), 0);
+                        tuple.Property.GetSetMethod(true).Invoke(filter, [emptyArray]);
                     }
                     continue;
                 }
@@ -314,81 +378,107 @@ namespace AutoOverlay
                     return Rect.FromFrame(frame);
                 }
 
-                if (propType == typeof(Rectangle))
+                if (tuple.Type == typeof(Rectangle))
                 {
-                    tuple.Property.GetSetMethod(true).Invoke(filter, new object[] { ReadRect(0).ToRectangle() });
+                    tuple.Property.GetSetMethod(true).Invoke(filter, [ReadRect(0).ToRectangle()]);
                     continue;
                 }
 
-                if (propType == typeof(RectangleD))
+                if (tuple.Type == typeof(RectangleD))
                 {
-                    tuple.Property.GetSetMethod(true).Invoke(filter, new object[] { ReadRect(0).ToRectangleD() });
+                    tuple.Property.GetSetMethod(true).Invoke(filter, [ReadRect(0).ToRectangleD()]);
                     continue;
                 }
 
-                if (propType == typeof(Space))
+                if (tuple.Type == typeof(Space))
                 {
                     var defSpace = (Space) defValue;
                     var space = new Space(
                         tuple.Argument[0].AsFloat(tuple.Argument[1].AsFloat(defSpace.X)), 
                         tuple.Argument[1].AsFloat(tuple.Argument[0].AsFloat(defSpace.Y)));
-                    ValidateRange(propertyName + "X", tuple.Attribute, space.X);
-                    ValidateRange(propertyName + "Y", tuple.Attribute, space.Y);
+                    ValidateRange(tuple.QualifiedName + "X", tuple.Attribute, space.X);
+                    ValidateRange(tuple.QualifiedName + "Y", tuple.Attribute, space.Y);
                     tuple.Property.GetSetMethod(true).Invoke(filter, new object[] { space });
                     continue;
                 }
 
                 void InitCollection<T>(Func<int, T> converter)
                 {
-                    var col = (ICollection<T>) Activator.CreateInstance(propType);
+                    var col = (ICollection<T>) Activator.CreateInstance(tuple.Type);
 
                     var clip = value as Clip;
                     var numFrames = clip.GetVideoInfo().num_frames;
                     if (numFrames > tuple.Attribute.Max)
-                        throw new AvisynthException($"{propertyName} contains {value} values but limit is {tuple.Attribute.Max}");
+                        throw new AvisynthException($"{tuple.QualifiedName} contains {value} values but limit is {tuple.Attribute.Max}");
                     for (var i = 0; i < numFrames; i++)
                         col.Add(converter.Invoke(i));
-                    tuple.Property.GetSetMethod(true).Invoke(filter, new object[] { col });
+                    tuple.Property.GetSetMethod(true).Invoke(filter, [col]);
                 }
 
-                if (typeof(ICollection<Rectangle>).IsAssignableFrom(propType))
+                if (typeof(ICollection<Rectangle>).IsAssignableFrom(tuple.Type))
                 {
                     InitCollection(i => ReadRect(i).ToRectangle());
                     continue;
                 }
 
-                if (typeof(ICollection<RectangleD>).IsAssignableFrom(propType))
+                if (typeof(ICollection<RectangleD>).IsAssignableFrom(tuple.Type))
                 {
                     InitCollection(i => ReadRect(i).ToRectangleD());
                     continue;
                 }
 
-                ValidateRange(propertyName, tuple.Attribute, value);
-                if (typeof(SupportFilter).IsAssignableFrom(propType) && value is Clip supportFilter)
-                    value = SupportFilter.FindFilter(propType, supportFilter, 0).Attach();
-                if (typeof(SupportFilter[]).IsAssignableFrom(propType) && value is Clip supportFilters)
+                ValidateRange(tuple.QualifiedName, tuple.Attribute, value);
+                if (filter is OverlayFilter overlayFilter && value is Clip supportClip)
                 {
-                    var length = supportFilters.GetVideoInfo().num_frames;
-                    var filterType = propType.GetElementType();
-                    value = Enumerable.Range(0, length)
-                        .Select(n => new { n, Filter = SupportFilter.FindFilter(filterType, supportFilters, n).Attach() })
-                        .Aggregate(Array.CreateInstance(filterType, length), (array, pair) =>
-                        {
-                            array.SetValue(pair.Filter, pair.n);
-                            return array;
-                        });
+                    overlayFilter.Attach(supportClip);
+                    if (typeof(SupportFilter).IsAssignableFrom(tuple.Type))
+                    {
+                        value = SupportFilter.FindFilter(tuple.Type, supportClip, 0);
+                        overlayFilter.Attach(supportClip);
+                    }
+
+                    if (typeof(SupportFilter[]).IsAssignableFrom(tuple.Type))
+                    {
+                        var length = supportClip.GetVideoInfo().num_frames;
+                        var filterType = tuple.Type.GetElementType();
+                        value = Enumerable.Range(0, length)
+                            .Select(n => new { n, Filter = SupportFilter.FindFilter(filterType, supportClip, n) })
+                            .Aggregate(Array.CreateInstance(filterType, length), (array, pair) =>
+                            {
+                                array.SetValue(pair.Filter, pair.n);
+                                return array;
+                            });
+                    }
                 }
-                if (propType.IsEnum && value is string)
-                    tuple.Attribute.Values = Enum.GetNames(propType);
-                if (propType.IsEnum && value is int)
-                    tuple.Attribute.Values = Enum.GetValues(propType).Cast<object>().Select(p => Convert.ToInt32(p).ToString()).ToArray();
+                if (tuple.Type.IsEnum && value is string)
+                    tuple.Attribute.Values = Enum.GetNames(tuple.Type);
+                if (tuple.Type.IsEnum && value is int)
+                    tuple.Attribute.Values = Enum.GetValues(tuple.Type).Cast<object>().Select(p => Convert.ToInt32(p).ToString()).ToArray();
                 if (tuple.Attribute.Values.Any() && tuple.Attribute.Values.Select(p => p.ToLower()).All(p => !p.Equals(value.ToString().ToLower())))
-                    throw new AvisynthException($"{propertyName} is equal to '{value}' but allowed values are [{string.Join(", ", tuple.Attribute.Values)}]");
+                    throw new AvisynthException($"{tuple.QualifiedName} is equal to '{value}' but allowed values are [{string.Join(", ", tuple.Attribute.Values)}]");
                 if (tuple.Property.PropertyType.IsEnum && value is string)
-                    value = Enum.Parse(propType, value.ToString(), true);
+                    value = Enum.Parse(tuple.Type, value.ToString(), true);
                 if (tuple.Property.PropertyType.IsEnum && value is int)
-                    value = Enum.ToObject(propType, value);
-                tuple.Property.GetSetMethod(true).Invoke(filter, new[] {value});
+                    value = Enum.ToObject(tuple.Type, value);
+                tuple.Property.GetSetMethod(true).Invoke(filter, [value]);
+            }
+
+            var presets = from tuple in annotatedPropertiesWithArguments.Values
+                let property = tuple.Property
+                where property.PropertyType.IsEnum
+                let value = (Enum)property.GetGetMethod(true).Invoke(filter, [])
+                where value != null
+                let preset = Presets.Find(value, filter)
+                where preset != null
+                select preset;
+            foreach (var preset in presets)
+            {
+                foreach (var pair in preset)
+                {
+                    var tuple = annotatedPropertiesWithArguments[pair.Key];
+                    if (!tuple.Defined)
+                        tuple.Property.GetSetMethod(true).Invoke(filter, [pair.Value(filter)]);
+                }
             }
         }
 
@@ -414,24 +504,22 @@ namespace AutoOverlay
         {
             var props = GetAnnotatedProperties(filter.GetType()).Select(p => p.Item1)
                 .Where(p => p.PropertyType == typeof(Clip) || p.PropertyType == typeof(Clip[]))
-                .Select(p =>
-                {
-                    var val = p.GetGetMethod(true).Invoke(filter, null);
-                    p.GetSetMethod(true).Invoke(filter, new object[] {null});
-                    return val;
-                });
+                .Select(p => p.GetGetMethod(true).Invoke(filter, null))
+                .Where(p => p != null);
             foreach (var prop in props)
             {
-                if (prop is Clip clip) 
-                    clip.Dispose();
-                else if (prop is Clip[] clips)
-                    foreach (var itemClip in clips)
-                        itemClip.Dispose();
-                else if (prop is OverlayFilter filt)
-                    filt.Dispose();
-                else if (prop is OverlayFilter[] filters)
-                    foreach (var itemFilter in filters)
-                        itemFilter.Dispose();
+                switch (prop)
+                {
+                    case Clip clip:
+                        clip.Dispose();
+                        break;
+                    case Clip[] clips:
+                    {
+                        foreach (var itemClip in clips)
+                            itemClip.Dispose();
+                        break;
+                    }
+                }
             }
         }
 
@@ -612,6 +700,25 @@ namespace AutoOverlay
             }
             var width = (int)Math.Round(other.Height * ar);
             return new Size(width, other.Height);
+        }
+
+        public static dynamic InitClip(dynamic clip, Size size, int color)
+        {
+            return InitClip(clip, size.Width, size.Height, color);
+        }
+
+        public static dynamic InitClip(dynamic clip, int width, int height, int color)
+        {
+            return ((Clip)clip).GetVideoInfo().IsRGB()
+                ? clip.BlankClip(width: width, height: height, color: color)
+                : clip.BlankClip(width: width, height: height, color_yuv: color);
+        }
+
+        public static Clip GetBlankClip(Clip clip, bool white)
+        {
+            return clip.GetVideoInfo().IsRGB()
+                ? clip.Dynamic().BlankClip(color: white ? 0xFFFFFF : 0)
+                : clip.Dynamic().BlankClip(color_yuv: white ? 0xFF8080 : 0x008080);
         }
     }
 }

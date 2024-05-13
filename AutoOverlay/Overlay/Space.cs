@@ -61,6 +61,7 @@ namespace AutoOverlay.Overlay
         public Space Multiply(Space other) => new(X * other.X, Y * other.Y);
         public Space Divide(Space other) => new(X / other.X, Y / other.Y);
         public Space Abs() => Eval(Math.Abs);
+        public Space Minus() => Empty.Subtract(this);
 
         public static Space Max(params Space[] spaces) => new(
             spaces.Select(p => p.X).Aggregate(Math.Max),

@@ -9,6 +9,8 @@
 #include <math.h>
 #include <algorithm>
 #include "FastRandom.h"
+#include "FramePlane.h"
+#include "PlaneChannel.h"
 #include "NativeUtils.h"
 #include <Simd/SimdLib.h>
 

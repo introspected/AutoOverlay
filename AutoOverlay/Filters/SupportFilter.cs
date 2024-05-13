@@ -28,7 +28,7 @@ namespace AutoOverlay
                     FileAccess.Read);
                 using var reader = new BinaryReader(stream);
                 if (reader.ReadString() != type.Name) return null;
-                return Filters[reader.ReadString()] as SupportFilter;
+                return FindFilter<SupportFilter>(reader.ReadString());
             }
         }
 

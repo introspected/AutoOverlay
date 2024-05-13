@@ -166,11 +166,11 @@ The scenes that were changed by user are highlighted with yellow color in grid. 
 * A, Z - next/previous frame
 
 ### OverlayRender
-    OverlayRender(clip engine, clip source, clip overlay, clip sourceMask, clip overlayMask, clip extraClips, 
+    OverlayRender(clip engine, clip source, clip overlay, clip sourceMask, clip overlayMask, clip extraClips, string preset, 
                   clip innerBounds, clip outerBounds, float overlayBalanceX, float overlayBalanceY, bool fixedSource, 
                   int overlayOrder, string overlayMode, int width, int height, string pixelType, int gradient, int noise, bool dynamicNoise, 
                   int borderControl, float borderMaxDeviation, clip borderOffset, clip srcColorBorderOffset, clip overColorBorderOffset, 
-                  bool maskMode, float opacity, float colorAdjust, string colorInterpolation, float colorExclude, 
+                  bool maskMode, float opacity, float colorAdjust, int colorBuckets, string colorInterpolation, float colorExclude, 
                   int colorFramesCount, float colorFramesDiff, float colorMaxDeviation, string adjustChannels, string matrix, 
                   string upsize, string downsize, string rotate, bool simd, bool debug, bool invert, bool extrapolation, 
                   string background, clip backgroundClip, int blankColor, float backBalance, int backBlur, 
@@ -184,6 +184,34 @@ This filter preforms rendering of the result clip using align values from the en
 - **overlay** (required) - second, overlaid clip. Any planar YUV (8-16 bit), RGB24 and RGB48 color spaces are supported.
 - **sourceMask** and **overlayMask** (default empty) - mask clips for source and overlaid clips. Unlike masks in overlay engine in this filter they work as avisynth built-in overlay filter masks. If both masks are specified then they are joined to one according align values. The purpose of the masks is maximum hiding of logos and other unwanted parts of the clips at transparent or gradient parts, which could be specified by *gradient* and *noise* parameters. The masks should be in the target clip bit depth. 
 - **extraClips** (default empty) - series of OverlayClip to overlay additional clips.
+- **preset** (default not set) - presets are used to set some other parameters (if they are not passed explicitly) according to preset purpose.
+
+|       Preset       |       Parameter       |         Value         |
+| ------------------ | --------------------- | --------------------- |
+| FitSource          | FixedSource           | true                  |
+| FitSource          | OverlayBalance(X,Y)   | -1                    |
+| FitScreen          | InnerBounds           | 1                     |
+| FitScreenBlur      | InnerBounds           | 1                     |
+| FitScreenBlur      | EdgeGradient          | inside                |
+| FitScreenBlur      | Background            | blur                  |
+| FitScreenBlur      | Gradient              | 50                    |
+| FitScreenMask      | InnerBounds           | 1                     |
+| FitScreenMask      | MaskMode              | true                  |
+| FullFrame          | InnerBounds           | 1                     |
+| FullFrame          | OuterBounds           | 1                     |
+| FullFrameBlur      | InnerBounds           | 1                     |
+| FullFrameBlur      | OuterBounds           | 1                     |
+| FullFrameBlur      | EdgeGradient          | inside                |
+| FullFrameBlur      | Background            | blur                  |
+| FullFrameBlur      | Gradient              | 50                    |
+| FullFrameMask      | InnerBounds           | 1                     |
+| FullFrameMask      | OuterBounds           | 1                     |
+| FullFrameMask      | MaskMode              | true                  |
+| Difference         | FixedSource           | true                  |
+| Difference         | OverlayBalance(X,Y)   | -1                    |
+| Difference         | OverlayMode           | difference            |
+| Difference         | Debug                 | true                  |
+
 - **innerBounds** (default 0) - clip of type Rect to limit empty areas inside union area of all clips. Values in range from 0 to 1 are coefficients. Values higher than 1 are absolute values in pixels.
 - **outerBounds** (default 0) - clip of type Rect to limit empty areas outside union area of all clips. Values in range from 0 to 1 are coefficients. Values higher than 1 are absolute values in pixels.
 - **overlayBalanceX** (default 0) - balance between source (-1) and overlaid (1) images on X coordinate in range from 0 to 1.
@@ -204,6 +232,7 @@ This filter preforms rendering of the result clip using align values from the en
 - **maskMode** (defualt false) - if true then all clips are replaced by white masks.
 - **opacity** (default 1) – opacity of overlaid image from 0 to 1.
 - **colorAdjust** (default -1, disabled) - value between 0 and 1. 0 - color adjusts to source clip. 1 - to overlay clip. 0.5 - average. Only descrete values -1, 0, 1 are supported with additional clips. Color adjustment performs by histogram matching in the intersection area.
+- **colorBuckets** (default maximum 1024 depending on color depth) - see ColorMatch.colorBuckets
 - **colorInterpolation** (default linear) - see ColorAdjust.interpolation
 - **colorExclude** (default 0) - see ColorAdjust.exclude
 - **colorFramesCount** (default 0) - forward and backward frames count that include to the color transition map for color adjustment 
@@ -224,7 +253,7 @@ This filter preforms rendering of the result clip using align values from the en
 - **backBlur** (default 15) - blur strength when `background` is `blur`.
 - **fullScreen** (default false) - background image fills all output clip area instead of just union area of aligned clips.
 - **edgeGradient** (default none) - gradient mode at edges of aligned clips: `none` - disabled, `inside` - only inside union area, `full` - everywhere. 
-- **bitDepth** (default unused) - target bit depth of output clip and input clips after transformations but before color adjustment to improve it
+- **bitDepth** (default unused) - target bit depth of output clip
 
 ### ColorAdjust
     ColorAdjust(clip sample, clip reference, clip sampleMask, clip referenceMask, bool greyMask,
@@ -232,7 +261,7 @@ This filter preforms rendering of the result clip using align values from the en
 	            bool limitedRange, string channels, float dither, float exclude, string interpolation, 
 				bool extrapolation, bool dynamicNoise, bool simd, int threads, bool debug)
     
-Color matching. Input clip, sample clip and reference clip must be in the same type of color space (YUV or RGB). Any planar YUV (8-16 bit), RGB24 and RGB48 color spaces are supported. Input clip and sample clip must have the same bit depth (usually sample is the cropped or resized input clip). The bit depth of output clip will changed to the reference one. The filter provides perfect matching only if sample and reference are represent the same area of frame while the input (first argument) may have different framing. This filter is used inside OverlayRender but it is also useful as standalone. 
+Color matching. Input clip, sample clip and reference clip must be in the same type of color space (YUV or RGB). Any planar YUV (8-16 bit), RGB24 and RGB48 color spaces are supported. Input clip and sample clip must have the same bit depth (usually sample is the cropped or resized input clip). The bit depth of output clip will changed to the reference one. The filter provides perfect matching only if sample and reference are represent the same area of frame while the input (first argument) may have different framing. This filter is used inside OverlayRender but it is also useful as standalone.
 
 #### Parameters
 - **clip** (required) - clip for color adjustment
@@ -253,6 +282,10 @@ Color matching. Input clip, sample clip and reference clip must be in the same t
 - **dynamicNoise** (default true) - dynamic noise if color mapping is the same between frames.
 - **simd** (default true) - SIMD Library using to increase performance in some cases.
 - **threads** (.NET default) - maximum thread count
+
+### ColorMatch
+    ColorMatch(clip sample, clip reference, clip sampleMask, clip referenceMask, bool greyMask, 
+	           float intensity, int length, string channels, bool limitedRange, float exclude)
 
 ### ComplexityOverlay
     ComplexityOverlay(clip source, clip overlay, string channels, int steps, float preference, bool mask, 
@@ -295,11 +328,11 @@ This filter generates comparison clip from source and overlay clips with borders
 
 ### StaticOverlayRender
     StaticOverlayRender(clip source, clip overlay, float x, float y, float angle, float overlayWidth, float overlayHeight,
-                        string warpPoints, float diff, clip sourceMask, clip overlayMask,
+                        string warpPoints, float diff, clip sourceMask, clip overlayMask, string preset, 
                         clip innerBounds, clip outerBounds, float overlayBalanceX, float overlayBalanceY, bool fixedSource,
                         int overlayOrder, string overlayMode, int width, int height, string pixelType, int gradient, int noise, bool dynamicNoise,
                         int borderControl, float borderMaxDeviation, clip borderOffset, clip srcColorBorderOffset, clip overColorBorderOffset,
-                        bool maskMode, float opacity, float colorAdjust, string colorInterpolation, float colorExclude,
+                        bool maskMode, float opacity, float colorAdjust, int colorBuckets, string colorInterpolation, float colorExclude,
                         int colorFramesCount, float colorFramesDiff, float colorMaxDeviation, string adjustChannels, string matrix,
                         string upsize, string downsize, string rotate, bool simd, bool debug, bool invert, bool extrapolation,
                         string background, clip backgroundClip, int blankColor, float backBalance, int backBlur,
@@ -525,6 +558,16 @@ Expand the black mask (mode=darken) or white mask (mode=lighten)
 ### Scene detection
 
 ## Changelist
+### 13.05.2024 v0.6.2
+1. ColorMatch: new color matching filter with 32 bit float color support
+2. OverlayEngine, OverlayRender, OverlayMask: enhanced HDR and RGB color support
+3. OverlayRender: explicit BitDepth parameter support
+4. OverlayRender: presets
+5. OverlayRender: fix border artefacts when chroma subsampling is used
+6. OverlayRender: ColorMatch instead of ColorAdjust when bit depth is 32
+7. MathNet.Numerics updated to 5.0.0
+8. Clip disposing fix
+
 ### 02.12.2023 v0.6.1
 1. OverlayEngine: warp and colorAdjust bugfix
 

@@ -10,11 +10,11 @@ using AvsFilterNet;
 [assembly: AvisynthFilterClass(
     typeof(StaticOverlayRender),
     nameof(StaticOverlayRender),
-    "cc[X]f[Y]f[Angle]f[OverlayWidth]f[OverlayHeight]f[WarpPoints]s[Diff]f[SourceMask]c[OverlayMask]c" +
+    "cc[X]f[Y]f[Angle]f[OverlayWidth]f[OverlayHeight]f[WarpPoints]s[Diff]f[SourceMask]c[OverlayMask]c[Preset]s" +
     "[InnerBounds]c[OuterBounds]c[OverlayBalanceX]f[OverlayBalanceY]f[FixedSource]b" +
     "[OverlayMode]s[Width]i[Height]i[PixelType]s[Gradient]i[Noise]i[DynamicNoise]b" +
     "[BorderOffset]c[SrcColorBorderOffset]c[OverColorBorderOffset]c" +
-    "[MaskMode]b[Opacity]f[ColorAdjust]f[ColorInterpolation]s[ColorExclude]f[ColorFramesCount]i[ColorFramesDiff]f" +
+    "[MaskMode]b[Opacity]f[ColorAdjust]f[ColorBuckets]i[ColorInterpolation]s[ColorExclude]f[ColorFramesCount]i[ColorFramesDiff]f" +
     "[AdjustChannels]s[Matrix]s[Upsize]s[Downsize]s[Rotate]s[SIMD]b[Debug]b[Invert]b" +
     "[Extrapolation]b[Background]s[BackgroundClip]c[BlankColor]i[BackBalance]f[BackBlur]i[FullScreen]b[EdgeGradient]s[BitDepth]i",
     MtMode.NICE_FILTER)]
@@ -57,13 +57,16 @@ namespace AutoOverlay
 
         public override OverlayClip[] ExtraClips { get; protected set; }
 
+        [AvsArgument]
+        public override OverlayRenderPreset Preset { get; protected set; }
+
         [AvsArgument(Min = 0)]
         public override RectangleD InnerBounds { get; protected set; }
 
         [AvsArgument(Min = 0)]
         public override RectangleD OuterBounds { get; protected set; }
 
-        [AvsArgument(Min = 0, Max = 1)]
+        [AvsArgument(Min = -1, Max = 1)]
         public override Space OverlayBalance { get; set; }
 
         [AvsArgument]
@@ -109,6 +112,9 @@ namespace AutoOverlay
 
         [AvsArgument(Min = -1, Max = 1)]
         public override double ColorAdjust { get; protected set; } = -1;
+
+        [AvsArgument(Min = 3, Max = 1000000)]
+        public override int ColorBuckets { get; protected set; } = 1024;
 
         [AvsArgument]
         public override ColorInterpolation ColorInterpolation { get; protected set; } = ColorInterpolation.Linear;
@@ -202,7 +208,7 @@ namespace AutoOverlay
         {
             var info = overlaySettings.Clone();
             info.FrameNumber = n;
-            return new List<OverlayInfo> {info};
+            return [info];
         }
     }
 }

@@ -19,7 +19,7 @@ namespace AutoOverlay.Overlay
         public Rectangle Union { get; }
         public OverlayData Data { get; }
 
-        public static List<OverlayLayer> GetLayers(OverlayContext ctx, List<OverlayInfo> history, List<OverlayInfo>[] extra)
+        public static List<OverlayLayer> GetLayers(int frameNumber, OverlayContext ctx, List<OverlayInfo> history, List<OverlayInfo>[] extra)
         {
             var input = new OverlayInput
             {
@@ -31,15 +31,13 @@ namespace AutoOverlay.Overlay
                 OverlayBalance = ctx.Render.OverlayBalance,
                 FixedSource = ctx.Render.FixedSource,
                 ExtraClips = ctx.ExtraClips
-                    .Select((p, i) => Tuple.Create(p, extra[i].First()))
-                    .ToList()
             };
-            var data = history.First().GetOverlayData(input);
+            var data = OverlayMapper.For(frameNumber, input, history, extra).GetOverlayData();
             OverlayData lumaData = null;
             if (ctx.Plane.IsChroma())
             {
                 var subsample = new Size(ctx.Render.ColorSpace.GetWidthSubsample(), ctx.Render.ColorSpace.GetHeightSubsample());
-                lumaData = history.First().GetOverlayData(input.Scale(subsample));
+                lumaData = OverlayMapper.For(frameNumber, input.Scale(subsample), history, extra).GetOverlayData();
             }
             var layers = new List<OverlayLayer>(2 + ctx.ExtraClips.Count)
             {
@@ -62,14 +60,12 @@ namespace AutoOverlay.Overlay
             Opacity = opacity;
             History = history;
             Union = data.Union;
-            Rectangle opposite;
             RectangleF crop;
             float angle;
             Warp warp;
             if (Source)
             {
                 Rectangle = data.Source;
-                opposite = data.Overlay;
                 crop = data.SourceCrop;
                 angle = 0;
                 warp = data.SourceWarp;
@@ -77,7 +73,6 @@ namespace AutoOverlay.Overlay
             else
             {
                 Rectangle = data.Overlay;
-                opposite = data.Source;
                 crop = data.OverlayCrop;
                 angle = data.OverlayAngle;
                 warp = data.OverlayWarp;
@@ -88,7 +83,9 @@ namespace AutoOverlay.Overlay
 
             var resizeFunc = Rectangle.Width > size.Width ? render.Upsize : render.Downsize;
             Clip = render.ResizeRotate(clip, resizeFunc, render.Rotate, Rectangle.Width, Rectangle.Height, angle, crop, warp);
-            Mask = render.ResizeRotate(mask, resizeFunc, render.Rotate, Rectangle.Width, Rectangle.Height, angle, crop, warp);
+            Mask = render.MaskMode 
+                ? angle.IsNearlyZero() ? null : OverlayUtils.GetBlankClip(clip, false)
+                : render.ResizeRotate(mask, resizeFunc, render.Rotate, Rectangle.Width, Rectangle.Height, angle, crop, warp);
 
             if (render.ColorAdjust < double.Epsilon && bitDepth != render.BitDepth)
             {
@@ -105,12 +102,5 @@ namespace AutoOverlay.Overlay
                 ExtraBorders = Rectangle.Empty;
             }
         }
-
-        private dynamic Crop(dynamic clip, Rectangle src, Rectangle over) => clip?.Crop(
-            Math.Max(0, over.Left - src.Left),
-            Math.Max(0, over.Top - src.Top),
-            -Math.Max(0, src.Right - over.Right),
-            -Math.Max(0, src.Bottom - over.Bottom)
-        );
     }
 }

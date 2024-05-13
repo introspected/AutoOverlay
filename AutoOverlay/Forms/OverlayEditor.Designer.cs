@@ -30,8 +30,8 @@
         {
             this.components = new System.ComponentModel.Container();
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(OverlayEditor));
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
             this.panel1 = new System.Windows.Forms.Panel();
             this.trackBar = new System.Windows.Forms.TrackBar();
             this.panel3 = new System.Windows.Forms.Panel();
@@ -49,6 +49,8 @@
             this.label20 = new System.Windows.Forms.Label();
             this.panelManage = new System.Windows.Forms.Panel();
             this.grid = new System.Windows.Forms.DataGridView();
+            this.Resolution = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.Fixed = new System.Windows.Forms.DataGridViewCheckBoxColumn();
             this.panel2 = new System.Windows.Forms.Panel();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.gbScan = new System.Windows.Forms.GroupBox();
@@ -120,17 +122,15 @@
             this.btnJoinNext = new System.Windows.Forms.ToolStripButton();
             this.btnJoinPrev = new System.Windows.Forms.ToolStripButton();
             this.btnSeparate = new System.Windows.Forms.ToolStripButton();
+            this.btnResetInterval = new System.Windows.Forms.ToolStripButton();
             this.btnDelete = new System.Windows.Forms.ToolStripButton();
             this.pictureBox = new System.Windows.Forms.PictureBox();
             this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
-            this.Resolution = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.Fixed = new System.Windows.Forms.DataGridViewCheckBoxColumn();
             this.intervalDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.xDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Angle = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.diffDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.frameIntervalBindingSource = new System.Windows.Forms.BindingSource(this.components);
-            this.btnResetInterval = new System.Windows.Forms.ToolStripButton();
             this.panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trackBar)).BeginInit();
             this.panel3.SuspendLayout();
@@ -175,7 +175,7 @@
             this.panel1.Controls.Add(this.panel3);
             this.panel1.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.panel1.Location = new System.Drawing.Point(0, 757);
-            this.panel1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.panel1.Margin = new System.Windows.Forms.Padding(4);
             this.panel1.Name = "panel1";
             this.panel1.Size = new System.Drawing.Size(1579, 32);
             this.panel1.TabIndex = 0;
@@ -185,7 +185,7 @@
             this.trackBar.Dock = System.Windows.Forms.DockStyle.Fill;
             this.trackBar.LargeChange = 500;
             this.trackBar.Location = new System.Drawing.Point(0, 0);
-            this.trackBar.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.trackBar.Margin = new System.Windows.Forms.Padding(4);
             this.trackBar.Maximum = 999999;
             this.trackBar.Name = "trackBar";
             this.trackBar.Size = new System.Drawing.Size(630, 56);
@@ -213,7 +213,7 @@
             this.panel3.Controls.Add(this.label20);
             this.panel3.Dock = System.Windows.Forms.DockStyle.Right;
             this.panel3.Location = new System.Drawing.Point(630, 0);
-            this.panel3.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.panel3.Margin = new System.Windows.Forms.Padding(4);
             this.panel3.Name = "panel3";
             this.panel3.Size = new System.Drawing.Size(947, 30);
             this.panel3.TabIndex = 1;
@@ -225,7 +225,7 @@
             this.chbDefective.Checked = true;
             this.chbDefective.CheckState = System.Windows.Forms.CheckState.Indeterminate;
             this.chbDefective.Location = new System.Drawing.Point(21, 4);
-            this.chbDefective.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.chbDefective.Margin = new System.Windows.Forms.Padding(4);
             this.chbDefective.Name = "chbDefective";
             this.chbDefective.Size = new System.Drawing.Size(114, 20);
             this.chbDefective.TabIndex = 14;
@@ -239,7 +239,7 @@
             this.nudMaxDiff.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.nudMaxDiff.DecimalPlaces = 1;
             this.nudMaxDiff.Location = new System.Drawing.Point(228, 2);
-            this.nudMaxDiff.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.nudMaxDiff.Margin = new System.Windows.Forms.Padding(4);
             this.nudMaxDiff.Maximum = new decimal(new int[] {
             9999,
             0,
@@ -259,7 +259,7 @@
             // 
             this.nudMinSceneLength.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.nudMinSceneLength.Location = new System.Drawing.Point(415, 2);
-            this.nudMinSceneLength.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.nudMinSceneLength.Margin = new System.Windows.Forms.Padding(4);
             this.nudMinSceneLength.Maximum = new decimal(new int[] {
             99999,
             0,
@@ -284,7 +284,7 @@
             // 
             this.nudMinFrame.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.nudMinFrame.Location = new System.Drawing.Point(541, 2);
-            this.nudMinFrame.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.nudMinFrame.Margin = new System.Windows.Forms.Padding(4);
             this.nudMinFrame.Maximum = new decimal(new int[] {
             200000,
             0,
@@ -299,7 +299,7 @@
             // 
             this.nudMaxFrame.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.nudMaxFrame.Location = new System.Drawing.Point(639, 2);
-            this.nudMaxFrame.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.nudMaxFrame.Margin = new System.Windows.Forms.Padding(4);
             this.nudMaxFrame.Maximum = new decimal(new int[] {
             999999,
             0,
@@ -363,7 +363,7 @@
             // 
             this.nudCurrentFrame.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.nudCurrentFrame.Location = new System.Drawing.Point(775, 2);
-            this.nudCurrentFrame.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.nudCurrentFrame.Margin = new System.Windows.Forms.Padding(4);
             this.nudCurrentFrame.Maximum = new decimal(new int[] {
             999999,
             0,
@@ -382,7 +382,7 @@
             this.chbEditor.Checked = true;
             this.chbEditor.CheckState = System.Windows.Forms.CheckState.Checked;
             this.chbEditor.Location = new System.Drawing.Point(877, 4);
-            this.chbEditor.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.chbEditor.Margin = new System.Windows.Forms.Padding(4);
             this.chbEditor.Name = "chbEditor";
             this.chbEditor.Size = new System.Drawing.Size(64, 20);
             this.chbEditor.TabIndex = 3;
@@ -408,7 +408,7 @@
             this.panelManage.Controls.Add(this.panel2);
             this.panelManage.Dock = System.Windows.Forms.DockStyle.Right;
             this.panelManage.Location = new System.Drawing.Point(993, 0);
-            this.panelManage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.panelManage.Margin = new System.Windows.Forms.Padding(4);
             this.panelManage.Name = "panelManage";
             this.panelManage.Size = new System.Drawing.Size(586, 757);
             this.panelManage.TabIndex = 1;
@@ -439,7 +439,7 @@
             this.grid.DefaultCellStyle = dataGridViewCellStyle2;
             this.grid.Dock = System.Windows.Forms.DockStyle.Fill;
             this.grid.Location = new System.Drawing.Point(0, 0);
-            this.grid.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.grid.Margin = new System.Windows.Forms.Padding(4);
             this.grid.Name = "grid";
             this.grid.ReadOnly = true;
             this.grid.RowHeadersVisible = false;
@@ -453,6 +453,24 @@
             this.grid.KeyDown += new System.Windows.Forms.KeyEventHandler(this.SuppressKeyPress);
             this.grid.KeyUp += new System.Windows.Forms.KeyEventHandler(this.SuppressKeyPress);
             // 
+            // Resolution
+            // 
+            this.Resolution.DataPropertyName = "Size";
+            this.Resolution.HeaderText = "Size";
+            this.Resolution.MinimumWidth = 6;
+            this.Resolution.Name = "Resolution";
+            this.Resolution.ReadOnly = true;
+            this.Resolution.Width = 62;
+            // 
+            // Fixed
+            // 
+            this.Fixed.DataPropertyName = "Fixed";
+            this.Fixed.HeaderText = "Fixed";
+            this.Fixed.MinimumWidth = 6;
+            this.Fixed.Name = "Fixed";
+            this.Fixed.ReadOnly = true;
+            this.Fixed.Width = 46;
+            // 
             // panel2
             // 
             this.panel2.Controls.Add(this.groupBox3);
@@ -461,7 +479,7 @@
             this.panel2.Controls.Add(this.toolStrip1);
             this.panel2.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.panel2.Location = new System.Drawing.Point(0, 163);
-            this.panel2.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.panel2.Margin = new System.Windows.Forms.Padding(4);
             this.panel2.Name = "panel2";
             this.panel2.Size = new System.Drawing.Size(584, 592);
             this.panel2.TabIndex = 2;
@@ -478,9 +496,9 @@
             this.groupBox3.Controls.Add(this.nudDeviation);
             this.groupBox3.Controls.Add(this.label27);
             this.groupBox3.Location = new System.Drawing.Point(7, 191);
-            this.groupBox3.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox3.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox3.Name = "groupBox3";
-            this.groupBox3.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox3.Padding = new System.Windows.Forms.Padding(4);
             this.groupBox3.Size = new System.Drawing.Size(563, 160);
             this.groupBox3.TabIndex = 18;
             this.groupBox3.TabStop = false;
@@ -492,9 +510,9 @@
             this.gbScan.Controls.Add(this.btnScanScene);
             this.gbScan.Controls.Add(this.btnScanFrame);
             this.gbScan.Location = new System.Drawing.Point(191, 23);
-            this.gbScan.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.gbScan.Margin = new System.Windows.Forms.Padding(4);
             this.gbScan.Name = "gbScan";
-            this.gbScan.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.gbScan.Padding = new System.Windows.Forms.Padding(4);
             this.gbScan.Size = new System.Drawing.Size(84, 130);
             this.gbScan.TabIndex = 3;
             this.gbScan.TabStop = false;
@@ -504,7 +522,7 @@
             // 
             this.btnScanClip.BackColor = System.Drawing.SystemColors.MenuBar;
             this.btnScanClip.Location = new System.Drawing.Point(8, 96);
-            this.btnScanClip.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btnScanClip.Margin = new System.Windows.Forms.Padding(4);
             this.btnScanClip.Name = "btnScanClip";
             this.btnScanClip.Size = new System.Drawing.Size(68, 28);
             this.btnScanClip.TabIndex = 0;
@@ -516,7 +534,7 @@
             // 
             this.btnScanScene.BackColor = System.Drawing.SystemColors.Info;
             this.btnScanScene.Location = new System.Drawing.Point(8, 60);
-            this.btnScanScene.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btnScanScene.Margin = new System.Windows.Forms.Padding(4);
             this.btnScanScene.Name = "btnScanScene";
             this.btnScanScene.Size = new System.Drawing.Size(68, 28);
             this.btnScanScene.TabIndex = 0;
@@ -528,7 +546,7 @@
             // 
             this.btnScanFrame.BackColor = System.Drawing.SystemColors.InactiveBorder;
             this.btnScanFrame.Location = new System.Drawing.Point(8, 25);
-            this.btnScanFrame.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btnScanFrame.Margin = new System.Windows.Forms.Padding(4);
             this.btnScanFrame.Name = "btnScanFrame";
             this.btnScanFrame.Size = new System.Drawing.Size(68, 28);
             this.btnScanFrame.TabIndex = 0;
@@ -542,9 +560,9 @@
             this.gbAlign.Controls.Add(this.btnAlignSingle);
             this.gbAlign.Controls.Add(this.btnAlignFrame);
             this.gbAlign.Location = new System.Drawing.Point(7, 23);
-            this.gbAlign.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.gbAlign.Margin = new System.Windows.Forms.Padding(4);
             this.gbAlign.Name = "gbAlign";
-            this.gbAlign.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.gbAlign.Padding = new System.Windows.Forms.Padding(4);
             this.gbAlign.Size = new System.Drawing.Size(84, 130);
             this.gbAlign.TabIndex = 3;
             this.gbAlign.TabStop = false;
@@ -554,7 +572,7 @@
             // 
             this.btnAlignScene.BackColor = System.Drawing.SystemColors.MenuBar;
             this.btnAlignScene.Location = new System.Drawing.Point(8, 96);
-            this.btnAlignScene.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btnAlignScene.Margin = new System.Windows.Forms.Padding(4);
             this.btnAlignScene.Name = "btnAlignScene";
             this.btnAlignScene.Size = new System.Drawing.Size(68, 28);
             this.btnAlignScene.TabIndex = 0;
@@ -566,7 +584,7 @@
             // 
             this.btnAlignSingle.BackColor = System.Drawing.SystemColors.Info;
             this.btnAlignSingle.Location = new System.Drawing.Point(8, 60);
-            this.btnAlignSingle.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btnAlignSingle.Margin = new System.Windows.Forms.Padding(4);
             this.btnAlignSingle.Name = "btnAlignSingle";
             this.btnAlignSingle.Size = new System.Drawing.Size(68, 28);
             this.btnAlignSingle.TabIndex = 0;
@@ -578,7 +596,7 @@
             // 
             this.btnAlignFrame.BackColor = System.Drawing.SystemColors.InactiveBorder;
             this.btnAlignFrame.Location = new System.Drawing.Point(8, 25);
-            this.btnAlignFrame.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btnAlignFrame.Margin = new System.Windows.Forms.Padding(4);
             this.btnAlignFrame.Name = "btnAlignFrame";
             this.btnAlignFrame.Size = new System.Drawing.Size(68, 28);
             this.btnAlignFrame.TabIndex = 0;
@@ -592,9 +610,9 @@
             this.gbAdjust.Controls.Add(this.btnAdjustScene);
             this.gbAdjust.Controls.Add(this.btnAdjustFrame);
             this.gbAdjust.Location = new System.Drawing.Point(99, 23);
-            this.gbAdjust.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.gbAdjust.Margin = new System.Windows.Forms.Padding(4);
             this.gbAdjust.Name = "gbAdjust";
-            this.gbAdjust.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.gbAdjust.Padding = new System.Windows.Forms.Padding(4);
             this.gbAdjust.Size = new System.Drawing.Size(84, 130);
             this.gbAdjust.TabIndex = 3;
             this.gbAdjust.TabStop = false;
@@ -604,7 +622,7 @@
             // 
             this.btnAdjustClip.BackColor = System.Drawing.SystemColors.MenuBar;
             this.btnAdjustClip.Location = new System.Drawing.Point(8, 96);
-            this.btnAdjustClip.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btnAdjustClip.Margin = new System.Windows.Forms.Padding(4);
             this.btnAdjustClip.Name = "btnAdjustClip";
             this.btnAdjustClip.Size = new System.Drawing.Size(68, 28);
             this.btnAdjustClip.TabIndex = 0;
@@ -616,7 +634,7 @@
             // 
             this.btnAdjustScene.BackColor = System.Drawing.SystemColors.Info;
             this.btnAdjustScene.Location = new System.Drawing.Point(8, 60);
-            this.btnAdjustScene.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btnAdjustScene.Margin = new System.Windows.Forms.Padding(4);
             this.btnAdjustScene.Name = "btnAdjustScene";
             this.btnAdjustScene.Size = new System.Drawing.Size(68, 28);
             this.btnAdjustScene.TabIndex = 0;
@@ -628,7 +646,7 @@
             // 
             this.btnAdjustFrame.BackColor = System.Drawing.SystemColors.InactiveBorder;
             this.btnAdjustFrame.Location = new System.Drawing.Point(8, 25);
-            this.btnAdjustFrame.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btnAdjustFrame.Margin = new System.Windows.Forms.Padding(4);
             this.btnAdjustFrame.Name = "btnAdjustFrame";
             this.btnAdjustFrame.Size = new System.Drawing.Size(68, 28);
             this.btnAdjustFrame.TabIndex = 0;
@@ -659,7 +677,7 @@
             // nudScale
             // 
             this.nudScale.Location = new System.Drawing.Point(403, 60);
-            this.nudScale.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.nudScale.Margin = new System.Windows.Forms.Padding(4);
             this.nudScale.Maximum = new decimal(new int[] {
             999,
             0,
@@ -677,7 +695,7 @@
             // nudDistance
             // 
             this.nudDistance.Location = new System.Drawing.Point(403, 28);
-            this.nudDistance.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.nudDistance.Margin = new System.Windows.Forms.Padding(4);
             this.nudDistance.Name = "nudDistance";
             this.nudDistance.Size = new System.Drawing.Size(60, 22);
             this.nudDistance.TabIndex = 1;
@@ -696,7 +714,7 @@
             0,
             65536});
             this.nudDeviation.Location = new System.Drawing.Point(403, 92);
-            this.nudDeviation.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.nudDeviation.Margin = new System.Windows.Forms.Padding(4);
             this.nudDeviation.Maximum = new decimal(new int[] {
             99,
             0,
@@ -744,9 +762,9 @@
             this.groupBox2.Controls.Add(this.label22);
             this.groupBox2.Controls.Add(this.label3);
             this.groupBox2.Location = new System.Drawing.Point(7, 361);
-            this.groupBox2.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox2.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox2.Padding = new System.Windows.Forms.Padding(4);
             this.groupBox2.Size = new System.Drawing.Size(563, 193);
             this.groupBox2.TabIndex = 17;
             this.groupBox2.TabStop = false;
@@ -766,7 +784,7 @@
             // 
             this.chbColorAdjust.AutoSize = true;
             this.chbColorAdjust.Location = new System.Drawing.Point(251, 160);
-            this.chbColorAdjust.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.chbColorAdjust.Margin = new System.Windows.Forms.Padding(4);
             this.chbColorAdjust.Name = "chbColorAdjust";
             this.chbColorAdjust.Size = new System.Drawing.Size(18, 17);
             this.chbColorAdjust.TabIndex = 9;
@@ -777,7 +795,7 @@
             // 
             this.chbRGB.AutoSize = true;
             this.chbRGB.Location = new System.Drawing.Point(461, 57);
-            this.chbRGB.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.chbRGB.Margin = new System.Windows.Forms.Padding(4);
             this.chbRGB.Name = "chbRGB";
             this.chbRGB.Size = new System.Drawing.Size(58, 20);
             this.chbRGB.TabIndex = 9;
@@ -789,7 +807,7 @@
             // 
             this.tbColorAdjust.LargeChange = 25;
             this.tbColorAdjust.Location = new System.Drawing.Point(343, 153);
-            this.tbColorAdjust.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tbColorAdjust.Margin = new System.Windows.Forms.Padding(4);
             this.tbColorAdjust.Maximum = 100;
             this.tbColorAdjust.Name = "tbColorAdjust";
             this.tbColorAdjust.Size = new System.Drawing.Size(151, 56);
@@ -803,7 +821,7 @@
             // 
             this.tbOpacity.LargeChange = 25;
             this.tbOpacity.Location = new System.Drawing.Point(336, 90);
-            this.tbOpacity.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tbOpacity.Margin = new System.Windows.Forms.Padding(4);
             this.tbOpacity.Maximum = 100;
             this.tbOpacity.Name = "tbOpacity";
             this.tbOpacity.Size = new System.Drawing.Size(157, 56);
@@ -819,7 +837,7 @@
             this.chbDebug.Checked = true;
             this.chbDebug.CheckState = System.Windows.Forms.CheckState.Checked;
             this.chbDebug.Location = new System.Drawing.Point(379, 23);
-            this.chbDebug.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.chbDebug.Margin = new System.Windows.Forms.Padding(4);
             this.chbDebug.Name = "chbDebug";
             this.chbDebug.Size = new System.Drawing.Size(99, 20);
             this.chbDebug.TabIndex = 7;
@@ -834,7 +852,7 @@
             this.chbPreview.Checked = true;
             this.chbPreview.CheckState = System.Windows.Forms.CheckState.Checked;
             this.chbPreview.Location = new System.Drawing.Point(301, 23);
-            this.chbPreview.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.chbPreview.Margin = new System.Windows.Forms.Padding(4);
             this.chbPreview.Name = "chbPreview";
             this.chbPreview.Size = new System.Drawing.Size(77, 20);
             this.chbPreview.TabIndex = 3;
@@ -847,7 +865,7 @@
             this.cbMatrix.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.cbMatrix.FormattingEnabled = true;
             this.cbMatrix.Location = new System.Drawing.Point(343, 54);
-            this.cbMatrix.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.cbMatrix.Margin = new System.Windows.Forms.Padding(4);
             this.cbMatrix.Name = "cbMatrix";
             this.cbMatrix.Size = new System.Drawing.Size(109, 24);
             this.cbMatrix.TabIndex = 6;
@@ -871,7 +889,7 @@
             "HardLight",
             "Exclusion"});
             this.cbOverlayMode.Location = new System.Drawing.Point(77, 87);
-            this.cbOverlayMode.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.cbOverlayMode.Margin = new System.Windows.Forms.Padding(4);
             this.cbOverlayMode.Name = "cbOverlayMode";
             this.cbOverlayMode.Size = new System.Drawing.Size(191, 24);
             this.cbOverlayMode.TabIndex = 6;
@@ -882,7 +900,7 @@
             this.cbMode.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.cbMode.FormattingEnabled = true;
             this.cbMode.Location = new System.Drawing.Point(77, 54);
-            this.cbMode.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.cbMode.Margin = new System.Windows.Forms.Padding(4);
             this.cbMode.Name = "cbMode";
             this.cbMode.Size = new System.Drawing.Size(191, 24);
             this.cbMode.TabIndex = 6;
@@ -926,7 +944,7 @@
             0,
             0});
             this.nudNoiseSize.Location = new System.Drawing.Point(201, 121);
-            this.nudNoiseSize.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.nudNoiseSize.Margin = new System.Windows.Forms.Padding(4);
             this.nudNoiseSize.Maximum = new decimal(new int[] {
             500,
             0,
@@ -945,7 +963,7 @@
             0,
             0});
             this.nudGradientSize.Location = new System.Drawing.Point(77, 121);
-            this.nudGradientSize.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.nudGradientSize.Margin = new System.Windows.Forms.Padding(4);
             this.nudGradientSize.Maximum = new decimal(new int[] {
             500,
             0,
@@ -989,7 +1007,7 @@
             // nudOutputWidth
             // 
             this.nudOutputWidth.Location = new System.Drawing.Point(77, 22);
-            this.nudOutputWidth.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.nudOutputWidth.Margin = new System.Windows.Forms.Padding(4);
             this.nudOutputWidth.Maximum = new decimal(new int[] {
             10000,
             0,
@@ -1023,7 +1041,7 @@
             // nudOutputHeight
             // 
             this.nudOutputHeight.Location = new System.Drawing.Point(163, 22);
-            this.nudOutputHeight.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.nudOutputHeight.Margin = new System.Windows.Forms.Padding(4);
             this.nudOutputHeight.Maximum = new decimal(new int[] {
             10000,
             0,
@@ -1094,9 +1112,9 @@
             this.groupBox1.Controls.Add(this.label13);
             this.groupBox1.Controls.Add(this.label12);
             this.groupBox1.Location = new System.Drawing.Point(7, 7);
-            this.groupBox1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox1.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox1.Padding = new System.Windows.Forms.Padding(4);
             this.groupBox1.Size = new System.Drawing.Size(563, 176);
             this.groupBox1.TabIndex = 16;
             this.groupBox1.TabStop = false;
@@ -1105,7 +1123,7 @@
             // btnFix
             // 
             this.btnFix.Location = new System.Drawing.Point(369, 21);
-            this.btnFix.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btnFix.Margin = new System.Windows.Forms.Padding(4);
             this.btnFix.Name = "btnFix";
             this.btnFix.Size = new System.Drawing.Size(81, 28);
             this.btnFix.TabIndex = 18;
@@ -1116,7 +1134,7 @@
             // tbWarp
             // 
             this.tbWarp.Location = new System.Drawing.Point(67, 85);
-            this.tbWarp.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tbWarp.Margin = new System.Windows.Forms.Padding(4);
             this.tbWarp.Multiline = true;
             this.tbWarp.Name = "tbWarp";
             this.tbWarp.Size = new System.Drawing.Size(487, 80);
@@ -1142,7 +1160,7 @@
             0,
             196608});
             this.nudCompare.Location = new System.Drawing.Point(457, 55);
-            this.nudCompare.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.nudCompare.Margin = new System.Windows.Forms.Padding(4);
             this.nudCompare.Maximum = new decimal(new int[] {
             1,
             0,
@@ -1161,7 +1179,7 @@
             // btnCompare
             // 
             this.btnCompare.Location = new System.Drawing.Point(457, 21);
-            this.btnCompare.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btnCompare.Margin = new System.Windows.Forms.Padding(4);
             this.btnCompare.Name = "btnCompare";
             this.btnCompare.Size = new System.Drawing.Size(97, 28);
             this.btnCompare.TabIndex = 14;
@@ -1178,7 +1196,7 @@
             0,
             131072});
             this.nudX.Location = new System.Drawing.Point(32, 23);
-            this.nudX.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.nudX.Margin = new System.Windows.Forms.Padding(4);
             this.nudX.Maximum = new decimal(new int[] {
             10000,
             0,
@@ -1213,7 +1231,7 @@
             0,
             131072});
             this.nudY.Location = new System.Drawing.Point(142, 23);
-            this.nudY.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.nudY.Margin = new System.Windows.Forms.Padding(4);
             this.nudY.Maximum = new decimal(new int[] {
             10000,
             0,
@@ -1235,7 +1253,7 @@
             this.chbOverlaySizeSync.Checked = true;
             this.chbOverlaySizeSync.CheckState = System.Windows.Forms.CheckState.Checked;
             this.chbOverlaySizeSync.Location = new System.Drawing.Point(278, 56);
-            this.chbOverlaySizeSync.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.chbOverlaySizeSync.Margin = new System.Windows.Forms.Padding(4);
             this.chbOverlaySizeSync.Name = "chbOverlaySizeSync";
             this.chbOverlaySizeSync.Size = new System.Drawing.Size(59, 20);
             this.chbOverlaySizeSync.TabIndex = 12;
@@ -1252,7 +1270,7 @@
             0,
             65536});
             this.nudAngle.Location = new System.Drawing.Point(293, 23);
-            this.nudAngle.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.nudAngle.Margin = new System.Windows.Forms.Padding(4);
             this.nudAngle.Maximum = new decimal(new int[] {
             360,
             0,
@@ -1272,7 +1290,7 @@
             // 
             this.nudOverlayHeight.DecimalPlaces = 2;
             this.nudOverlayHeight.Location = new System.Drawing.Point(187, 55);
-            this.nudOverlayHeight.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.nudOverlayHeight.Margin = new System.Windows.Forms.Padding(4);
             this.nudOverlayHeight.Maximum = new decimal(new int[] {
             10000,
             0,
@@ -1307,7 +1325,7 @@
             // 
             this.nudOverlayWidth.DecimalPlaces = 2;
             this.nudOverlayWidth.Location = new System.Drawing.Point(91, 55);
-            this.nudOverlayWidth.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.nudOverlayWidth.Margin = new System.Windows.Forms.Padding(4);
             this.nudOverlayWidth.Maximum = new decimal(new int[] {
             10000,
             0,
@@ -1382,9 +1400,9 @@
             this.btnSeparate,
             this.btnResetInterval,
             this.btnDelete});
-            this.toolStrip1.Location = new System.Drawing.Point(0, 565);
+            this.toolStrip1.Location = new System.Drawing.Point(0, 561);
             this.toolStrip1.Name = "toolStrip1";
-            this.toolStrip1.Size = new System.Drawing.Size(584, 27);
+            this.toolStrip1.Size = new System.Drawing.Size(584, 31);
             this.toolStrip1.TabIndex = 14;
             this.toolStrip1.Text = "toolStrip1";
             // 
@@ -1395,7 +1413,7 @@
             this.btnSave.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.btnSave.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnSave.Name = "btnSave";
-            this.btnSave.Size = new System.Drawing.Size(45, 24);
+            this.btnSave.Size = new System.Drawing.Size(45, 28);
             this.btnSave.Text = "Save";
             this.btnSave.Click += new System.EventHandler(this.SaveStat);
             // 
@@ -1406,7 +1424,7 @@
             this.btnReset.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.btnReset.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnReset.Name = "btnReset";
-            this.btnReset.Size = new System.Drawing.Size(52, 24);
+            this.btnReset.Size = new System.Drawing.Size(52, 28);
             this.btnReset.Text = "Reset";
             this.btnReset.Click += new System.EventHandler(this.Reset);
             // 
@@ -1417,7 +1435,7 @@
             this.btnResetCurrent.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.btnResetCurrent.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnResetCurrent.Name = "btnResetCurrent";
-            this.btnResetCurrent.Size = new System.Drawing.Size(61, 24);
+            this.btnResetCurrent.Size = new System.Drawing.Size(61, 28);
             this.btnResetCurrent.Text = "Reload";
             this.btnResetCurrent.Click += new System.EventHandler(this.ResetCurrent);
             // 
@@ -1428,7 +1446,7 @@
             this.btnJoinTo.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
             this.btnJoinTo.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnJoinTo.Name = "btnJoinTo";
-            this.btnJoinTo.Size = new System.Drawing.Size(57, 24);
+            this.btnJoinTo.Size = new System.Drawing.Size(57, 28);
             this.btnJoinTo.Text = "Join to";
             this.btnJoinTo.Click += new System.EventHandler(this.btnJoinTo_Click);
             // 
@@ -1439,7 +1457,7 @@
             this.btnJoinNext.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
             this.btnJoinNext.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnJoinNext.Name = "btnJoinNext";
-            this.btnJoinNext.Size = new System.Drawing.Size(59, 24);
+            this.btnJoinNext.Size = new System.Drawing.Size(59, 28);
             this.btnJoinNext.Text = "Join ->";
             this.btnJoinNext.Click += new System.EventHandler(this.btnJoinNext_Click);
             // 
@@ -1450,7 +1468,7 @@
             this.btnJoinPrev.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
             this.btnJoinPrev.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnJoinPrev.Name = "btnJoinPrev";
-            this.btnJoinPrev.Size = new System.Drawing.Size(59, 24);
+            this.btnJoinPrev.Size = new System.Drawing.Size(59, 28);
             this.btnJoinPrev.Text = "<- Join";
             this.btnJoinPrev.Click += new System.EventHandler(this.btnJoinPrev_Click);
             // 
@@ -1461,9 +1479,21 @@
             this.btnSeparate.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
             this.btnSeparate.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnSeparate.Name = "btnSeparate";
-            this.btnSeparate.Size = new System.Drawing.Size(72, 24);
+            this.btnSeparate.Size = new System.Drawing.Size(72, 28);
             this.btnSeparate.Text = "Separate";
             this.btnSeparate.Click += new System.EventHandler(this.btnSeparate_Click);
+            // 
+            // btnResetInterval
+            // 
+            this.btnResetInterval.BackColor = System.Drawing.Color.Cornsilk;
+            this.btnResetInterval.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
+            this.btnResetInterval.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.btnResetInterval.Image = ((System.Drawing.Image)(resources.GetObject("btnResetInterval.Image")));
+            this.btnResetInterval.ImageTransparentColor = System.Drawing.Color.Magenta;
+            this.btnResetInterval.Name = "btnResetInterval";
+            this.btnResetInterval.Size = new System.Drawing.Size(84, 28);
+            this.btnResetInterval.Text = "Reload All";
+            this.btnResetInterval.Click += new System.EventHandler(this.ResetInterval);
             // 
             // btnDelete
             // 
@@ -1474,7 +1504,7 @@
             this.btnDelete.Image = ((System.Drawing.Image)(resources.GetObject("btnDelete.Image")));
             this.btnDelete.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnDelete.Name = "btnDelete";
-            this.btnDelete.Size = new System.Drawing.Size(57, 24);
+            this.btnDelete.Size = new System.Drawing.Size(57, 28);
             this.btnDelete.Text = "Delete";
             this.btnDelete.Click += new System.EventHandler(this.btnDelete_Click);
             // 
@@ -1482,30 +1512,12 @@
             // 
             this.pictureBox.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pictureBox.Location = new System.Drawing.Point(0, 0);
-            this.pictureBox.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pictureBox.Margin = new System.Windows.Forms.Padding(4);
             this.pictureBox.Name = "pictureBox";
             this.pictureBox.Size = new System.Drawing.Size(993, 757);
             this.pictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.pictureBox.TabIndex = 2;
             this.pictureBox.TabStop = false;
-            // 
-            // Resolution
-            // 
-            this.Resolution.DataPropertyName = "Size";
-            this.Resolution.HeaderText = "Size";
-            this.Resolution.MinimumWidth = 6;
-            this.Resolution.Name = "Resolution";
-            this.Resolution.ReadOnly = true;
-            this.Resolution.Width = 62;
-            // 
-            // Fixed
-            // 
-            this.Fixed.DataPropertyName = "Fixed";
-            this.Fixed.HeaderText = "Fixed";
-            this.Fixed.MinimumWidth = 6;
-            this.Fixed.Name = "Fixed";
-            this.Fixed.ReadOnly = true;
-            this.Fixed.Width = 46;
             // 
             // intervalDataGridViewTextBoxColumn
             // 
@@ -1549,18 +1561,6 @@
             // 
             this.frameIntervalBindingSource.DataSource = typeof(AutoOverlay.FrameInterval);
             // 
-            // btnResetInterval
-            // 
-            this.btnResetInterval.BackColor = System.Drawing.Color.Cornsilk;
-            this.btnResetInterval.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
-            this.btnResetInterval.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-            this.btnResetInterval.Image = ((System.Drawing.Image)(resources.GetObject("btnResetInterval.Image")));
-            this.btnResetInterval.ImageTransparentColor = System.Drawing.Color.Magenta;
-            this.btnResetInterval.Name = "btnResetInterval";
-            this.btnResetInterval.Size = new System.Drawing.Size(84, 24);
-            this.btnResetInterval.Text = "Reload All";
-            this.btnResetInterval.Click += new System.EventHandler(this.ResetInterval);
-            // 
             // OverlayEditor
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
@@ -1570,7 +1570,7 @@
             this.Controls.Add(this.panelManage);
             this.Controls.Add(this.panel1);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
-            this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.Margin = new System.Windows.Forms.Padding(4);
             this.MinimumSize = new System.Drawing.Size(1327, 826);
             this.Name = "OverlayEditor";
             this.Text = "Overlay Editor";

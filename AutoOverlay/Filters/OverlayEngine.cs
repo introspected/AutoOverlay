@@ -222,7 +222,7 @@ namespace AutoOverlay
 
         private Clip Prepare(Clip clip)
         {
-            return clip.IsRealPlanar() ? clip.Dynamic().ExtractY() : clip;
+            return clip.IsRealPlanar() && !clip.GetVideoInfo().IsRGB() ? clip.Dynamic().ExtractY() : clip;
         }
 
         protected override VideoFrame GetFrame(int n)
@@ -1141,7 +1141,7 @@ namespace AutoOverlay
                 TargetSize = SrcInfo.Size,
                 FixedSource = true
             };
-            var info = RepeatImpl(repeatInfo.GetOverlayData(input), n).GetOverlayInfo();
+            var info = RepeatImpl(OverlayMapper.For(input, repeatInfo).GetOverlayData(), n).GetOverlayInfo();
             info.FrameNumber = n;
             info.CopyFrom(repeatInfo);
             return info;
@@ -1166,7 +1166,7 @@ namespace AutoOverlay
                 var srcMask = SourceMask?.GetFrame(n, StaticEnv);
                 var overMaskClip = OverlayMask;
                 if (overMaskClip == null && !testInfo.OverlayAngle.IsNearlyZero())
-                    overMaskClip = GetBlankClip(overClip, true);
+                    overMaskClip = OverlayUtils.GetBlankClip(overClip, true);
 
                 VideoFrame overMask = ResizeRotate(overMaskClip, Resize, Rotate, testInfo)?[n];
                 VideoFrame over = ResizeRotate(overClip, Resize, Rotate, testInfo)?[n];
@@ -1213,9 +1213,8 @@ namespace AutoOverlay
                 let overBaseSize = new Size(overBase.GetVideoInfo().width, overBase.GetVideoInfo().height)
                 let resizeFunc = overBaseSize.Equals(OverInfo.Size) ? Resize : Presize
 
-                let disableExcessOpt = testGroup.Key.WarpPoints.Any()//resizeFunc.EndsWith("MT")
                 let maxArea = searchAreas.Aggregate(searchAreas.First(), Rectangle.Union)
-                let excess = disableExcessOpt ? Rectangle.Empty : Rectangle.FromLTRB(
+                let excess = Rectangle.FromLTRB(
                     Math.Max(0, -maxArea.Right),
                     Math.Max(0, -maxArea.Bottom),
                     Math.Max(0, testGroup.Key.Size.Width + maxArea.Left - srcBase.GetVideoInfo().width),
@@ -1244,7 +1243,7 @@ namespace AutoOverlay
                 let rotationMask = overMaskBase == null && testGroup.Key.Angle != 0
                 let overMask = (VideoFrame) (alwaysNullMask
                     ? null
-                    : ResizeRotate(rotationMask ? GetBlankClip(overBase, true) : overMaskBase,
+                    : ResizeRotate(rotationMask ? OverlayUtils.GetBlankClip(overBase, true) : overMaskBase,
                         resizeFunc, Rotate, activeWidth, activeHeight, testGroup.Key.Angle, activeCrop, testGroup.Key.WarpPoints)[n])
                 let overSize = new Size(activeWidth, activeHeight)
                 select new { src, srcMask, srcSize, over, overMask, overSize, testGroup, activeSearchAreas, excess, overBaseSize };

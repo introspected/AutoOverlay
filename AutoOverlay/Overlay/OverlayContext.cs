@@ -39,8 +39,6 @@ namespace AutoOverlay.Overlay
 
         public List<HistogramCache> Cache { get; }
 
-        private readonly HashSet<IDisposable> disposables = new();
-
         public OverlayContext(OverlayRender render, YUVPlanes plane)
         {
             Render = render;
@@ -73,15 +71,6 @@ namespace AutoOverlay.Overlay
 
             SourceMask = PrepareMask(Static.SourceMask, Static.SourceBase.GetVideoInfo());
             OverlayMask = PrepareMask(Static.OverlayMask, Static.OverlayBase.GetVideoInfo());
-
-            disposables.Add(render.Source);
-            disposables.Add(render.Overlay);
-            disposables.Add(render.SourceMask);
-            disposables.Add(render.OverlayMask);
-            disposables.Add(Static.Source);
-            disposables.Add(Static.Overlay);
-            disposables.Add(Static.SourceMask);
-            disposables.Add(Static.OverlayMask);
 
             if (plane.IsChroma())
             {
@@ -135,7 +124,6 @@ namespace AutoOverlay.Overlay
                         mask = mask.Dynamic().ExtractY();
                     if (plane.IsChroma() && !target.ColorSpace.WithoutSubSample())
                         mask = mask.Dynamic().BicubicResize(target.Chroma.Size);
-                    disposables.Add(mask);
                 }
 
                 return mask?.Dynamic();
@@ -149,10 +137,6 @@ namespace AutoOverlay.Overlay
 
         public void Dispose()
         {
-            foreach (var disposable in disposables)
-            {
-                disposable?.Dispose();
-            }
             Cache?.ForEach(p => HistogramCache.Dispose(p.Id));
         }
 
@@ -176,19 +160,6 @@ namespace AutoOverlay.Overlay
                 OverlayMask = overlayMask;
                 BackgroundClip = backgroundClip?.ExtractPlane(plane);
             }
-        }
-
-        public class FrameParams
-        {
-            public int MergedWidth { get; set; }
-            public int MergedHeight { get; set; }
-            public double MergedAr { get; set; }
-            public double OutAr { get; set; }
-            public bool Wider { get; set; }
-            public int FinalWidth { get; set; }
-            public int FinalHeight { get; set; }
-            public int FinalX { get; set; }
-            public int FinalY { get; set; }
         }
     }
 }

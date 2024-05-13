@@ -144,11 +144,11 @@ Separate - обособление кадра. Join prev - присоединит
 * A, Z - next/previous frame
 
 ### OverlayRender
-    OverlayRender(clip engine, clip source, clip overlay, clip sourceMask, clip overlayMask, clip extraClips, 
+    OverlayRender(clip engine, clip source, clip overlay, clip sourceMask, clip overlayMask, clip extraClips, string preset, 
                   clip innerBounds, clip outerBounds, float overlayBalanceX, float overlayBalanceY, bool fixedSource, 
                   int overlayOrder, string overlayMode, int width, int height, string pixelType, int gradient, int noise, bool dynamicNoise, 
                   int borderControl, float borderMaxDeviation, clip borderOffset, clip srcColorBorderOffset, clip overColorBorderOffset, 
-                  bool maskMode, float opacity, float colorAdjust, string colorInterpolation, float colorExclude, 
+                  bool maskMode, float opacity, float colorAdjust, int colorBuckets, string colorInterpolation, float colorExclude, 
                   int colorFramesCount, float colorFramesDiff, float colorMaxDeviation, string adjustChannels, string matrix, 
                   string upsize, string downsize, string rotate, bool simd, bool debug, bool invert, bool extrapolation, 
                   string background, clip backgroundClip, int blankColor, float backBalance, int backBlur, 
@@ -162,6 +162,34 @@ Separate - обособление кадра. Join prev - присоединит
 - **overlay** (required) - второй клип, накладываемый на первый. Поддерживаются планарные YUV (8-16 бит), RGB24 и RGB48 цветовые пространства.
 - **sourceMask** and **overlayMask** (default empty) - маски основного и накладываемого клипа. В отличие от OverlayEngine смысл этих масок такой же, как в обычном фильтре *Overlay*. Маски регулируют интенсивность наложения клипов относительно друга друга. Маски должны иметь ту же разрядность, что и накладываемый клип.
 - **extraClips** (default empty) - клип из склеенных клипов типа OverlayClip, описывающих дополнительные клипы для наложения.
+- **preset** (default not set) - пресеты используются для пакетной предустановки других параметров (если они не заданы явно)
+
+|       Пресет       |       Параметр        |       Значение        |
+| ------------------ | --------------------- | --------------------- |
+| FitSource          | FixedSource           | true                  |
+| FitSource          | OverlayBalance(X,Y)   | -1                    |
+| FitScreen          | InnerBounds           | 1                     |
+| FitScreenBlur      | InnerBounds           | 1                     |
+| FitScreenBlur      | EdgeGradient          | inside                |
+| FitScreenBlur      | Background            | blur                  |
+| FitScreenBlur      | Gradient              | 50                    |
+| FitScreenMask      | InnerBounds           | 1                     |
+| FitScreenMask      | MaskMode              | true                  |
+| FullFrame          | InnerBounds           | 1                     |
+| FullFrame          | OuterBounds           | 1                     |
+| FullFrameBlur      | InnerBounds           | 1                     |
+| FullFrameBlur      | OuterBounds           | 1                     |
+| FullFrameBlur      | EdgeGradient          | inside                |
+| FullFrameBlur      | Background            | blur                  |
+| FullFrameBlur      | Gradient              | 50                    |
+| FullFrameMask      | InnerBounds           | 1                     |
+| FullFrameMask      | OuterBounds           | 1                     |
+| FullFrameMask      | MaskMode              | true                  |
+| Difference         | FixedSource           | true                  |
+| Difference         | OverlayBalance(X,Y)   | -1                    |
+| Difference         | OverlayMode           | difference            |
+| Difference         | Debug                 | true                  |
+
 - **innerBounds** (default 0) - клип типа Rect, ограничивающий длину пустот внутри объединения клипов. Значения в диапазоне от 0 до 1 интерпретируются как коэффициент, а свыше 1 как абсолютное значение в пикселях от объединенной области.
 - **outerBounds** (default 0) - клип типа Rect, ограничивающий длину полей относительно результирующего клипа. Значения в диапазоне от 0 до 1 интерпретируются как коэффициент, а свыше 1 как абсолютное значение в пикселях. 
 - **overlayBalanceX** (default 0) - центрирование изображения по ширине относительно основного клипа (-1) или накладываемого (1) в диапазоне от -1 до 1.
@@ -182,6 +210,7 @@ Separate - обособление кадра. Join prev - присоединит
 - **maskMode** (defualt false) - если true, замещает все клипы белой маской.
 - **opacity** (default 1) - степень непрозрачности накладываемого изображения от 0 до 1.
 - **colorAdjust** (default -1, disabled) - вещественное значение между 0 и 1. 0 - стремление к цвету основного клипа. 1 - накладываемого клипа. 0.5 - усредненный цвет. С дополнительными клипами поддерживаются только значения -1, 0, 1. Цветокоррекция основана на сравнении гистограмм области пересечения.
+- **colorBuckets** (default maximum 1024 depending on color depth) - see ColorMatch.colorBuckets
 - **colorInterpolation** (default linear) - см. ColorAdjust.interpolation
 - **colorExclude** (default 0) - см. ColorAdjust.exclude
 - **colorFramesCount** (default 0) - количество соседних кадров в обе стороны, информация о которых включается в построение карты соответствия цветов для цветокоррекции
@@ -202,7 +231,7 @@ Separate - обособление кадра. Join prev - присоединит
 - **backBlur** (default 15) - сила смазывания, если background равен blur.
 - **fullScreen** (default false) - фоновое изображение заполняется на всю площадь изображения, а не только на область объединения изображений.
 - **edgeGradient** (default none) - градиент на границах изображений. none - отключено, inside - только внутри объединенной области, full - везде. 
-- **bitDepth** (default unused) - глубина цвета выходного изображения, а также входящих после трансформаций, но перед цветокоррекцией, для ее улучшения
+- **bitDepth** (default unused) - глубина цвета выходного изображения
 
 ### ColorAdjust
     ColorAdjust(clip sample, clip reference, clip sampleMask, clip referenceMask, bool greyMask,
@@ -231,6 +260,10 @@ Separate - обособление кадра. Join prev - присоединит
 - **dynamicNoise** (default true) - динамический шум, если цветовая карта совпадает у нескольких кадров.
 - **simd** (default true) - использование SIMD Library для повышения производительности в некоторых случаях
 - **threads** (.NET default) - максимальное число потоков
+
+### ColorMatch
+    ColorMatch(clip sample, clip reference, clip sampleMask, clip referenceMask, bool greyMask, 
+	           float intensity, int length, string channels, bool limitedRange, float exclude)
 
 ### ComplexityOverlay
     ComplexityOverlay(clip source, clip overlay, string channels, int steps, float preference, bool mask, 
@@ -273,11 +306,11 @@ Separate - обособление кадра. Join prev - присоединит
 
 ### StaticOverlayRender
     StaticOverlayRender(clip source, clip overlay, float x, float y, float angle, float overlayWidth, float overlayHeight,
-                        string warpPoints, float diff, clip sourceMask, clip overlayMask,
+                        string warpPoints, float diff, clip sourceMask, clip overlayMask, string preset, 
                         clip innerBounds, clip outerBounds, float overlayBalanceX, float overlayBalanceY, bool fixedSource,
                         int overlayOrder, string overlayMode, int width, int height, string pixelType, int gradient, int noise, bool dynamicNoise,
                         int borderControl, float borderMaxDeviation, clip borderOffset, clip srcColorBorderOffset, clip overColorBorderOffset,
-                        bool maskMode, float opacity, float colorAdjust, string colorInterpolation, float colorExclude,
+                        bool maskMode, float opacity, float colorAdjust, int colorBuckets, string colorInterpolation, float colorExclude,
                         int colorFramesCount, float colorFramesDiff, float colorMaxDeviation, string adjustChannels, string matrix,
                         string upsize, string downsize, string rotate, bool simd, bool debug, bool invert, bool extrapolation,
                         string background, clip backgroundClip, int blankColor, float backBalance, int backBlur,
@@ -489,6 +522,16 @@ Expand the black mask (mode=darken) or white mask (mode=lighten)
 ### Обнаружение сцен
 
 ## История изменений
+### 13.05.2024 v0.6.2
+1. ColorMatch: новый фильтр для сопоставления цветов с поддержкой 32-битного цвета
+2. OverlayEngine, OverlayRender, OverlayMask: улучшенная поддержка HDR и RGB 
+3. OverlayRender: параметр BitDepth, чтобы явно указать глубину цвета результирующего клипа
+4. OverlayRender: пресеты
+5. OverlayRender: устранены артефакты на границах изображения при наличии цветовой субдискретизации
+6. OverlayRender: используется фильтр ColorMatch вместо ColorAdjust для глубины цвета 32 бита
+7. MathNet.Numerics обновлена до версии 5.0.0
+8. Исправлено высвобождение ресурсов
+
 ### 02.12.2023 v0.6.1
 1. OverlayEngine: warp and colorAdjust bugfix
 

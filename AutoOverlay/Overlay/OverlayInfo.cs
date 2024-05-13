@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing;
 using System.IO;
-using System.Linq;
 using AutoOverlay.Overlay;
 using AvsFilterNet;
 
@@ -195,7 +193,7 @@ namespace AutoOverlay
             var rect2 = other.ScaleBySource(SourceSize).OverlayRectangle;
             var intersect = RectangleD.Intersect(rect1, rect2);
             var union = RectangleD.Union(rect1, rect2);
-            return (double)(intersect.Width * intersect.Height) / (union.Width * union.Height);
+            return (intersect.Width * intersect.Height) / (union.Width * union.Height);
         }
 
         public bool NearlyEquals(OverlayInfo other, double tolerance)
@@ -221,145 +219,6 @@ namespace AutoOverlay
             return $"{nameof(Diff)}: {Diff:F5}, {nameof(Placement)}: {Placement.X:F3}, {Placement.Y:F3}, {nameof(Angle)}: {Angle:F3}, " +
                    $"{nameof(SourceSize)}: {SourceSize.Width:F2}x{SourceSize.Height}, " +
                    $"{nameof(OverlaySize)}: {OverlaySize.Width:F2}x{OverlaySize.Height}, {nameof(Warp)}: {OverlayWarp}, ";
-        }
-
-        public RectangleD GetCanvas(OverlayInput input)
-        {
-            if (input.FixedSource)
-                return SourceRectangle.Expand(input.TargetSize.GetAspectRatio());
-            var union = input.ExtraClips
-                .Select(p => p.Item2.ScaleBySource(SourceSize))
-                .Select(p => p.Union)
-                .Aggregate(Union, (acc, rect) => acc.Union(rect));
-
-            var canvas = union.Expand(input.TargetSize.GetAspectRatio());
-            var balanceCoef = (input.OverlayBalance + Space.One) / 2;
-            var center = (SourceRectangle.Location + SourceRectangle.AsSpace() / 2) * balanceCoef.Remaining() +
-                         (OverlayRectangle.Location + OverlayRectangle.AsSpace() / 2) * balanceCoef;
-
-            // Outer bounds
-            var borderShares = RectangleD.Difference(canvas, union, false).BorderShares;
-            var crop = borderShares.Eval(
-                canvas.AsSpace().Repeat(),
-                input.OuterBounds,
-                (share, length, max) => max > 1.01 ? Math.Max(length * share - max, 0) : length * Math.Max(0, share - max));
-            canvas = canvas.Crop(crop);
-
-            var limit = input.InnerBounds.Eval(canvas.AsSpace().Repeat(), (mult, length) => mult > 1.01 ? mult : length * mult);
-            var diff = RectangleD.Difference(SourceRectangle, OverlayRectangle, true);
-
-            // Inner bounds
-            IEnumerable<RectangleD> IterateCrop(RectangleD canvas, RectangleD limit)
-            {
-                var crops = new HashSet<RectangleD>();
-
-                void ConditionalAdd(RectangleD emptyArea, params RectangleD[] variants)
-                {
-                    if (emptyArea.Area > 0 && emptyArea.Intersect(canvas).Area > 0)
-                        foreach (var variant in variants)
-                            crops.Add(variant);
-                }
-
-                ConditionalAdd(diff.LeftTop,
-                    RectangleD.FromLTRB(diff.LeftTop.Right - canvas.Left - limit.Left, 0, 0, 0),
-                    RectangleD.FromLTRB(0, diff.LeftTop.Bottom - canvas.Top - limit.Top, 0, 0));
-                ConditionalAdd(diff.RightTop,
-                    RectangleD.FromLTRB(0, 0, canvas.Right - diff.RightTop.Left - limit.Right, 0),
-                    RectangleD.FromLTRB(0, diff.RightTop.Bottom - canvas.Top - limit.Top, 0, 0));
-                ConditionalAdd(diff.RightBottom,
-                    RectangleD.FromLTRB(0, 0, canvas.Right - diff.RightBottom.Left - limit.Right, 0),
-                    RectangleD.FromLTRB(0, 0, 0, canvas.Bottom - diff.RightBottom.Top - limit.Bottom));
-                ConditionalAdd(diff.LeftBottom,
-                    RectangleD.FromLTRB(diff.LeftBottom.Right - canvas.Left - limit.Left, 0, 0, 0),
-                    RectangleD.FromLTRB(0, 0, 0, canvas.Bottom - diff.LeftBottom.Top - limit.Bottom));
-
-                crops.RemoveWhere(p => !p.LTRB().Any(p => p > RectangleD.EPSILON));
-                if (!crops.Any())
-                {
-                    yield return canvas;
-                }
-
-                foreach (var c in crops
-                             .Where(p => p.LTRB().Any(p => p > RectangleD.EPSILON))
-                             .Select(canvas.Crop)
-                             .Select(p => p.Crop(input.TargetSize.GetAspectRatio(), center))
-                             .SelectMany(p => IterateCrop(p, limit)))
-                {
-                    yield return c;
-                }
-            }
-
-
-            var maxArea = IterateCrop(canvas, limit)
-                .Union(IterateCrop(canvas, RectangleD.Empty))
-                .Distinct()
-                .Max(p => p.Area);
-
-
-            return IterateCrop(canvas, limit)
-                .Union(IterateCrop(canvas, RectangleD.Empty))
-                .Where(p => Math.Abs(p.Area - maxArea) < OverlayUtils.EPSILON)
-                .Aggregate((acc, c) => acc.Union(c))
-                .Crop(input.TargetSize.GetAspectRatio(), center);
-        }
-
-        public OverlayData GetOverlayData(OverlayInput input)
-        {
-            var canvas = GetCanvas(input);
-
-            var coef = input.TargetSize.AsSpace() / canvas;
-
-            var offset = -canvas.Location;
-            canvas = new RectangleD(Space.Empty, input.TargetSize);
-            
-            (Rectangle region, RectangleD crop, Warp warp) GetRegionAndCrop(RectangleD rect, SizeF size, Warp warpIn)
-            {
-                rect = rect.Offset(offset).Scale(coef);
-                var targetRect = RectangleD.Intersect(canvas, rect).Floor();
-                var crop = rect.Eval(targetRect, (t, u) => Math.Abs(t - u));
-                crop = crop.Scale(size.AsSpace() / rect.Size);
-                return (targetRect, crop.IsEmpty ? RectangleD.Empty : crop, warpIn.Scale(coef));
-            }
-
-            var (targetSrc, srcCrop, srcWarp) = GetRegionAndCrop(SourceRectangle, input.SourceSize, SourceWarp);
-            var (targetOver, overCrop, overWarp) = GetRegionAndCrop(OverlayRectangle, input.OverlaySize, OverlayWarp);
-
-            var extraClips = from p in input.ExtraClips
-                             let tuple = p.Item1
-                             let info = p.Item2.ScaleBySource(SourceSize)
-                             let regionAndCrop = GetRegionAndCrop(info.OverlayRectangle, tuple.Info.Size, info.OverlayWarp)
-                             select new OverlayData
-                             {
-                                 Diff = Diff,
-                                 SourceBaseSize = input.SourceSize,
-                                 Source = targetSrc,
-                                 SourceCrop = srcCrop,
-                                 SourceWarp = srcWarp,
-                                 OverlayBaseSize = tuple.Info.Size,
-                                 Overlay = regionAndCrop.region,
-                                 OverlayCrop = regionAndCrop.crop,
-                                 OverlayWarp = regionAndCrop.warp,
-                                 Coef = coef.X,
-                             };
-            var extraClipList = extraClips.ToList();
-
-            return new OverlayData
-            {
-                Diff = Diff,
-                SourceBaseSize = input.SourceSize,
-                Source = targetSrc,
-                SourceCrop = srcCrop,
-                SourceWarp = srcWarp,
-                OverlayBaseSize = input.OverlaySize,
-                Overlay = targetOver,
-                OverlayCrop = overCrop,
-                OverlayWarp = overWarp,
-                Coef = coef.X,
-                ExtraClips = extraClipList,
-                Union = extraClipList
-                    .Select(p => p.Overlay)
-                    .Aggregate(Rectangle.Union(targetSrc, targetOver), Rectangle.Union)
-            }.Also(data => data.ExtraClips.ForEach(p => p.Union = data.Union));
         }
     }
 }

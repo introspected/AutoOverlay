@@ -46,13 +46,14 @@
             // toolStrip1
             // 
             this.toolStrip1.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.toolStrip1.ImageScalingSize = new System.Drawing.Size(20, 20);
             this.toolStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.btnCancel,
             this.btnPause,
             this.btnResume});
-            this.toolStrip1.Location = new System.Drawing.Point(0, 86);
+            this.toolStrip1.Location = new System.Drawing.Point(0, 110);
             this.toolStrip1.Name = "toolStrip1";
-            this.toolStrip1.Size = new System.Drawing.Size(384, 25);
+            this.toolStrip1.Size = new System.Drawing.Size(512, 27);
             this.toolStrip1.TabIndex = 0;
             this.toolStrip1.Text = "toolStrip1";
             // 
@@ -63,7 +64,7 @@
             this.btnCancel.Image = ((System.Drawing.Image)(resources.GetObject("btnCancel.Image")));
             this.btnCancel.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnCancel.Name = "btnCancel";
-            this.btnCancel.Size = new System.Drawing.Size(47, 22);
+            this.btnCancel.Size = new System.Drawing.Size(57, 24);
             this.btnCancel.Text = "Cancel";
             this.btnCancel.Click += new System.EventHandler(this.btnCancel_Click);
             // 
@@ -74,7 +75,7 @@
             this.btnPause.Image = ((System.Drawing.Image)(resources.GetObject("btnPause.Image")));
             this.btnPause.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnPause.Name = "btnPause";
-            this.btnPause.Size = new System.Drawing.Size(42, 22);
+            this.btnPause.Size = new System.Drawing.Size(50, 24);
             this.btnPause.Text = "Pause";
             this.btnPause.Click += new System.EventHandler(this.btnPause_Click);
             // 
@@ -85,7 +86,7 @@
             this.btnResume.Image = ((System.Drawing.Image)(resources.GetObject("btnResume.Image")));
             this.btnResume.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnResume.Name = "btnResume";
-            this.btnResume.Size = new System.Drawing.Size(53, 22);
+            this.btnResume.Size = new System.Drawing.Size(65, 24);
             this.btnResume.Text = "Resume";
             this.btnResume.Visible = false;
             this.btnResume.Click += new System.EventHandler(this.btnResume_Click);
@@ -95,34 +96,38 @@
             this.progressBar.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.progressBar.Location = new System.Drawing.Point(12, 33);
+            this.progressBar.Location = new System.Drawing.Point(16, 41);
+            this.progressBar.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.progressBar.Name = "progressBar";
-            this.progressBar.Size = new System.Drawing.Size(360, 23);
+            this.progressBar.Size = new System.Drawing.Size(480, 28);
             this.progressBar.TabIndex = 1;
             // 
             // labelFps
             // 
-            this.labelFps.Location = new System.Drawing.Point(9, 9);
+            this.labelFps.Location = new System.Drawing.Point(12, 11);
+            this.labelFps.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.labelFps.Name = "labelFps";
-            this.labelFps.Size = new System.Drawing.Size(122, 13);
+            this.labelFps.Size = new System.Drawing.Size(163, 16);
             this.labelFps.TabIndex = 2;
             this.labelFps.Text = "FPS";
             // 
             // labelFrames
             // 
             this.labelFrames.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.labelFrames.Location = new System.Drawing.Point(222, 9);
+            this.labelFrames.Location = new System.Drawing.Point(296, 11);
+            this.labelFrames.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.labelFrames.Name = "labelFrames";
-            this.labelFrames.Size = new System.Drawing.Size(150, 17);
+            this.labelFrames.Size = new System.Drawing.Size(200, 21);
             this.labelFrames.TabIndex = 2;
             this.labelFrames.TextAlign = System.Drawing.ContentAlignment.TopRight;
             // 
             // labelEta
             // 
             this.labelEta.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.labelEta.Location = new System.Drawing.Point(255, 59);
+            this.labelEta.Location = new System.Drawing.Point(340, 73);
+            this.labelEta.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.labelEta.Name = "labelEta";
-            this.labelEta.Size = new System.Drawing.Size(117, 27);
+            this.labelEta.Size = new System.Drawing.Size(156, 33);
             this.labelEta.TabIndex = 2;
             this.labelEta.Text = "Remaining";
             this.labelEta.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -130,9 +135,10 @@
             // labelElapsed
             // 
             this.labelElapsed.AutoSize = true;
-            this.labelElapsed.Location = new System.Drawing.Point(9, 66);
+            this.labelElapsed.Location = new System.Drawing.Point(12, 81);
+            this.labelElapsed.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.labelElapsed.Name = "labelElapsed";
-            this.labelElapsed.Size = new System.Drawing.Size(45, 13);
+            this.labelElapsed.Size = new System.Drawing.Size(58, 16);
             this.labelElapsed.TabIndex = 2;
             this.labelElapsed.Text = "Elapsed";
             this.labelElapsed.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -144,9 +150,9 @@
             // 
             // ProgressDialog
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(384, 111);
+            this.ClientSize = new System.Drawing.Size(512, 137);
             this.Controls.Add(this.labelElapsed);
             this.Controls.Add(this.labelEta);
             this.Controls.Add(this.labelFrames);
@@ -155,6 +161,7 @@
             this.Controls.Add(this.toolStrip1);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "ProgressDialog";

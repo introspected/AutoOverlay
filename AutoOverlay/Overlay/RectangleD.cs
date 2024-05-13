@@ -13,6 +13,8 @@ namespace AutoOverlay.Overlay
 
         public static readonly RectangleD Empty;
 
+        public static readonly RectangleD One = FromLTRB(1, 1, 1, 1);
+
         public double X { get; }
 
         public double Y { get; }

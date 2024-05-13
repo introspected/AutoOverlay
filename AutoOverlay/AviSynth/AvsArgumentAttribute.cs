@@ -18,6 +18,6 @@ namespace AutoOverlay.AviSynth
 
         public double Max { get; set; } = double.MaxValue;
 
-        public string[] Values { get; set; } = new string[0];
+        public string[] Values { get; set; } = [];
     }
 }

@@ -17,7 +17,7 @@ namespace AutoOverlay.Forms
     public partial class OverlayEditor : Form
     {
         #region Fields and properties
-        private readonly KeyboardHook keyboardHook = new KeyboardHook(true);
+        private readonly KeyboardHook keyboardHook = new(true);
 
         private bool captured;
 
@@ -130,8 +130,8 @@ namespace AutoOverlay.Forms
             Engine = engine;
             Env = env;
             InitializeComponent();
-            cbMode.Items.AddRange(Enum.GetValues(typeof(FramingMode)).Cast<object>().ToArray());
-            cbMode.SelectedItem = FramingMode.Fit;
+            cbMode.Items.AddRange(Enum.GetValues(typeof(OverlayRenderPreset)).Cast<object>().ToArray());
+            cbMode.SelectedItem = OverlayRenderPreset.FitSource;
             cbOverlayMode.SelectedItem = "Blend";
             cbMatrix.Items.AddRange(Enum.GetValues(typeof(AvsMatrix)).Cast<object>().ToArray());
             cbMatrix.Enabled = chbRGB.Enabled = !engine.SrcInfo.Info.IsRGB();
@@ -495,7 +495,8 @@ namespace AutoOverlay.Forms
                 overlayMode = cbOverlayMode.SelectedItem.ToString(),
                 opacity = tbOpacity.Value / 100.0,
                 colorAdjust = chbColorAdjust.Checked ? tbColorAdjust.Value / 100.0 : -1,
-                debug = chbDebug.Checked
+                debug = chbDebug.Checked,
+                preset = (OverlayRenderPreset) cbMode.SelectedItem
             };
             Post(request, RenderInternal, (_, image) =>
             {
@@ -521,6 +522,7 @@ namespace AutoOverlay.Forms
             public double opacity;
             public double colorAdjust;
             public bool debug;
+            public OverlayRenderPreset preset;
         }
 
         private static Bitmap RenderInternal(RenderRequest request)
@@ -541,6 +543,7 @@ namespace AutoOverlay.Forms
                             width: request.outSize.Width,
                             height: request.outSize.Height,
                             gradient: request.gradient,
+                            preset: request.preset,
                             noise: request.noise,
                             dynamicNoise: true,
                             overlayMode: request.overlayMode,

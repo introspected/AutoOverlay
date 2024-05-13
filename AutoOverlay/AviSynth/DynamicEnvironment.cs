@@ -32,6 +32,8 @@ namespace AutoOverlay.AviSynth
 
         private readonly HashSet<object> owners;
 
+        public static dynamic Current => Env;
+
         public static DynamicEnvironment Env => contexts.Value.Any() ? contexts.Value.Peek() : null;
 
         private readonly AVSValueCollector collector;
@@ -95,7 +97,7 @@ namespace AutoOverlay.AviSynth
                 DisposeInstance();
                 return;
             }
-            while (contexts.Value.Count > 0)
+            while (contexts.IsValueCreated && contexts.Value.Count > 0)
             {
                 var ctx = Detach();
                 ctx.DisposeInstance();
@@ -122,8 +124,8 @@ namespace AutoOverlay.AviSynth
 
         public DynamicEnvironment(ScriptEnvironment env, bool collected = true)
         {
-            cache = new Dictionary<Key, Tuple<AVSValue, Clip, object>>();
-            owners = new HashSet<object>();
+            cache = new();
+            owners = [];
             contexts.Value.Push(this);
             _env = env;
             if (collected)
@@ -215,7 +217,7 @@ namespace AutoOverlay.AviSynth
                 result = new DynamicEnvironment(tuple.Item2);
             else if (binder.ReturnType == typeof(int))
                 result = tuple.Item1.AsInt();
-            else if (binder.ReturnType == typeof(float))
+            else if (binder.ReturnType == typeof(double))
                 result = tuple.Item1.AsFloat();
             else if (binder.ReturnType == typeof(string))
                 result = tuple.Item1.AsString();
