@@ -110,7 +110,6 @@ namespace AutoOverlay
         public ExtraVideoInfo OverInfo { get; private set; }
 
         public Clip sourcePrepared;
-
         public Clip overlayPrepared;
 
         private readonly ConcurrentDictionary<RepeatKey, OverlayInfo> repeatCache = new();
@@ -125,6 +124,8 @@ namespace AutoOverlay
         public int[] SelectedFrames { get; private set; }
 
         public HashSet<int> KeyFrames { get; } = new();
+
+        private int framesTotal;
 
         private static List<Predicate<OverlayData>> StickCriteria { get; } = new()
         {
@@ -168,7 +169,7 @@ namespace AutoOverlay
             }
 
             var vi = GetVideoInfo();
-            vi.num_frames = Math.Min(SrcInfo.FrameCount, OverInfo.FrameCount);
+            framesTotal = vi.num_frames = Math.Min(SrcInfo.FrameCount, OverInfo.FrameCount);
             if (Mode is OverlayEngineMode.PROCESSED or OverlayEngineMode.UNPROCESSED)
             {
                 SelectedFrames = new int[vi.num_frames];
@@ -377,7 +378,7 @@ namespace AutoOverlay
                     log.AppendLine($"Analyze next frames: {ForwardFrames}");
                     var prevStat = info;
                     for (var nextFrame = n + 1;
-                        nextFrame <= n + ForwardFrames && nextFrame < GetVideoInfo().num_frames && !KeyFrames.Contains(nextFrame);
+                        nextFrame <= n + ForwardFrames && nextFrame < framesTotal && !KeyFrames.Contains(nextFrame);
                         nextFrame++)
                     {
                         log.AppendLine($"Next frame: {nextFrame}");
@@ -438,7 +439,7 @@ namespace AutoOverlay
                 var stabilizeFrames = new List<OverlayInfo>(prevFrames) {info};
                 for (var nextFrame = n + 1;
                     nextFrame < n + BackwardFrames - prevFramesCount &&
-                    nextFrame < GetVideoInfo().num_frames;
+                    nextFrame < framesTotal;
                     nextFrame++)
                 {
                     if (OverlayStat[nextFrame] != null)
@@ -468,7 +469,7 @@ namespace AutoOverlay
                         .Info;
 
                     stabilizeFrames.Clear();
-                    for (var frame = n; frame < n + BackwardFrames - prevFramesCount && frame < GetVideoInfo().num_frames; frame++)
+                    for (var frame = n; frame < n + BackwardFrames - prevFramesCount && frame < framesTotal; frame++)
                     {
                         var stabInfo = Repeat(averageInfo, frame);
                         stabilizeFrames.Add(stabInfo);
@@ -480,7 +481,7 @@ namespace AutoOverlay
                 }
                 for (var nextFrame = n + BackwardFrames - prevFramesCount;
                     nextFrame < n + BackwardFrames - prevFramesCount + ForwardFrames &&
-                    nextFrame < GetVideoInfo().num_frames;
+                    nextFrame < framesTotal;
                     nextFrame++)
                 {
                     var stat = OverlayStat[nextFrame];
@@ -508,7 +509,7 @@ namespace AutoOverlay
                 }
                 for (var frame = n;
                     frame < n + BackwardFrames - prevFramesCount &&
-                    frame < GetVideoInfo().num_frames;
+                    frame < framesTotal;
                     frame++)
                     if (frame == n || OverlayStat[frame] == null)
                         OverlayStat[frame] = stabilizeFrames[frame - n + prevFramesCount]; // TODO BUG!!!!
