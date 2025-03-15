@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
@@ -10,8 +9,8 @@ using AvsFilterNet;
 [assembly: AvisynthFilterClass(
     typeof(ComplexityOverlayMany),
     nameof(ComplexityOverlayMany),
-    "cc+[Channels]s[Steps]i[Threads]i[Debug]b",
-    OverlayUtils.DEFAULT_MT_MODE)]
+    "cc+[Channels]s[Steps]i[Invert]b[Threads]i[Debug]b",
+    OverlayConst.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
     public class ComplexityOverlayMany : OverlayFilter
@@ -28,14 +27,16 @@ namespace AutoOverlay
         [AvsArgument(Min = 1, Max = 64)]
         public int Steps { get; set; } = 1;
 
+        [AvsArgument]
+        public bool Invert { get; protected set; }
+
         [AvsArgument(Min = 0)]
         public int Threads { get; set; } = 0;
 
         [AvsArgument]
         public override bool Debug { get; protected set; }
 
-        private YUVPlanes[] planes;
-        private int[] realChannels;
+        private PlaneChannel[] planeChannels;
         private ParallelOptions parallelOptions;
 
         protected override void Initialize(AVSValue args)
@@ -44,29 +45,31 @@ namespace AutoOverlay
             {
                 MaxDegreeOfParallelism = Threads == 0 ? -1 : Threads
             };
-            planes = GetVideoInfo().pixel_type.HasFlag(ColorSpaces.CS_INTERLEAVED)
-                ? new[] { default(YUVPlanes) }
-                : (Channels ?? "yuv").ToCharArray().Select(p => Enum.Parse(typeof(YUVPlanes), "PLANAR_" + p, true))
-                .Cast<YUVPlanes>().ToArray();
-            realChannels = GetVideoInfo().IsPlanar()
-                ? new[] { 0 }
-                : (Channels ?? "rgb").ToLower().ToCharArray().Select(p => "bgr".IndexOf(p)).ToArray();
 
-            var vi = Child.GetVideoInfo();
-            SetVideoInfo(ref vi);
+            var srcVi = Source.GetVideoInfo();
+            var overVi = Overlays.Select(p => p.GetVideoInfo()).ToArray();
+
+            if (overVi.Any(p => srcVi.GetSize() != p.GetSize()))
+                throw new AvisynthException("Clips with different resolution");
+            if (overVi.Any(p => srcVi.pixel_type != p.pixel_type))
+                throw new AvisynthException("Clips with different color spaces");
+
+            planeChannels = srcVi.pixel_type.GetPlaneChannels(Channels);
+            srcVi.num_frames = Math.Min(srcVi.num_frames, overVi.Min(p => p.num_frames));
+            SetVideoInfo(ref srcVi);
         }
 
         protected override VideoFrame GetFrame(int n)
         {
-            var allPlanes = OverlayUtils.GetPlanes(GetVideoInfo().pixel_type);
+            var allPlanes = GetVideoInfo().pixel_type.GetPlanes();
             var output = NewVideoFrame(StaticEnv);
             var frames = new VideoFrame[Overlays.Length];
             try
             {
                 using var src = Source.GetFrame(n, StaticEnv);
-                if (GetVideoInfo().IsRGB() && realChannels.Length < 3 || Source.IsRealPlanar() && planes.Length < 3)
+                if (GetVideoInfo().IsRGB() && planeChannels.Length < 3 || Source.IsRealPlanar() && planeChannels.Length < 3)
                 {
-                    Parallel.ForEach(allPlanes, parallelOptions, plane => OverlayUtils.CopyPlane(src, output, plane));
+                    src.CopyTo(output, allPlanes);
                 }
                 for (var i = 0; i < Overlays.Length; i++)
                 {
@@ -74,42 +77,105 @@ namespace AutoOverlay
                 }
                 unsafe
                 {
-                    Parallel.ForEach(planes, parallelOptions, plane =>
+                    Parallel.ForEach(planeChannels, parallelOptions, planeChannel =>
                     {
-                        var srcStride = src.GetPitch(plane);
-                        var strides = frames.Select(frame => frame.GetPitch(plane)).ToArray();
-                        var pixelSize = GetVideoInfo().IsRGB() ? 3 : 1;
+                        var srcPlane = new FramePlane(planeChannel, src, true);
+                        var overPlains = frames.Select(frame => new FramePlane(planeChannel, frame, true)).ToArray();
+                        var outPlane = new FramePlane(planeChannel, output, false);
 
-                        var size = new Size(src.GetRowSize(plane), src.GetHeight(plane));
-                        Parallel.ForEach(realChannels, parallelOptions, channel =>
+                        var pixelSize = outPlane.pixelSize;
+                        var size = new Size(outPlane.row, outPlane.height);
+                        var srcStride = srcPlane.stride;
+                        var strides = overPlains.Select(p => p.stride).ToArray();
+                        var outStride = outPlane.stride;
+
+                        switch (srcPlane.byteDepth)
                         {
-                            Parallel.For(0, size.Height, parallelOptions, y =>
-                            {
-                                var srcData = (byte*) src.GetReadPtr(plane) + y * srcStride + channel;
-                                var data = new byte*[frames.Length];
-                                for (var i = 0; i < frames.Length; i++)
+                            case 1:
+                                Parallel.For(0, size.Height, parallelOptions, y =>
                                 {
-                                    data[i] = (byte*) frames[i].GetReadPtr(plane) + y * strides[i] + channel;
-                                }
-                                var writer = (byte*) output.GetWritePtr(plane) + y * output.GetPitch(plane) + channel;
-                                for (var x = 0; x < size.Width; x += pixelSize)
-                                {
-                                    var complexed = GetComplexity(srcData, x, y, pixelSize, srcStride, size, Steps);
-                                    var complexedData = srcData;
-                                    for (var i = 0; i < data.Length; i++)
+                                    var srcData = (byte*)srcPlane.pointer + y * srcStride;
+                                    var data = new byte*[frames.Length];
+                                    for (var i = 0; i < frames.Length; i++)
                                     {
-                                        var currentData = data[i];
-                                        var complexity = GetComplexity(currentData, x, y, pixelSize, strides[i], size, Steps);
-                                        if (complexity >= complexed)
-                                        {
-                                            complexed = complexity;
-                                            complexedData = currentData;
-                                        }
+                                        data[i] = (byte*)overPlains[i].pointer + y * strides[i];
                                     }
-                                    writer[x] = complexedData[x];
-                                }
-                            });
-                        });
+                                    var writer = (byte*)outPlane.pointer + y * outStride;
+                                    for (var x = 0; x < size.Width; x += pixelSize)
+                                    {
+                                        var currentComplexity = ComplexityUtils.Byte(srcData, x, y, pixelSize, srcStride, size, Steps);
+                                        var currentData = srcData;
+                                        for (var i = 0; i < data.Length; i++)
+                                        {
+                                            var nextData = data[i];
+                                            var complexity = ComplexityUtils.Byte(nextData, x, y, pixelSize, strides[i], size, Steps);
+                                            if (Invert ? complexity < currentComplexity : complexity > currentComplexity)
+                                            {
+                                                currentComplexity = complexity;
+                                                currentData = nextData;
+                                            }
+                                        }
+                                        writer[x] = currentData[x];
+                                    }
+                                });
+                                break;
+                            case 2:
+                                Parallel.For(0, size.Height, parallelOptions, y =>
+                                {
+                                    var srcData = (ushort*)srcPlane.pointer + y * srcStride;
+                                    var data = new ushort*[frames.Length];
+                                    for (var i = 0; i < frames.Length; i++)
+                                    {
+                                        data[i] = (ushort*)overPlains[i].pointer + y * strides[i];
+                                    }
+                                    var writer = (ushort*)outPlane.pointer + y * outStride;
+                                    for (var x = 0; x < size.Width; x += pixelSize)
+                                    {
+                                        var currentComplexity = ComplexityUtils.Short(srcData, x, y, pixelSize, srcStride, size, Steps);
+                                        var currentData = srcData;
+                                        for (var i = 0; i < data.Length; i++)
+                                        {
+                                            var nextData = data[i];
+                                            var complexity = ComplexityUtils.Short(nextData, x, y, pixelSize, strides[i], size, Steps);
+                                            if (Invert ? complexity < currentComplexity : complexity > currentComplexity)
+                                            {
+                                                currentComplexity = complexity;
+                                                currentData = nextData;
+                                            }
+                                        }
+                                        writer[x] = currentData[x];
+                                    }
+                                });
+                                break;
+                            case 4:
+                                Parallel.For(0, size.Height, parallelOptions, y =>
+                                {
+                                    var srcData = (float*)srcPlane.pointer + y * srcStride;
+                                    var data = new float*[frames.Length];
+                                    for (var i = 0; i < frames.Length; i++)
+                                    {
+                                        data[i] = (float*)overPlains[i].pointer + y * strides[i];
+                                    }
+                                    var writer = (float*)outPlane.pointer + y * outStride;
+                                    for (var x = 0; x < size.Width; x += pixelSize)
+                                    {
+                                        var currentComplexity = ComplexityUtils.Float(srcData, x, y, pixelSize, srcStride, size, Steps);
+                                        var currentData = srcData;
+                                        for (var i = 0; i < data.Length; i++)
+                                        {
+                                            var nextData = data[i];
+                                            var complexity = ComplexityUtils.Float(nextData, x, y, pixelSize, strides[i], size, Steps);
+                                            if (Invert ? complexity < currentComplexity : complexity > currentComplexity)
+                                            {
+                                                currentComplexity = complexity;
+                                                currentData = nextData;
+                                            }
+                                        }
+                                        writer[x] = currentData[x];
+                                    }
+                                });
+                                break;
+                        }
                     });
                 }
             }
@@ -119,34 +185,6 @@ namespace AutoOverlay
                     frame.Dispose();
             }
             return output;
-        }
-
-        private static unsafe float GetComplexity(byte* data, int x, int y, int pitch, int pixelSize, Size size, int stepCount)
-        {
-            var value = data[x];
-            var sum = 0;
-            var count = 0;
-            for (var step = -stepCount; step <= stepCount; step++)
-            {
-                var xTest = x + step * pixelSize;
-                if (xTest < 0 || xTest >= size.Width)
-                    continue;
-                var subStepCount = stepCount - Math.Abs(step);
-                for (var subStep = -subStepCount; subStep <= subStepCount; subStep++)
-                {
-                    if (step == 0 && subStep == 0)
-                        continue;
-
-                    var yTest = y + subStep;
-                    if (yTest >= 0 && yTest < size.Height)
-                    {
-                        sum += (data + pitch * subStep)[xTest];
-                        count++;
-                    }
-                }
-            }
-
-            return Math.Abs(value - (float) sum / count);
         }
     }
 }

@@ -133,25 +133,17 @@ namespace AutoOverlay.Forms
             cbMode.Items.AddRange(Enum.GetValues(typeof(OverlayRenderPreset)).Cast<object>().ToArray());
             cbMode.SelectedItem = OverlayRenderPreset.FitSource;
             cbOverlayMode.SelectedItem = "Blend";
-            cbMatrix.Items.AddRange(Enum.GetValues(typeof(AvsMatrix)).Cast<object>().ToArray());
+            cbMatrix.Items.AddRange(AvsUtils.Matrices.ToArray<object>());
             cbMatrix.Enabled = chbRGB.Enabled = !engine.SrcInfo.Info.IsRGB();
-            if (chbRGB.Enabled)
-            {
-                cbMatrix.SelectedItem = AvsMatrix.Rec709;
-            }
-            else
-            {
-                chbRGB.Checked = true;
-                cbMatrix.SelectedItem = AvsMatrix.Default;
-            }
+            chbColorAdjust.Checked = Engine.ColorAdjust != -1;
+            if (Engine.ColorAdjust >= 0)
+                tbColorAdjust.Value = Engine.ColorAdjust;
+            cbMatrix.SelectedItem = "Rec709";
             nudMaxDiff.Value = (decimal) engine.MaxDiff;
             nudOutputWidth.Value = engine.SrcInfo.Width;
             nudOutputHeight.Value = engine.SrcInfo.Height;
-            nudDeviation.Value = engine.Stabilize ? 0 : new decimal(engine.MaxDeviation * 100.0);
+            nudDeviation.Value = new decimal(engine.SceneAreaTolerance * 100.0);
             nudMaxFrame.Value = nudMinFrame.Maximum = nudMaxFrame.Maximum = engine.GetVideoInfo().num_frames - 1;
-            engine.CurrentFrameChanged += OnCurrentFrameChanged;
-            keyboardHook.KeyDown += keyboardHook_KeyDown;
-            Closing += (o, e) => keyboardHook.Dispose();
         }
 
         public void UpdateControls(OverlayInfo info)
@@ -297,6 +289,9 @@ namespace AutoOverlay.Forms
             LoadStat(true);
             grid.DataSource = Intervals;
             grid.BindingContext[Intervals].CurrentChanged += UpdateInterval;
+            Engine.CurrentFrameChanged += OnCurrentFrameChanged;
+            keyboardHook.KeyDown += keyboardHook_KeyDown;
+            Closing += (_, _) => keyboardHook.Dispose();
         }
 
         private void OverlayEditorForm_FormClosed(object sender, FormClosedEventArgs e)
@@ -340,7 +335,6 @@ namespace AutoOverlay.Forms
             OverlayInfo lastFrame = null;
             var min = (int)nudMinFrame.Value;
             var max = (int) nudMaxFrame.Value;
-            var overSize = Engine.OverInfo.Size;
             var compareLimit = (double) nudCompare.Value;
             var minSceneLength = (int) nudMinSceneLength.Value;
             using (var refStat = compareFilename == null ? null : new FileOverlayStat(compareFilename, Engine.SrcInfo.Size, Engine.OverInfo.Size))
@@ -391,24 +385,32 @@ namespace AutoOverlay.Forms
 
         private void SaveStat(object sender = null, EventArgs e = null)
         {
+#if DEBUG
             var watch = new Stopwatch();
             watch.Start();
+#endif
             Cursor.Current = Cursors.WaitCursor;
             CheckChanges();
+#if DEBUG
             watch.Stop();
             Debug.WriteLine($"Check changes: {watch.ElapsedMilliseconds}");
             watch.Restart();
+#endif
             var frames = Intervals.Where(p => p.Modified).SelectMany(p => p).ToArray();
             Engine.OverlayStat.Save(frames);
+#if DEBUG
             watch.Stop();
             Debug.WriteLine($"Save changes: {watch.ElapsedMilliseconds}");
             watch.Restart();
+#endif
             foreach (var interval in Intervals)
                 interval.Modified = false;
             Intervals.ResetBindings();
             grid.Refresh();
+#if DEBUG
             watch.Stop();
             Debug.WriteLine($"Refresh: {watch.ElapsedMilliseconds}");
+#endif
             Cursor.Current = Cursors.Default;
         }
 
@@ -430,7 +432,7 @@ namespace AutoOverlay.Forms
                     {
                         var refFrame = refStat[frame.FrameNumber];
                         if (refFrame == null) continue;
-                        frame.Comparison = refFrame.Compare(frame);
+                        frame.Comparison = refFrame.ScaleBySource(Engine.SrcInfo.Size).Compare(frame);
                     }
                 grid.Refresh();
             }
@@ -439,7 +441,7 @@ namespace AutoOverlay.Forms
                 Cursor.Current = Cursors.Default;
             }
         }
-        #endregion
+#endregion
 
         #region Frame management
         private void Render(object sender = null, EventArgs e = null)
@@ -485,13 +487,12 @@ namespace AutoOverlay.Forms
                 outSize = new Size((int) nudOutputWidth.Value, (int) nudOutputHeight.Value),
                 preview = chbPreview.Checked,
                 engine = Engine,
-                pictureBox = pictureBox,
                 rgb = chbRGB.Checked,
                 matrix = cbMatrix.Enabled
                     ? cbMatrix.SelectedIndex > 0 ? cbMatrix.SelectedItem.ToString() : string.Empty
                     : null,
                 gradient = (int) nudGradientSize.Value,
-                noise = (int) nudNoiseSize.Value,
+                noise = cbNoise.Checked,
                 overlayMode = cbOverlayMode.SelectedItem.ToString(),
                 opacity = tbOpacity.Value / 100.0,
                 colorAdjust = chbColorAdjust.Checked ? tbColorAdjust.Value / 100.0 : -1,
@@ -514,10 +515,10 @@ namespace AutoOverlay.Forms
             public Size outSize;
             public bool preview;
             public OverlayEngine engine;
-            public PictureBox pictureBox;
             public bool rgb;
             public string matrix;
-            public int gradient, noise;
+            public int gradient;
+            public bool noise;
             public string overlayMode;
             public double opacity;
             public double colorAdjust;
@@ -545,7 +546,6 @@ namespace AutoOverlay.Forms
                             gradient: request.gradient,
                             preset: request.preset,
                             noise: request.noise,
-                            dynamicNoise: true,
                             overlayMode: request.overlayMode,
                             opacity: request.opacity,
                             colorAdjust: request.colorAdjust,
@@ -807,7 +807,7 @@ namespace AutoOverlay.Forms
         private void btnAutoOverlaySingleFrame_Click(object sender, EventArgs e)
         {
             if (Interval == null) return;
-            Post(CurrentFrame, frame => Engine.AutoOverlayImpl(frame), (frame, info) =>
+            Post(CurrentFrame, frame => Engine.AutoAlign(frame), (frame, info) =>
             {
                 Interval[frame] = info;
                 UpdateControls(info);
@@ -818,13 +818,13 @@ namespace AutoOverlay.Forms
 
         private void btnAutoOverlayScene_Click(object sender, EventArgs e)
         {
-            new ProgressDialog(this, new[] { Interval }, (frame, interval) => Engine.AutoOverlayImpl(frame)).ShowDialog(this);
+            new ProgressDialog(this, [Interval], (frame, interval) => Engine.AutoAlign(frame)).ShowDialog(this);
         }
 
         private void btnAutoOverlaySeparatedFrame_Click(object sender, EventArgs e)
         {
             if (Interval == null) return;
-            Post(CurrentFrame, frame => Engine.AutoOverlayImpl(frame), (frame, info) =>
+            Post(CurrentFrame, frame => Engine.AutoAlign(frame), (frame, info) =>
             {
                 Interval[CurrentFrame] = info;
                 if (Interval.Contains(CurrentFrame - 1) && !info.NearlyEquals(Interval[CurrentFrame - 1], MaxDeviation))
@@ -867,6 +867,40 @@ namespace AutoOverlay.Forms
         private void btnPanScanFull_Click(object sender, EventArgs e)
         {
             PanScan(Intervals.Where(p => p.Length >= Engine.BackwardFrames).ToList(), "Scan whole clip");
+        }
+
+        private void btnUpdateFrame_Click(object sender, EventArgs e)
+        {
+            var repeated = Engine.RepeatImpl(GetOverlayInfo(), CurrentFrame);
+            UpdateControls(repeated);
+            RenderImpl();
+        }
+
+        private void btnUpdateScene_Click(object sender, EventArgs e)
+        {
+            Update(new List<FrameInterval> { Interval }, $"Update scene {Interval.Interval}");
+        }
+
+        private void btnUpdateClip_Click(object sender, EventArgs e)
+        {
+            Update(Intervals, "Update whole clip");
+        }
+
+        private void btnEnhanceFrame_Click(object sender, EventArgs e)
+        {
+            var enhanced = Engine.Enhance(GetOverlayInfo(), CurrentFrame);
+            UpdateControls(enhanced);
+            RenderImpl();
+        }
+
+        private void btnEnhanceScene_Click(object sender, EventArgs e)
+        {
+            Enhance(new List<FrameInterval> { Interval }, $"Enhance scene {Interval.Interval}");
+        }
+
+        private void btnEnhanceClip_Click(object sender, EventArgs e)
+        {
+            Enhance(Intervals, "Enhance whole clip");
         }
 
         private void AdjustOrScanOne(Func<OverlayInfo> keyFrame)
@@ -919,6 +953,22 @@ namespace AutoOverlay.Forms
                 Text = operationName
             }.ShowDialog(this);
         }
+
+        private void Update(ICollection<FrameInterval> intervals, string operationName)
+        {
+            new ProgressDialog(this, intervals, (frame, interval) => Engine.RepeatImpl(interval[frame], frame))
+            {
+                Text = operationName
+            }.ShowDialog(this);
+        }
+
+        private void Enhance(ICollection<FrameInterval> intervals, string operationName)
+        {
+            new ProgressDialog(this, intervals, (frame, interval) => Engine.Enhance(interval[frame], frame))
+            {
+                Text = operationName
+            }.ShowDialog(this);
+        }
         #endregion
 
         #region Multithreading
@@ -964,6 +1014,12 @@ namespace AutoOverlay.Forms
             }, id);
         }
 
+
         #endregion
+
+        private void label28_Click(object sender, EventArgs e)
+        {
+
+        }
     }
 }

@@ -1,18 +1,51 @@
 #pragma once
 
+#include "NativeRandom.h"
+
 namespace AutoOverlay
 {
 	public ref class FastRandom sealed
 	{
-	private:
-		uint32_t seed;
+		NativeRandom* native;
 
 	public:
-		FastRandom();
-		FastRandom(int seed);
+		FastRandom() : native(new NativeRandom(std::rand()))
+		{
+			
+		}
 
-		int Next();
-		int Next(int limit);
-		double NextDouble();
+		FastRandom(int seed) : native(new NativeRandom(seed))
+		{
+			
+		}
+
+		int Next()
+		{
+			return native->Next();
+		}
+
+		int Next(int limit)
+		{
+			return native->Next(limit);
+		}
+
+		double NextDouble()
+		{
+			return native->NextDouble();
+		}
+
+		~FastRandom()
+		{
+			this->!FastRandom();
+		}
+
+		!FastRandom()
+		{
+			if (native)
+			{
+				delete native;
+				native = nullptr;
+			}
+		}
 	};
 }

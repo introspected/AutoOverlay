@@ -35,6 +35,16 @@ namespace AutoOverlay.Overlay
             LeftBottom = Calculate(p => new Point(p.X, p.Y + p.Height));
         }
 
+        private OverlayDifference(OverlayDifference first, OverlayDifference second)
+        {
+            LeftTop = Rectangle.Union(first.LeftTop, second.LeftTop);
+            RightTop = Rectangle.Union(first.RightTop, second.RightTop);
+            RightBottom = Rectangle.Union(first.RightBottom, second.RightBottom);
+            LeftBottom = Rectangle.Union(first.LeftBottom, second.LeftBottom);
+        }
+
+        public static OverlayDifference Union(OverlayDifference first, OverlayDifference second) => new(first, second);
+
         public IEnumerator<Rectangle> GetEnumerator()
         {
             yield return LeftTop;

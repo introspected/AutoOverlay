@@ -159,13 +159,13 @@ function aoTransitionScene(clip prev, clip next, int start, int end, int "length
     return aoTransition(prev, next, start - length, start - 1, end + 1, end + length)
 }
 
-# Fix invalid color level near borders using ColorAdjust filter
+# Fix invalid color level near borders using ColorMatch filter
 # left, top, right, bottom params specified how much lines or columns need to fix
 # right and bottom are optional and equal to left and right by default
 # refLength (default 1) describes number of columns or lines after LTRB that will be used as color reference
 # segments (default 1) allows to split image into blocks and process them separatly with smooth transition to avoid invalid color adjustment when image is complicated
 # blur (default 0, max 1.5) makes nearest to edge pixels more smooth to avoid noise
-# dither - dithering level for ColorAdjust filter
+# dither - dithering level for ColorMatch filter
 function aoBorders(clip clp, int left, int top, int "right", int "bottom", int "refLength", int "segments", float "blur", float "dither") {
 
 	right = default(right, left)
@@ -204,7 +204,7 @@ function aoBorders(clip clp, int left, int top, int "right", int "bottom", int "
             for (step = 0, top - 1) {
                 stepOffset = top - step - 1
                 sample = segment.Crop(0, stepOffset, 0, - step - refLength)
-                adjusted = sample.ColorAdjust(sample, reference, dither = dither, seed = BitAnd(13*step, 27*i))
+                adjusted = sample.ColorMatch(reference, dither = dither, seed = BitAnd(13*step, 27*i))
                 segment = segment.Overlay(adjusted, 0, stepOffset)
             }
             if (i == 1) {
@@ -237,7 +237,7 @@ function aoBorders(clip clp, int left, int top, int "right", int "bottom", int "
             for (step = 0, bottom - 1) {
                 stepOffset = bottom - step - 1
                 sample = segment.Crop(0, step + refLength, 0, -stepOffset)
-                adjusted = sample.ColorAdjust(sample, reference, dither = dither, seed = BitAnd(13*step, 27*i))
+                adjusted = sample.ColorMatch(reference, dither = dither, seed = BitAnd(13*step, 27*i))
                 segment = segment.Overlay(adjusted, 0, step + refLength)
             }
             if (i == 1) {
@@ -271,7 +271,7 @@ function aoBorders(clip clp, int left, int top, int "right", int "bottom", int "
             for (step = 0, left - 1) {
                 stepOffset = left - step - 1
                 sample = segment.Crop(stepOffset, 0, -step - refLength, 0)
-                adjusted = sample.ColorAdjust(sample, reference, dither = dither, seed = BitAnd(13*step, 27*i))
+                adjusted = sample.ColorMatch(reference, dither = dither, seed = BitAnd(13*step, 27*i))
                 segment = segment.Overlay(adjusted, stepOffset)
             }
             if (i == 1) {
@@ -304,7 +304,7 @@ function aoBorders(clip clp, int left, int top, int "right", int "bottom", int "
             for (step = 0, right - 1) {
                 stepOffset = right - step - 1
                 sample = segment.Crop(step + refLength, 0, -stepOffset, 0)
-                adjusted = sample.ColorAdjust(sample, reference, dither = dither, seed = BitAnd(13*step, 27*i))
+                adjusted = sample.ColorMatch(reference, dither = dither, seed = BitAnd(13*step, 27*i))
                 segment = segment.Overlay(adjusted, step + refLength)
             }
             if (i == 1) {
@@ -421,6 +421,6 @@ function aoExpand(clip mask, int pixels, string mode, float "blur") {
     return mask
 }
 
-function aoLight(clip clp, int level) {
-    return clp.ColorYUV(off_y=-level).ColorYUV(gamma_y=10000)
+function aoLight(clip clp, int offset, int gamma) {
+    return clp.ColorYUV(off_y=-offset).ColorYUV(gamma_y=gamma)
 }

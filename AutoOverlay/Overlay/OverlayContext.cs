@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using System.Threading.Tasks;
 using AutoOverlay.AviSynth;
 using AutoOverlay.Histogram;
 using AvsFilterNet;
@@ -29,6 +28,7 @@ namespace AutoOverlay.Overlay
         public List<ExtraClip> ExtraClips { get; }
 
         public YUVPlanes Plane { get; }
+        public Size SubSample { get; }
         public dynamic BackgroundClip { get; }
 
         public bool AdjustColor { get; }
@@ -37,9 +37,11 @@ namespace AutoOverlay.Overlay
         public int DefaultColor { get; }
         public int BlankColor { get; } = -1;
 
-        public List<HistogramCache> Cache { get; }
+        public OverlayInput Input { get; }
 
-        public OverlayContext(OverlayRender render, YUVPlanes plane)
+        public List<string> Cache { get; }
+
+        public OverlayContext(Clip source, Clip overlay, OverlayRender render, YUVPlanes plane)
         {
             Render = render;
             Plane = plane;
@@ -47,9 +49,17 @@ namespace AutoOverlay.Overlay
                           (string.IsNullOrEmpty(render.AdjustChannels) || 
                            (render.AdjustChannels.ToUpper() + default(YUVPlanes).GetLetter()).Contains(plane.GetLetter()));
 
+            SubSample = plane.IsChroma() ? render.ColorSpace.GetSubSample() : new Size(1, 1);
+
+            //if (plane.IsChroma())
+            //{
+            //    srcCrop = srcCrop.Scale(Space.One.Divide(source.GetVideoInfo().pixel_type.GetSubSample()));
+            //    overCrop = overCrop.Scale(Space.One.Divide(overlay.GetVideoInfo().pixel_type.GetSubSample()));
+            //}
+
             Static = render.Invert
-                ? new StaticContext(render.Overlay, render.Source, render.OverlayMask, render.SourceMask, render.BackgroundClip, plane)
-                : new StaticContext(render.Source, render.Overlay, render.SourceMask, render.OverlayMask, render.BackgroundClip, plane);
+                ? new StaticContext(overlay, source, render.OverlayMask, render.SourceMask, render.BackgroundClip, plane)
+                : new StaticContext(source, overlay, render.SourceMask, render.OverlayMask, render.BackgroundClip, plane);
 
             Source = Static.Source.Dynamic();
             Overlay = Static.Overlay.Dynamic();
@@ -58,7 +68,7 @@ namespace AutoOverlay.Overlay
             {
                 Clip = p.Clip.ExtractPlane(plane),
                 Mask = PrepareMask(p.Mask, p.Clip.GetVideoInfo()),
-                Info = p.Clip.GetVideoInfo(),
+                Info = p.Clip.ExtractPlane(plane).GetVideoInfo(),
                 Opacity = p.Opacity,
                 Minor = p.Minor
             }).ToList();
@@ -91,30 +101,27 @@ namespace AutoOverlay.Overlay
 
             if (AdjustColor)
             {
-                AdjustChannels = plane == default ? render.AdjustChannels : YUVPlanes.PLANAR_Y.GetLetter();
+                AdjustChannels = render.AdjustChannels;
 
                 if (render.ColorFramesCount > 0)
                 {
-                    var planes = TargetInfo.ColorSpace.HasFlag(ColorSpaces.CS_INTERLEAVED)
-                        ? new[] { default(YUVPlanes) }
-                        : (AdjustChannels ?? "yuv").ToCharArray()
-                        .Select(p => Enum.Parse(typeof(YUVPlanes), "PLANAR_" + p, true))
-                        .Cast<YUVPlanes>().ToArray();
-                    var channels = TargetInfo.ColorSpace.HasFlag(ColorSpaces.CS_PLANAR)
-                        ? new[] { 0 }
-                        : (AdjustChannels ?? "rgb").ToLower().ToCharArray().Select(p => "bgr".IndexOf(p)).ToArray();
-                    Cache = new List<HistogramCache>(2 + ExtraClips.Count)
-                    {
-                        new(planes, channels, render.SIMD, true,
-                            SourceInfo.ColorSpace, OverlayInfo.ColorSpace,
-                            SourceInfo.ColorSpace, render.ColorFramesCount, true, new ParallelOptions())
-                    };
-                    Cache.AddRange(Enumerable.Range(0, 1 + ExtraClips.Count)
-                        .Select(i => new HistogramCache(planes, channels, render.SIMD, true,
-                            OverlayInfo.ColorSpace, SourceInfo.ColorSpace,
-                            OverlayInfo.ColorSpace, render.ColorFramesCount, true, new ParallelOptions())));
+                    Cache = Enumerable.Range(0, 2 + ExtraClips.Count)
+                        .Select(_ => Guid.NewGuid().ToString())
+                        .ToList();
                 }
             }
+
+            Input = new OverlayInput
+            {
+                SourceSize = SourceInfo.Size,
+                OverlaySize = OverlayInfo.Size,
+                TargetSize = TargetInfo.Size,
+                InnerBounds = Render.InnerBounds,
+                OuterBounds = Render.OuterBounds,
+                OverlayBalance = Render.OverlayBalance,
+                FixedSource = Render.FixedSource,
+                ExtraClips = ExtraClips
+            };
 
             dynamic PrepareMask(Clip mask, ExtraVideoInfo target)
             {
@@ -137,7 +144,8 @@ namespace AutoOverlay.Overlay
 
         public void Dispose()
         {
-            Cache?.ForEach(p => HistogramCache.Dispose(p.Id));
+            if (Cache == null) return;
+            Cache.ForEach(ColorHistogramCache.Dispose);
         }
 
         public class StaticContext

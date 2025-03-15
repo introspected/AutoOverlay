@@ -38,15 +38,16 @@ namespace AutoOverlay.Overlay
 
         public OverlayInfo this[int frameNumber] => sequence[frameNumber];
 
-        public IEnumerable<OverlayInfo> GetNeighbours(int frameNumber, double rectangleTolerance, double diffTolerance)
+        public IEnumerable<OverlayInfo> GetNeighbours(int frameNumber, double diffTolerance, double rectangleTolerance, int length = int.MaxValue)
         {
             var main = sequence[frameNumber];
-            return new[] { -1, 1 }.SelectMany(sign =>
-                Enumerable.Range(1, int.MaxValue)
+            return new[] { -1, -1 }.SelectMany(sign =>
+                Enumerable.Range(1, length)
                     .Select(p => frameNumber + sign * p)
                     .TakeWhile(HasFrame)
                     .Select(p => sequence[p])
-                    .TakeWhile(p => p.NearlyEquals(main, rectangleTolerance) && Math.Abs(p.Diff - main.Diff) < diffTolerance));
+                    .TakeWhile(p => (sign == 1 && !p.KeyFrame || sign == -1 && !sequence[p.FrameNumber + 1].KeyFrame)
+                                    && p.NearlyEquals(main, rectangleTolerance) && Math.Abs((p.Diff + 1) / (main.Diff + 1) - 1) < diffTolerance));
         }
 
         public IEnumerator<OverlayInfo> GetEnumerator()

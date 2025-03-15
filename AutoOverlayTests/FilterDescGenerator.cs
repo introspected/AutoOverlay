@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using AutoOverlay;
+using AutoOverlay.AviSynth;
 using AvsFilterNet;
 using NUnit.Framework;
 
@@ -18,8 +19,8 @@ namespace AutoOverlayTests
                 .Where(p => typeof(OverlayFilter).IsAssignableFrom(p.FilterType));
             foreach (var filter in filters)
             {
-                var annotatedProperties = OverlayUtils.GetAnnotatedProperties(filter.FilterType);
-                var paramList = annotatedProperties.Select(p => $"{TypeLabel(p.Item1.PropertyType)} {p.Item1.Name.ToLower()[0] + p.Item1.Name.Substring(1)}");
+                var annotatedProperties = FilterUtils.GetFilterMetadata(filter.FilterType).Properties;
+                var paramList = annotatedProperties.Select(p => $"{TypeLabel(p.Property.PropertyType)} {p.Property.Name.ToLower()[0] + p.Property.Name.Substring(1)}");
                 var signature = $"{filter.FilterName}({string.Join(", ", paramList)})";
                 Console.WriteLine(signature);
                 Console.WriteLine();

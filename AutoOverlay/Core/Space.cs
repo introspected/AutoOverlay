@@ -8,7 +8,7 @@ namespace AutoOverlay.Overlay
 {
     public readonly struct Space
     {
-        private static readonly double EPSILON = OverlayUtils.EPSILON;
+        private static readonly double EPSILON = OverlayConst.EPSILON;
 
         public static Space NaN { get; } = new(double.NaN, double.NaN);
 
@@ -35,7 +35,7 @@ namespace AutoOverlay.Overlay
         public static implicit operator Space(SizeD size) => new(size.Width, size.Height);
         public static implicit operator Space(Size size) => new(size.Width, size.Height);
         public static implicit operator SizeD(Space space) => new(space.X, space.Y);
-        public static explicit operator Size(Space space) => new((int)(space.X), (int)(space.Y));
+        public static explicit operator Size(Space space) => new((int)Math.Round(space.X), (int)Math.Round(space.X));
 
         public static implicit operator Space(PointF point) => new(point.X, point.Y);
         public static implicit operator Space(Point point) => new(point.X, point.Y);
@@ -111,7 +111,7 @@ namespace AutoOverlay.Overlay
         {
             unchecked
             {
-                return (X.GetHashCode() * 397) ^ Y.GetHashCode();
+                return (Math.Round(X).GetHashCode() * 397) ^ Math.Round(Y).GetHashCode();
             }
         }
 

@@ -22,16 +22,18 @@ namespace AutoOverlay.Overlay
         public WarpIterator(RectangleD[] points, Warp warp, Size clipSize, Size newSize, int iteration, int warpSteps)
         {
             warpPoints = points;
+
+            //warp = warp.Reverse();
+            //if (iteration % 2 == 0)
+            //    warpPoints = warpPoints.Reverse().ToArray();
+
             SizeCoef = new SizeD((double) newSize.Width / clipSize.Width, (double) newSize.Height / clipSize.Height);
             super = warp.Scale(SizeCoef);
             size = newSize;
             this.iteration = iteration;
             this.warpSteps = warpSteps;
 
-            history = new HashSet<Warp>
-            {
-                super
-            };
+            history = [super];
 
             if (super.IsEmpty && iteration > 0)
             {
@@ -63,16 +65,22 @@ namespace AutoOverlay.Overlay
             {
                 var point = warpPoints[i].Scale(SizeCoef);
 
-                var horizontal = process(
+                var horizontal = Process(
                     p => p.X, p => p.Width, p => p.Width,
                     p => new RectangleD(point.X, point.Y, p, super[i].Height));
-                var vertical = process(
+                var vertical = Process(
                     p => p.Y, p => p.Height, p => p.Height, 
                     p => new RectangleD(point.X, point.Y, super[i].Width, p));
-                foreach (var w in iteration % 2 > 0 ? horizontal.Union(vertical) : vertical.Union(horizontal))
+                var both = Process(
+                    p => p.Y, p => p.Height, p => p.Height,
+                    p => new RectangleD(point.X, point.Y, p, p));
+                var result = iteration % 2 == 0
+                    ? horizontal.Union(vertical) //.Union(both)
+                    : vertical.Union(horizontal);//.Union(both);
+                foreach (var w in result)
                     yield return w;
 
-                IEnumerable<Warp> process(
+                IEnumerable<Warp> Process(
                     Func<RectangleD, double> coordinate,
                     Func<RectangleD, double> dimension,
                     Func<Size, int> sizeDimension,
@@ -86,11 +94,12 @@ namespace AutoOverlay.Overlay
                             skip = false;
                             if (i == 1) continue;
                         }
-                        var length = step(sign, dimension);
+                        var length = Step(sign, dimension);
                         var newCoordinate = coordinate(point) + length;
                         if (newCoordinate > double.Epsilon
                             && newCoordinate < sizeDimension(size) - double.Epsilon
-                            && (newCoordinate <= dimension(point) + double.Epsilon || newCoordinate >= sizeDimension(size) - dimension(point) - double.Epsilon))
+                            && (newCoordinate <= dimension(point) + double.Epsilon 
+                                || newCoordinate >= sizeDimension(size) - dimension(point) - double.Epsilon))
                             continue;
                         warp[i] = construct(length);
                         if (warp.Fake || history.Contains(warp)) continue;
@@ -103,14 +112,14 @@ namespace AutoOverlay.Overlay
                     super[i] = construct(best);
                 }
 
-                double step(int sign, Func<RectangleD, double> dimension)
+                double Step(int sign, Func<RectangleD, double> dimension)
                 {
                     var step = sign * dimension(point) / warpSteps;
                     if (super.IsEmpty)
                         return step;
                     var current = dimension(super[i]);
-                    if (Math.Sign(current * step) < 0)
-                        step /= 2;
+                    //if (current * step < 0)
+                    //    step /= 2;
                     return current + step;
                 }
             }

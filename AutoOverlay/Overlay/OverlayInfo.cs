@@ -9,15 +9,17 @@ namespace AutoOverlay
 {
     public sealed class OverlayInfo : IComparable<OverlayInfo>, IEquatable<OverlayInfo>, ICloneable
     {
+        private static readonly OverlayStatFormat format = new(OverlayConst.OVERLAY_FORMAT_VERSION);
+
         public static readonly OverlayInfo EMPTY = new()
         {
             Diff = double.MaxValue
         };
 
         public double Diff { get; set; }
-        public SizeD SourceSize { get; set; }
-        public SizeD OverlaySize { get; set; }
-        public Space Placement { get; set; }
+        public SizeD SourceSize { get; set; }  // Before rotation
+        public SizeD OverlaySize { get; set; }  // Before rotation
+        public Space Placement { get; set; } // After rotation
         public float Angle { get; set; }
         public Warp SourceWarp { get; set; } = Warp.Empty;
         public Warp OverlayWarp { get; set; } = Warp.Empty;
@@ -36,7 +38,17 @@ namespace AutoOverlay
 
         public int FrameNumber { get; set; } // zero based
 
-        private static readonly OverlayStatFormat format = new(OverlayUtils.OVERLAY_FORMAT_VERSION);
+        public double SourceAspectRatio => SourceSize.AspectRatio;
+
+        public double OverlayAspectRatio => OverlaySize.AspectRatio;
+
+        public RectangleD SourceRectangle => new(PointF.Empty, SourceSize);
+
+        public RectangleD OverlayRectangle => new(Placement, OverlaySize);
+
+        public RectangleD Union => RectangleD.Union(SourceRectangle, OverlayRectangle);
+
+        public RectangleD Intersection => RectangleD.Intersect(SourceRectangle, OverlayRectangle);
 
         object ICloneable.Clone() => MemberwiseClone();
 
@@ -85,7 +97,7 @@ namespace AutoOverlay
                     frame.GetRowSize() * frame.GetHeight(),
                     FileAccess.Read);
                 using var reader = new BinaryReader(stream);
-                var list = new List<OverlayInfo>();
+                var list = new List<OverlayInfo>(OverlayConst.ENGINE_HISTORY_LENGTH);
                 var caption = reader.ReadString();
                 if (caption != nameof(OverlayEngine))
                     throw new AvisynthException();
@@ -121,18 +133,6 @@ namespace AutoOverlay
             return Diff.CompareTo(other.Diff);
         }
 
-        public double SourceAspectRatio => SourceSize.AspectRatio;
-
-        public double OverlayAspectRatio => OverlaySize.AspectRatio;
-
-        public RectangleD SourceRectangle => new(PointF.Empty, SourceSize);
-
-        public RectangleD OverlayRectangle => new(Placement, OverlaySize);
-
-        public RectangleD Union => RectangleD.Union(SourceRectangle, OverlayRectangle);
-
-        public RectangleD Intersection => RectangleD.Intersect(SourceRectangle, OverlayRectangle);
-
         public bool Equals(OverlayInfo other)
         {
             if (ReferenceEquals(null, other)) return false;
@@ -140,7 +140,7 @@ namespace AutoOverlay
             return SourceSize.Equals(other.SourceSize) &&
                    OverlaySize.Equals(other.OverlaySize) &&
                    Placement.Equals(other.Placement) &&
-                   Angle.Equals(other.Angle) &&
+                   Math.Abs(Angle - other.Angle) < float.Epsilon &&
                    Equals(SourceWarp, other.SourceWarp) &&
                    Equals(OverlayWarp, other.OverlayWarp);
         }
@@ -157,7 +157,7 @@ namespace AutoOverlay
                 var hashCode = SourceSize.GetHashCode();
                 hashCode = (hashCode * 397) ^ OverlaySize.GetHashCode();
                 hashCode = (hashCode * 397) ^ Placement.GetHashCode();
-                hashCode = (hashCode * 397) ^ Angle.GetHashCode();
+                hashCode = (hashCode * 397) ^ Math.Round(Angle).GetHashCode();
                 hashCode = (hashCode * 397) ^ (SourceWarp != null ? SourceWarp.GetHashCode() : 0);
                 hashCode = (hashCode * 397) ^ (OverlayWarp != null ? OverlayWarp.GetHashCode() : 0);
                 return hashCode;
@@ -173,13 +173,34 @@ namespace AutoOverlay
             return intersect.Area / union.Area;
         }
 
-        public OverlayInfo ScaleBySource(SizeD sourceSize)
+        // positive crop when aligned image was cropped for rendering
+        // negative crop when aligned image was enlarged for rendering
+        // crop in pixels based on current image size
+        public OverlayInfo ScaleBySource(SizeD sourceSize, RectangleD crop = default)
         {
             var info = Clone();
-            var scale = new SizeD(sourceSize.Width / SourceSize.Width, sourceSize.Height / SourceSize.Height);
+            var nonCroppedSize = new SizeD(
+                sourceSize.Width + crop.Left + crop.Right,
+                sourceSize.Height + crop.Top + crop.Bottom);
+            var scale = new SizeD(nonCroppedSize.Width / SourceSize.Width, nonCroppedSize.Height / SourceSize.Height);
             info.SourceSize = sourceSize;
             info.OverlaySize = new SizeD(OverlaySize.Width * scale.Width, OverlaySize.Height * scale.Height);
-            info.Placement = new Space(Placement.X * scale.Width, Placement.Y * scale.Height);
+            info.Placement = new Space(Placement.X * scale.Width + crop.Left, Placement.Y * scale.Height + crop.Top);
+            return info;
+        }
+
+        public OverlayInfo CropOverlay(SizeD overlaySize, RectangleD crop)
+        {
+            var info = Clone();
+            var nonCroppedSize = new SizeD(
+                OverlaySize.Width + crop.Left + crop.Right,
+                OverlaySize.Height + crop.Top + crop.Bottom);
+            var scale = new SizeD(nonCroppedSize.Width / OverlaySize.Width, nonCroppedSize.Height / OverlaySize.Height);
+            crop = crop.Scale(scale);
+            info.OverlaySize = new SizeD(
+                OverlaySize.Width * scale.Width - crop.Left - crop.Right, 
+                OverlaySize.Height * scale.Height - crop.Top - crop.Bottom);
+            info.Placement = new Space(Placement.X - crop.Left, Placement.Y - crop.Top);
             return info;
         }
 
@@ -217,8 +238,8 @@ namespace AutoOverlay
         public override string ToString()
         {
             return $"{nameof(Diff)}: {Diff:F5}, {nameof(Placement)}: {Placement.X:F3}, {Placement.Y:F3}, {nameof(Angle)}: {Angle:F3}, " +
-                   $"{nameof(SourceSize)}: {SourceSize.Width:F2}x{SourceSize.Height}, " +
-                   $"{nameof(OverlaySize)}: {OverlaySize.Width:F2}x{OverlaySize.Height}, {nameof(Warp)}: {OverlayWarp}, ";
+                   $"{nameof(SourceSize)}: {SourceSize.Width:F2}x{SourceSize.Height:F2}, " +
+                   $"{nameof(OverlaySize)}: {OverlaySize.Width:F2}x{OverlaySize.Height:F2}, {nameof(Warp)}: {OverlayWarp}, ";
         }
     }
 }

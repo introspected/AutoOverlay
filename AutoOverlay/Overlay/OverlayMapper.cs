@@ -14,8 +14,9 @@ namespace AutoOverlay.Overlay
         private OverlaySequence[] extraSequences;
         private OverlayInfo main;
         private OverlayInfo[] extra;
+        private OverlayStabilization stabilization;
 
-        public OverlayMapper(int frameNumber, OverlayInput input, OverlaySequence main, OverlaySequence[] extra)
+        public OverlayMapper(int frameNumber, OverlayInput input, OverlaySequence main, OverlaySequence[] extra, OverlayStabilization stabilization)
         {
             main = main.ScaleBySource(input.SourceSize);
             extra = extra.Select(p => p.ScaleBySource(input.SourceSize)).ToArray();
@@ -24,33 +25,41 @@ namespace AutoOverlay.Overlay
             this.sequence = main;
             this.extraSequences = extra;
             this.main = main[frameNumber];
-            this.extra = extra.Select(p => p[frameNumber].ScaleBySource(input.SourceSize)).ToArray();
+            this.extra = extra.Select(p => p[frameNumber]).ToArray();
+            this.stabilization = stabilization;
             if (input.ExtraClips.Count != extra.Length)
                 throw new AvisynthException();
         }
 
-        public static OverlayMapper For(int frameNumber, OverlayInput input, List<OverlayInfo> main, params List<OverlayInfo>[] extra)
+        public static OverlayMapper For(
+            int frameNumber, 
+            OverlayInput input,
+            List<OverlayInfo> main, 
+            OverlayStabilization stabilization, 
+            params List<OverlayInfo>[] extra)
         {
-            return new OverlayMapper(frameNumber, input, OverlaySequence.Of(main), extra.Select(OverlaySequence.Of).ToArray());
+            return new OverlayMapper(frameNumber, input, OverlaySequence.Of(main), extra.Select(OverlaySequence.Of).ToArray(), stabilization);
         }
 
-        public static OverlayMapper For(OverlayInput input, OverlayInfo main, params OverlayInfo[] extra)
+        public static OverlayMapper For(
+            OverlayInput input, 
+            OverlayInfo main,
+            OverlayStabilization stabilization,
+            params OverlayInfo[] extra)
         {
-            return new OverlayMapper(main.FrameNumber, input, OverlaySequence.Of(main), extra.Select(OverlaySequence.Of).ToArray());
+            return new OverlayMapper(main.FrameNumber, input, OverlaySequence.Of(main), extra.Select(OverlaySequence.Of).ToArray(), stabilization);
         }
 
         public OverlayMapper ForFrame(int frameNumber)
         {
-            return new OverlayMapper(frameNumber, input, sequence, extraSequences);
+            return new OverlayMapper(frameNumber, input, sequence, extraSequences, stabilization);
         }
 
-        public IEnumerable<OverlayMapper> GetNeighbours()
-        {
-            return sequence.GetNeighbours(frameNumber, 0.4, 1)
-                .Select(p => p.FrameNumber)
-                .Where(frame => extraSequences.All(p => p.HasFrame(frame)))
-                .Select(ForFrame);
-        }
+        public IEnumerable<OverlayMapper> GetNeighbours() => sequence
+            .GetNeighbours(frameNumber, stabilization.DiffTolerance, stabilization.AreaTolerance, stabilization.Length)
+            .Select(p => p.FrameNumber)
+            .Where(frame => !extraSequences.Any() || extraSequences.All(p => p.HasFrame(frame)))
+            .Select(ForFrame);
 
         public RectangleD GetCanvas()
         {
@@ -126,7 +135,7 @@ namespace AutoOverlay.Overlay
 
             return IterateCrop(canvas, limit)
                 .Union(IterateCrop(canvas, RectangleD.Empty))
-                .Where(p => Math.Abs(p.Area - maxArea) < OverlayUtils.EPSILON)
+                .Where(p => Math.Abs(p.Area - maxArea) < OverlayConst.EPSILON)
                 .Aggregate((acc, c) => acc.Union(c))
                 .Crop(input.TargetSize.GetAspectRatio(), center);
         }
@@ -135,27 +144,36 @@ namespace AutoOverlay.Overlay
         {
             var canvas = GetCanvas();
 
+            // Stabilization
+            var neighbours = GetNeighbours();
+            canvas = neighbours
+                .Select(p => p.GetCanvas())
+                .Aggregate(canvas, RectangleD.Intersect)
+                .Crop(canvas.AspectRatio);
+
             var coef = input.TargetSize.AsSpace() / canvas;
 
             var offset = -canvas.Location;
             canvas = new RectangleD(Space.Empty, input.TargetSize);
 
-            (Rectangle region, RectangleD crop, Warp warp) GetRegionAndCrop(RectangleD rect, SizeF size, Warp warpIn)
+            (Rectangle region, RectangleD crop, Warp warp) GetRegionAndCrop(RectangleD rect, SizeD size, Warp warpIn, double angle)
             {
+                var rotate = angle != 0;
+
                 rect = rect.Offset(offset).Scale(coef);
-                var targetRect = RectangleD.Intersect(canvas, rect).Floor();
+                var targetRect = rotate ? rect.Floor() : RectangleD.Intersect(canvas, rect).Floor();
                 var crop = rect.Eval(targetRect, (t, u) => Math.Abs(t - u));
                 crop = crop.Scale(size.AsSpace() / rect.Size);
                 return (targetRect, crop.IsEmpty ? RectangleD.Empty : crop, warpIn.Scale(coef));
             }
 
-            var (targetSrc, srcCrop, srcWarp) = GetRegionAndCrop(main.SourceRectangle, input.SourceSize, main.SourceWarp);
-            var (targetOver, overCrop, overWarp) = GetRegionAndCrop(main.OverlayRectangle, input.OverlaySize, main.OverlayWarp);
+            var (targetSrc, srcCrop, srcWarp) = GetRegionAndCrop(main.SourceRectangle, input.SourceSize, main.SourceWarp, 0);
+            var (targetOver, overCrop, overWarp) = GetRegionAndCrop(main.OverlayRectangle, input.OverlaySize, main.OverlayWarp, main.Angle);
 
             var extraClips = from p in input.ExtraClips.Select((p, i) => Tuple.Create(p.Info.Size, extra[i]))
                              let size = p.Item1
                              let info = p.Item2
-                             let regionAndCrop = GetRegionAndCrop(info.OverlayRectangle, size, info.OverlayWarp)
+                             let regionAndCrop = GetRegionAndCrop(info.OverlayRectangle, size, info.OverlayWarp, info.Angle)
                              select new OverlayData
                              {
                                  Diff = info.Diff,
@@ -166,6 +184,7 @@ namespace AutoOverlay.Overlay
                                  OverlayBaseSize = size,
                                  Overlay = regionAndCrop.region,
                                  OverlayCrop = regionAndCrop.crop,
+                                 OverlayAngle = info.Angle,
                                  OverlayWarp = regionAndCrop.warp,
                                  Coef = coef.X,
                              };
@@ -181,6 +200,7 @@ namespace AutoOverlay.Overlay
                 OverlayBaseSize = input.OverlaySize,
                 Overlay = targetOver,
                 OverlayCrop = overCrop,
+                OverlayAngle = main.Angle,
                 OverlayWarp = overWarp,
                 Coef = coef.X,
                 ExtraClips = extraClipList,

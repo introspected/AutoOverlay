@@ -19,7 +19,8 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG</DefineConstants>
+    <DefineConstants>
+    </DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -48,10 +49,44 @@
   <PropertyGroup>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x86\Debug\</OutputPath>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
+    <OutputPath>bin\x86\Release\</OutputPath>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <LangVersion>latest</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>5</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x64\Debug\</OutputPath>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>bin\x64\Release\</OutputPath>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>latest</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
   <ItemGroup>
-    <Reference Include="MathNet.Numerics, Version=5.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\MathNet.Numerics.5.0.0\lib\net48\MathNet.Numerics.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
@@ -62,16 +97,28 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AviSynth\AvsUtils.cs" />
     <Compile Include="AviSynth\AvsArgumentAttribute.cs" />
+    <Compile Include="AviSynth\FilterUtils.cs" />
+    <Compile Include="Core\DotNetUtils.cs" />
     <Compile Include="AviSynth\IsExternalInit.cs" />
     <Compile Include="AviSynth\Presets.cs" />
+    <Compile Include="Core\LinkedHashSet.cs" />
     <Compile Include="Enum\BackgroundMode.cs" />
+    <Compile Include="Enum\ColorMatchPreset.cs" />
+    <Compile Include="Enum\Corner.cs" />
     <Compile Include="Enum\EdgeGradient.cs" />
+    <Compile Include="Enum\OverlayConfigPreset.cs" />
+    <Compile Include="Enum\OverlayEnginePreset.cs" />
     <Compile Include="Enum\OverlayRenderPreset.cs" />
+    <Compile Include="Filters\ColorMatchChain.cs" />
+    <Compile Include="Filters\ColorMatchStep.cs" />
+    <Compile Include="Filters\LayerMask.cs" />
     <Compile Include="Filters\ComplexityOverlayMany.cs" />
     <Compile Include="Filters\CustomOverlayRender.cs" />
     <Compile Include="Filters\OverlayClip.cs" />
     <Compile Include="Filters\SupportFilter.cs" />
+    <Compile Include="Filters\WarpTemplate.cs" />
     <Compile Include="Forms\OverlayEditor.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -84,13 +131,9 @@
     <Compile Include="Forms\ProgressDialog.Designer.cs">
       <DependentUpon>ProgressDialog.cs</DependentUpon>
     </Compile>
-    <Compile Include="Histogram\ColorMapper.cs" />
+    <Compile Include="Histogram\ColorHistogramCache.cs" />
     <Compile Include="Histogram\ColorHistogram.cs" />
-    <Compile Include="Histogram\HistogramCache.cs" />
-    <Compile Include="Enum\AvsMatrix.cs" />
-    <Compile Include="Enum\ColorInterpolation.cs" />
-    <Compile Include="Filters\ColorAdjust.cs" />
-    <Compile Include="Histogram\ColorMap.cs" />
+    <Compile Include="Histogram\ColorMatchTuple.cs" />
     <Compile Include="Filters\ColorRangeMask.cs" />
     <Compile Include="Filters\ComplexityOverlay.cs" />
     <Compile Include="AviSynth\ExtraVideoInfo.cs" />
@@ -105,17 +148,20 @@
     <Compile Include="Filters\BilinearRotate.cs" />
     <Compile Include="AviSynth\DynamicEnvironment.cs" />
     <Compile Include="Filters\ColorMatch.cs" />
+    <Compile Include="Overlay\ComplexityUtils.cs" />
     <Compile Include="Overlay\ConstantInterpolator.cs" />
     <Compile Include="Overlay\ExtraClip.cs" />
     <Compile Include="Overlay\MinMax.cs" />
     <Compile Include="Overlay\OverlayConfigInstance.cs" />
+    <Compile Include="Overlay\OverlayConst.cs" />
     <Compile Include="Overlay\OverlayDifference.cs" />
     <Compile Include="Overlay\OverlayDifferenceD.cs" />
     <Compile Include="Overlay\OverlayLayer.cs" />
     <Compile Include="Overlay\OverlayMapper.cs" />
     <Compile Include="Overlay\OverlaySequence.cs" />
-    <Compile Include="Overlay\Space.cs" />
-    <Compile Include="Overlay\FileOverlayStat.cs" />
+    <Compile Include="Overlay\OverlayStabilization.cs" />
+    <Compile Include="Core\Space.cs" />
+    <Compile Include="Stat\FileOverlayStat.cs" />
     <Compile Include="Overlay\FrameInterval.cs" />
     <Compile Include="Filters\OverlayMask.cs" />
     <Compile Include="Filters\DynamicOverlayRender.cs" />
@@ -124,7 +170,7 @@
     <Compile Include="Overlay\LegacyOverlayInfo.cs" />
     <Compile Include="Overlay\OverlayContext.cs" />
     <Compile Include="Overlay\OverlayUtils.cs" />
-    <Compile Include="Overlay\IOverlayStat.cs" />
+    <Compile Include="Stat\IOverlayStat.cs" />
     <Compile Include="Filters\OverlayConfig.cs" />
     <Compile Include="Filters\OverlayEngine.cs" />
     <Compile Include="Overlay\OverlayInfo.cs" />
@@ -133,9 +179,9 @@
     <Compile Include="Overlay\Warp.cs" />
     <Compile Include="Overlay\WarpIterator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Overlay\RectangleD.cs" />
-    <Compile Include="Overlay\SizeD.cs" />
-    <Compile Include="Overlay\OverlayStatFormat.cs" />
+    <Compile Include="Core\RectangleD.cs" />
+    <Compile Include="Core\SizeD.cs" />
+    <Compile Include="Stat\OverlayStatFormat.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
@@ -168,8 +214,10 @@
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>rem copy /Y "$(SolutionDir)simd\bin\v142\x64\Release\simd.dll" "$(TargetDir)"</PostBuildEvent>
+    <PostBuildEvent>
+    </PostBuildEvent>
   </PropertyGroup>
 </Project>

@@ -1,13 +1,15 @@
-﻿using System;
+﻿using AvsFilterNet;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 
 namespace AutoOverlay.Overlay
 {
     [Serializable]
     public readonly struct RectangleD : IEquatable<RectangleD>
     {
-        public static readonly double EPSILON = OverlayUtils.EPSILON;
+        public static readonly double EPSILON = OverlayConst.EPSILON;
 
         private static readonly long MULT = (int) (1 / EPSILON);
 
@@ -31,7 +33,9 @@ namespace AutoOverlay.Overlay
 
         public double Bottom => Height + Y;
 
-        public bool IsEmpty => Math.Abs(Left) < EPSILON && Math.Abs(Top) < EPSILON && Math.Abs(Right) < EPSILON && Math.Abs(Bottom) < EPSILON;
+        public bool IsEmpty => ltrb 
+            ? Math.Abs(Left) < EPSILON && Math.Abs(Top) < EPSILON && Math.Abs(Right) < EPSILON && Math.Abs(Bottom) < EPSILON 
+            : Math.Abs(Width) < EPSILON && Math.Abs(Height) < EPSILON;
 
         public SizeD Size => new(Width, Height);
 
@@ -109,7 +113,9 @@ namespace AutoOverlay.Overlay
             return Contains(point.X, point.Y);
         }
 
-        public RectangleD Scale(Space coef) => new(X * coef.X, Y * coef.Y, Width * coef.X, Height * coef.Y);
+        public RectangleD Scale(Space coef) => ltrb
+            ? FromLTRB(Left * coef.X, Top * coef.Y, Right * coef.X, Bottom * coef.Y)
+            : new(X * coef.X, Y * coef.Y, Width * coef.X, Height * coef.Y);
 
         public RectangleD Offset(Space space) => new(X + space.X, Y + space.Y, Width, Height);
 
@@ -127,10 +133,10 @@ namespace AutoOverlay.Overlay
                 eval(Bottom, second.Bottom, third.Bottom));
 
         public Rectangle Floor() => Rectangle.FromLTRB(
-            (int) Math.Ceiling(Math.Round(Left, OverlayUtils.FRACTION)),
-            (int) Math.Ceiling(Math.Round(Top, OverlayUtils.FRACTION)),
-            (int) Math.Floor(Math.Round(Right, OverlayUtils.FRACTION)),
-            (int) Math.Floor(Math.Round(Bottom, OverlayUtils.FRACTION)));
+            (int) Math.Ceiling(Math.Round(Left, OverlayConst.FRACTION)),
+            (int) Math.Ceiling(Math.Round(Top, OverlayConst.FRACTION)),
+            (int) Math.Floor(Math.Round(Right, OverlayConst.FRACTION)),
+            (int) Math.Floor(Math.Round(Bottom, OverlayConst.FRACTION)));
 
         public Space AsSpace() => new(Width, Height);
 
@@ -156,6 +162,10 @@ namespace AutoOverlay.Overlay
 
         public static explicit operator Rectangle(RectangleD r)
         {
+            if (new[] { r.Left, r.Top, r.Right, r.Bottom }.Any(p => p % 1 != 0))
+            {
+                throw new AvisynthException("Only integer values allowed");
+            }
             return new Rectangle((int) r.X, (int) r.Y, (int) r.Width, (int) r.Height);
         }
 
@@ -212,6 +222,8 @@ namespace AutoOverlay.Overlay
 
         public RectangleD Crop(double left, double top, double right, double bottom) =>
             FromLTRB(Left + left, Top + top, Right - right, Bottom - bottom);
+
+        public RectangleD Crop(double aspectRatio) => Crop(aspectRatio, AsSpace() / 2);
 
         public RectangleD Crop(double aspectRatio, Space center)
         {

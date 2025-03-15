@@ -1,49 +1,18 @@
 #pragma once
 #include <Simd/SimdLib.h>
-#include <unordered_map>
-#include <numbers>
 #include <random>
 #include <unordered_set>
 
+#include "ColorTable.h"
+#include "FramePlane.h"
+
 using namespace System;
+using namespace System::Drawing;
 using namespace Collections::Generic;
 using namespace Runtime::InteropServices;
-using namespace MathNet::Numerics::Interpolation;
-
-const double EPSILON = 0.000000001;
 
 namespace AutoOverlay
 {
-	struct ColorMatching
-	{
-		int frameNumber;
-		IntPtr input;
-		int strideIn;
-		IntPtr output;
-		int strideOut;
-		int inputRowSize;
-		int height;
-		int pixelSize;
-		int channel;
-		array<int>^ * fixedColors;
-		array<array<int>^>^ * dynamicColors;
-		array<array<double>^>^ * dynamicWeights;
-	};
-
-	struct HistogramFilling
-	{
-		array<uint32_t>^ * histogram;
-		int rowSize;
-		int height;
-		int channel;
-		IntPtr image;
-		int imageStride;
-		int imagePixelSize;
-		IntPtr mask;
-		int maskStride;
-		int maskPixelSize;
-	};
-
 	struct SquaredDiffParams
 	{
 		IntPtr src;
@@ -100,7 +69,7 @@ namespace AutoOverlay
 			params.width /= sizeof(TColor);
 
 			int pixelCount = params.width * params.height;
-			TColor max = (1 << sizeof(TColor) * 8) - 1;
+			TColor max = sizeof(TColor) == 4 ? 1 : (1 << sizeof(TColor) * 8) - 1;
 			
 			if (params.simd)
 			{
@@ -187,132 +156,319 @@ namespace AutoOverlay
 		{
 			const pin_ptr<uint32_t> first = &(histogram)[0];
 			uint32_t* hist = first;
-			const auto ptr = reinterpret_cast<unsigned char*>(image.ToPointer());
+			const auto ptr = static_cast<unsigned char*>(image.ToPointer());
 			SimdAbsSecondDerivativeHistogram(ptr, width, height, stride, 1, 0, hist);
 		}
 
-		static void FillHistogram(
-			array<uint32_t>^ histogram, int rowSize, int height, int channel,
-			IntPtr image, int imageStride, int imagePixelSize,
-			IntPtr mask, int maskStride, int maskPixelSize, bool simd)
+		static void FillHistogram(array<uint32_t>^ histogram, FramePlane frame, FramePlane^ mask, bool simd)
 		{
-			HistogramFilling params = {
-				&histogram, rowSize, height, channel,
-				image, imageStride, imagePixelSize,
-				mask, maskStride, maskPixelSize
-			};
-			if (simd && histogram->Length == 1 << 8 && params.imagePixelSize == 1)
+			const auto ptr = static_cast<unsigned char*>(frame.pointer);
+			const pin_ptr<uint32_t> first = &histogram[0];
+			uint32_t* hist = first;
+			if (simd && histogram->Length == 1 << 8 && frame.pixelSize == 1)
 			{
-				const auto ptr = static_cast<unsigned char*>(params.image.ToPointer()) + params.channel;
-				const pin_ptr<uint32_t> first = &(*params.histogram)[0];
-				uint32_t* hist = first;
-				if (params.mask.ToPointer() == nullptr)
+				if (mask == nullptr)
 				{
-					SimdHistogram(ptr, params.rowSize / params.imagePixelSize, params.height, params.imageStride, hist);
+					SimdHistogram(ptr, frame.row, frame.height, frame.stride, hist);
 				}
-				else if (params.maskPixelSize == params.imagePixelSize)
+				else if (frame.pixelSize == mask->pixelSize)
 				{
-					const auto maskPtr = static_cast<unsigned char*>(params.mask.ToPointer()) + params.channel;
-					SimdHistogramMasked(ptr, params.imageStride, params.rowSize / params.imagePixelSize, params.height, maskPtr, params.maskStride, 255, hist);
+					const auto maskPtr = static_cast<unsigned char*>(mask->pointer);
+					SimdHistogramMasked(ptr, frame.stride, frame.row, frame.height, maskPtr, mask->stride, 255, hist);
 				}
 				else
 				{
-					FillHistogramImpl<unsigned char>(params);
+					FillHistogramImpl<unsigned char>(hist, frame, mask);
 				}
 			}
 			else if (histogram->Length == 1 << 8) 
 			{
-				FillHistogramImpl<unsigned char>(params);
+				FillHistogramImpl<unsigned char>(hist, frame, mask);
 			}
 			else
 			{
-				FillHistogramImpl<unsigned short>(params);
+				FillHistogramImpl<unsigned short>(hist, frame, mask);
 			}
 		}
 
 		template <typename TColor>
-		static void FillHistogramImpl(HistogramFilling params)
+		static void FillHistogramImpl(uint32_t* histogram, const FramePlane& frame, const FramePlane^ mask)
 		{
-			params.imageStride /= sizeof(TColor);
-			params.rowSize /= sizeof(TColor);
-			pin_ptr<uint32_t> first = &(*params.histogram)[0];
+			const pin_ptr<uint32_t> first = &histogram[0];
 			uint32_t* hist = first;
-			TColor* data = static_cast<TColor*>(params.image.ToPointer()) + params.channel;
-			if (params.mask.ToPointer() == nullptr)
+			TColor* data = static_cast<TColor*>(frame.pointer);
+			if (mask == nullptr)
 			{
-				for (int y = 0; y < params.height; y++, data += params.imageStride)
-					for (int x = 0; x < params.rowSize; x += params.imagePixelSize)
+				for (int y = 0; y < frame.height; y++, data += frame.stride)
+					for (int x = 0; x < frame.row; x += frame.pixelSize)
 						++hist[data[x]];
 			}
 			else
 			{
-				unsigned char* maskData = static_cast<unsigned char*>(params.mask.ToPointer());
-				for (int y = 0; y < params.height; y++, data += params.imageStride, maskData += params.maskStride)
-					for (int x = 0, xMask = 0; x < params.rowSize; x += params.imagePixelSize, xMask += params.maskPixelSize)
+				unsigned char* maskData = static_cast<unsigned char*>(mask->pointer);
+				for (int y = 0; y < frame.height; y++, data += frame.stride, maskData += mask->stride)
+					for (int x = 0, xMask = 0; x < frame.row; x += frame.pixelSize, xMask += mask->pixelSize)
 						if (maskData[xMask] == 255)
 							++hist[data[x]];
 			}
 		}
 
-		static void ApplyColorMap(int n,
-			IntPtr input, int strideIn, bool hdrIn,
-			IntPtr output, int strideOut, bool hdrOut,
-			int inputRowSize, int height, int pixelSize, int channel,
-			array<int>^ fixedColors, array<array<int>^>^ dynamicColors, array<array<double>^>^ dynamicWeights)
+		static void ApplyColorMap(int n, FramePlane input, FramePlane output, ColorTable^ colorTable)
 		{
-			ColorMatching params = {
-				n, input, strideIn, output, strideOut,
-				inputRowSize, height, pixelSize, channel,
-				&fixedColors, &dynamicColors, &dynamicWeights
-			};
+			auto hdrIn = input.byteDepth > 1;
+			auto hdrOut = output.byteDepth > 1;
 			if (!hdrIn && !hdrOut)
-				ApplyColorMapImpl<unsigned char, unsigned char>(params);
+				ApplyColorMapImpl<unsigned char, unsigned char>(n, input, output, colorTable);
 			else if (hdrIn && !hdrOut)
-				ApplyColorMapImpl<unsigned short, unsigned char>(params);
+				ApplyColorMapImpl<unsigned short, unsigned char>(n, input, output, colorTable);
 			else if (!hdrIn && hdrOut)
-				ApplyColorMapImpl<unsigned char, unsigned short>(params);
+				ApplyColorMapImpl<unsigned char, unsigned short>(n, input, output, colorTable);
 			else
-				ApplyColorMapImpl<unsigned short, unsigned short>(params);
+				ApplyColorMapImpl<unsigned short, unsigned short>(n, input, output, colorTable);
+		}
+
+		static void ApplyGradientColorMap(int n, FramePlane input, FramePlane output, ColorTable^ tl, ColorTable^ tr, ColorTable^ br, ColorTable^ bl)
+		{
+			auto hdrIn = input.byteDepth > 1;
+			auto hdrOut = output.byteDepth > 1;
+			if (!hdrIn && !hdrOut)
+				ApplyGradientColorMapImpl<unsigned char, unsigned char>(n, input, output, tl, tr, br, bl);
+			else if (hdrIn && !hdrOut)
+				ApplyGradientColorMapImpl<unsigned short, unsigned char>(n, input, output, tl, tr, br, bl);
+			else if (!hdrIn && hdrOut)
+				ApplyGradientColorMapImpl<unsigned char, unsigned short>(n, input, output, tl, tr, br, bl);
+			else
+				ApplyGradientColorMapImpl<unsigned short, unsigned short>(n, input, output, tl, tr, br, bl);
 		}
 
 		template <typename TInputColor, typename TOutputColor>
-		static void ApplyColorMapImpl(ColorMatching& params)
+		static void ApplyColorMapImpl(int seed, FramePlane input, FramePlane output, ColorTable^ colorTable)
 		{
-			TInputColor* readData = static_cast<TInputColor*>(params.input.ToPointer()) + params.channel;
-			TOutputColor* writeData = static_cast<TOutputColor*>(params.output.ToPointer()) + params.channel;
-			FastRandom^ rand = gcnew FastRandom(params.frameNumber);
-			params.strideIn /= sizeof(TInputColor);
-			params.strideOut /= sizeof(TOutputColor);
-			params.inputRowSize /= sizeof(TInputColor);
+			TInputColor* readData = static_cast<TInputColor*>(input.pointer);
+			TOutputColor* writeData = static_cast<TOutputColor*>(output.pointer);
 
-			for (int y = 0; y < params.height; y++, readData += params.strideIn, writeData += params.strideOut)
-				for (int x = 0; x < params.inputRowSize; x += params.pixelSize)
+			const auto random = new NativeRandom(seed);
+			for (int y = 0; y < input.height; y++, readData += input.stride, writeData += output.stride)
+				for (int x = 0; x < input.row; x += input.pixelSize)
 				{
-					TInputColor oldColor = readData[x];
-					int newColor = (*params.fixedColors)[oldColor];
-					if (newColor == -1)
-					{
-						double weight = rand->NextDouble();
-						auto colors = (*params.dynamicColors)[oldColor];
-						auto weights = (*params.dynamicWeights)[oldColor];
-						for (int i = 0;; i++)
-							if ((weight -= weights[i]) < EPSILON)
-							{
-								writeData[x] = colors[i];
-								break;
-							}
-					}
-					else
-					{
-						writeData[x] = newColor;
-					}
+					writeData[x] = colorTable->Map<TInputColor, TOutputColor>(readData[x], random);
 				}
+			delete random;
 		}
 
-		static void BilinearRotate(
-			IntPtr srcImage, int srcWidth, int srcHeight, int srcStride,
-			IntPtr dstImage, int dstWidth, int dstHeight, int dstStride,
-			double angle, int pixelSize);
+		template <typename TInputColor, typename TOutputColor>
+		static void ApplyGradientColorMapImpl(int seed, FramePlane input, FramePlane output, ColorTable^ tl, ColorTable^ tr, ColorTable^ br, ColorTable^ bl)
+		{
+			TInputColor* readData = static_cast<TInputColor*>(input.pointer);
+			TOutputColor* writeData = static_cast<TOutputColor*>(output.pointer);
+
+			const auto random = new NativeRandom(seed);
+			const auto pixelSize = input.pixelSize;
+			const auto width = input.row;
+			const auto width1 = width - 1.0;
+			for (int y = 0; y < input.height; y++, readData += input.stride, writeData += output.stride) 
+			{
+				auto yRatio = y / (input.height - 1.0);
+				for (int x = 0; x < width; x += pixelSize)
+				{
+					TInputColor oldColor = readData[x];
+
+					auto tlColor = tl->Map<TInputColor, TOutputColor>(oldColor, random);
+					auto trColor = tr->Map<TInputColor, TOutputColor>(oldColor, random);
+					auto brColor = br->Map<TInputColor, TOutputColor>(oldColor, random);
+					auto blColor = bl->Map<TInputColor, TOutputColor>(oldColor, random);
+
+					auto xRatio = x / width1;
+					auto top = tlColor * (1 - xRatio) + trColor * xRatio;
+					auto bottom = blColor * (1 - xRatio) + brColor * xRatio;
+					writeData[x] = top * (1 - yRatio) + bottom * yRatio;
+				}
+			}
+		}
+
+		static void CalculateRotationBounds(double width, double height, double angle,
+			[System::Runtime::InteropServices::Out] double% canvasWidth,
+			[System::Runtime::InteropServices::Out] double% canvasHeight)
+		{
+			if (angle == 0)
+			{
+				canvasWidth = width;
+				canvasHeight = height;
+				return;
+			}
+
+			double angleRad = -angle * (Math::PI / 180.0);
+			double angleCos = std::cos(angleRad);
+			double angleSin = std::sin(angleRad);
+
+			double halfWidth = width / 2.0;
+			double halfHeight = height / 2.0;
+
+			double cx1 = halfWidth * angleCos;
+			double cy1 = halfWidth * angleSin;
+
+			double cx2 = halfWidth * angleCos - halfHeight * angleSin;
+			double cy2 = halfWidth * angleSin + halfHeight * angleCos;
+
+			double cx3 = -halfHeight * angleSin;
+			double cy3 = halfHeight * angleCos;
+
+			double cx4 = 0.0;
+			double cy4 = 0.0;
+
+			double newHalfWidth = std::max({ cx1, cx2, cx3, cx4 }) - std::min({ cx1, cx2, cx3, cx4 });
+			double newHalfHeight = std::max({ cy1, cy2, cy3, cy4 }) - std::min({ cy1, cy2, cy3, cy4 });
+
+			canvasWidth = newHalfWidth * 2.0;
+			canvasHeight = newHalfHeight * 2.0;
+		}
+
+		static void BilinearRotate(FramePlane input, FramePlane output, double angle)
+		{
+			switch (input.byteDepth)
+			{
+			case 1:
+				BilinearRotate<unsigned char>(input, output, angle);
+				break;
+			case 2:
+				BilinearRotate<unsigned short>(input, output, angle);
+				break;
+			case 4:
+				BilinearRotate<float>(input, output, angle);
+				break;
+			}
+		}
+
+		template <typename TColor> static void BilinearRotate(FramePlane input, FramePlane output, double angle)
+		{
+			TColor* in = static_cast<TColor*>(input.pointer);
+			TColor* out = static_cast<TColor*>(output.pointer);
+
+			const auto pixelSize = output.pixelSize;
+			const auto inStride = input.stride;
+			const auto inWidth = input.width;
+			const auto inHeight = input.height;
+			const auto outWidth = output.width;
+			const auto outHeight = output.height;
+
+			double canvasWidth, canvasHeight;
+			CalculateRotationBounds(inWidth, inHeight, angle, canvasWidth, canvasHeight);
+			const auto yOffset = (canvasHeight - std::floor(canvasHeight)) / 2.0;
+			const auto xOffset = (canvasWidth - std::floor(canvasWidth)) / 2.0;
+
+			const double oldXradius = (inWidth - 1) / 2.0;
+			const double oldYradius = (inHeight - 1) / 2.0;
+			const double newXradius = (canvasWidth - 1) / 2.0;
+			const double newYradius = (canvasHeight - 1) / 2.0;
+
+			const double angleRad = -angle * Math::PI / 180;
+			const double angleCos = std::cos(angleRad);
+			const double angleSin = std::sin(angleRad);
+
+			const int ymax = inHeight - 1;
+			const int xmax = inWidth - 1;
+
+			double cy = yOffset - newYradius;
+
+			if (input.pixelSize == 1)
+			{
+				for (int y = 0; y < outHeight; y++, cy++, out += output.stride)
+				{
+					double tx = angleSin * cy + oldXradius;
+					double ty = angleCos * cy + oldYradius;
+
+					double cx = xOffset - newXradius;
+
+					for (int x = 0; x < outWidth; x++, cx++)
+					{
+						// coordinates of source point
+						double ox = tx + angleCos * cx;
+						double oy = ty - angleSin * cx;
+
+						// top-left coordinate
+						int ox1 = static_cast<int>(ox);
+						int oy1 = static_cast<int>(oy);
+
+						// validate source pixel's coordinates
+						if (ox1 >= 0 && oy1 >= 0 && ox1 < inWidth && oy1 < inHeight)
+						{
+							// bottom-right coordinate
+							int ox2 = ox1 == xmax ? ox1 : ox1 + 1;
+							int oy2 = oy1 == ymax ? oy1 : oy1 + 1;
+
+							double dx1 = std::max(0.0, ox - ox1);
+							double dx2 = 1.0 - dx1;
+
+							double dy1 = std::max(0.0, oy - oy1);
+							double dy2 = 1.0 - dy1;
+
+							// get four points
+							TColor* p = in + oy1 * inStride;
+							TColor p1 = p[ox1];
+							TColor p2 = p[ox2];
+
+							p = in + oy2 * inStride;
+							TColor p3 = p[ox1];
+							TColor p4 = p[ox2];
+
+							out[x] = static_cast<TColor>(dy2 * (dx2 * p1 + dx1 * p2) + dy1 * (dx2 * p3 + dx1 * p4));
+						}
+					}
+				}
+			}
+			else
+			{
+				const int dstOffset = output.stride - outWidth * pixelSize;
+				for (int y = 0; y < outHeight; y++, cy++, out += dstOffset)
+				{
+					double tx = angleSin * cy + oldXradius;
+					double ty = angleCos * cy + oldYradius;
+
+					double cx = xOffset - newXradius;
+					for (int x = 0; x < outWidth; x++, cx++, out += pixelSize)
+					{
+						// coordinates of source point
+						double ox = tx + angleCos * cx;
+						double oy = ty - angleSin * cx;
+
+						// top-left coordinate
+						int ox1 = static_cast<int>(ox);
+						int oy1 = static_cast<int>(oy);
+
+						// validate source pixel's coordinates
+						if (ox1 >= 0 && oy1 >= 0 && ox1 < inWidth && oy1 < inHeight)
+						{
+							// bottom-right coordinate
+							int ox2 = ox1 == xmax ? ox1 : ox1 + 1;
+							int oy2 = oy1 == ymax ? oy1 : oy1 + 1;
+
+							double dx1 = std::max(0.0, ox - ox1);
+							double dx2 = 1.0 - dx1;
+
+							double dy1 = std::max(0.0, oy - oy1);
+							double dy2 = 1.0 - dy1;
+
+							// get four points
+							TColor* p1 = in + oy1 * inStride;
+							TColor* p2 = p1;
+							p1 += ox1 * pixelSize;
+							p2 += ox2 * pixelSize;
+
+							TColor* p3 = in + oy2 * inStride;
+							TColor* p4 = p3;
+							p3 += ox1 * pixelSize;
+							p4 += ox2 * pixelSize;
+
+							// interpolate using 4 points
+							for (int z = 0; z < pixelSize; z++)
+							{
+								out[z] = static_cast<TColor>(dy2 * (dx2 * p1[z] + dx1 * p2[z]) + dy1 * (dx2 * p3[z] + dx1 * p4[z]));
+							}
+						}
+					}
+				}
+			}
+		}
 
 		static Tuple<double, double>^ FindMinMax(FramePlane^ framePlane)
 		{
@@ -322,7 +478,7 @@ namespace AutoOverlay
 				if (framePlane->pixelSize == 1) 
 				{
 					uint8_t min, max, avg;
-					SimdGetStatistic(static_cast<const uint8_t*>(framePlane->pointer), framePlane->stride, framePlane->width, framePlane->height, &min, &max, &avg);
+					SimdGetStatistic(static_cast<const uint8_t*>(framePlane->pointer), framePlane->stride, framePlane->row, framePlane->height, &min, &max, &avg);
 					return gcnew Tuple<double, double>(min, max);
 				}
 				return FindMinMax<unsigned char>(*framePlane);
@@ -339,7 +495,7 @@ namespace AutoOverlay
 		{
 			auto data = static_cast<T*>(framePlane->pointer);
 			T min = std::numeric_limits<T>().max(), max = std::numeric_limits<T>().min();
-			const auto width = framePlane->width;
+			const auto width = framePlane->row;
 			const auto pixelSize = framePlane->pixelSize;
 			const auto height = framePlane->height;
 			const auto stride = framePlane->stride;
@@ -347,9 +503,9 @@ namespace AutoOverlay
 			{
 				for (auto x = 0; x < width; x += pixelSize)
 				{
-					T value = data[x];
-					if (value < min) min = value;
-					if (value > max) max = value;
+					T& value = data[x];
+					min = std::min(min, value);
+					max = std::max(max, value);
 				}
 			}
 			return gcnew Tuple<double, double>(min, max);
@@ -373,7 +529,7 @@ namespace AutoOverlay
 		template <typename T> static int FindColorCount(FramePlane^ framePlane)
 		{
 			auto data = static_cast<T*>(framePlane->pointer);
-			const auto width = framePlane->width;
+			const auto width = framePlane->row;
 			const auto pixelSize = framePlane->pixelSize;
 			const auto height = framePlane->height;
 			const auto stride = framePlane->stride;
@@ -387,282 +543,6 @@ namespace AutoOverlay
 				}
 			}
 			return set.size();
-		}
-
-		static int FillHistogram(FramePlane^ framePlane, Nullable<FramePlane> maskPlane, array<double>^ values, const double offset, const double step)
-		{
-			const pin_ptr<double> valuesPtr = &values[0];
-			switch (framePlane->byteDepth)
-			{
-			case 1:
-				if (framePlane->pixelSize == 1) {
-					auto ints = new uint32_t[256];
-					if (maskPlane.HasValue)
-					{
-						SimdHistogramMasked(static_cast<const uint8_t*>(framePlane->pointer), framePlane->stride, framePlane->width, framePlane->height,
-						                    static_cast<const uint8_t*>(maskPlane.Value.pointer), maskPlane.Value.stride, 255, ints);
-					}
-					else
-					{
-						SimdHistogram(static_cast<const uint8_t*>(framePlane->pointer), framePlane->width, framePlane->height, framePlane->stride, ints);
-					}
-					int total = 0;
-					for (auto color = 0; color < 256; color++)
-					{
-						const auto count = ints[color];
-						if (count == 0) continue;
-						const auto realColor = (color - offset) / step;
-						const auto minColor = static_cast<unsigned int>(std::floor(realColor));
-						const auto diff = realColor - minColor;
-						values[minColor] += (1 - diff) * count;
-						if (diff > 0)
-							values[minColor + 1] += diff * count;
-						total += count;
-					}
-					delete ints;
-					return total;
-				}
-				return FillHistogram<unsigned char>(framePlane, maskPlane, valuesPtr, offset, step);
-			case 2:
-				return FillHistogram<unsigned short>(framePlane, maskPlane, valuesPtr, offset, step);
-			case 4:
-				return FillHistogram<float>(framePlane, maskPlane, valuesPtr, offset, step);
-			default:
-				throw gcnew InvalidOperationException();
-			}
-		}
-
-		template <typename T> static int FillHistogram(FramePlane^ framePlane, Nullable<FramePlane> maskPlane, double* values, const double offset, const double step)
-		{
-			auto data = static_cast<T*>(framePlane->pointer);
-			const auto width = framePlane->width;
-			const auto pixelSize = framePlane->pixelSize;
-			const auto height = framePlane->height;
-			const auto stride = framePlane->stride;
-			const auto max = std::numeric_limits<T>().max();
-			int total = width * height;
-			if (std::abs(step - 1) < EPSILON && offset == 0)
-			{
-				if (maskPlane.HasValue) {
-					auto mask = static_cast<T*>(maskPlane.Value.pointer);
-					const auto maskStride = maskPlane.Value.stride;
-					for (auto y = 0; y < height; y++, data += stride, mask += maskStride)
-					{
-						for (auto x = 0; x < width; x += pixelSize)
-						{
-							if (mask[x] != max)
-							{
-								total--;
-								continue;
-							}
-							const double realColor = data[x];
-							const auto minColor = static_cast<unsigned int>(std::floor(realColor));
-							const auto diff = realColor - minColor;
-							values[minColor] += 1 - diff;
-							if (diff > 0)
-								values[minColor + 1] += diff;
-						}
-					}
-				}
-				else
-				{
-					for (auto y = 0; y < height; y++, data += stride)
-					{
-						for (auto x = 0; x < width; x += pixelSize)
-						{
-							const double realColor = data[x];
-							const auto minColor = static_cast<unsigned int>(std::floor(realColor));
-							const auto diff = realColor - minColor;
-							values[minColor] += 1 - diff;
-							if (diff > 0)
-								values[minColor + 1] += diff;
-						}
-					}
-				}
-			}
-			else
-			{
-				if (maskPlane.HasValue) {
-					auto mask = static_cast<T*>(maskPlane.Value.pointer);
-					const auto maskStride = maskPlane.Value.stride;
-					for (auto y = 0; y < height; y++, data += stride, mask += maskStride)
-					{
-						for (auto x = 0; x < width; x += pixelSize)
-						{
-							if (mask[x] != max)
-							{
-								total--;
-								continue;
-							}
-							const auto realColor = (data[x] - offset) / step;
-							const auto minColor = static_cast<unsigned int>(std::floor(realColor));
-							const auto diff = realColor - minColor;
-							values[minColor] += 1 - diff;
-							if (diff > 0)
-								values[minColor + 1] += diff;
-						}
-					}
-				}
-				else
-				{
-					for (auto y = 0; y < height; y++, data += stride)
-					{
-						for (auto x = 0; x < width; x += pixelSize)
-						{
-							const auto realColor = (data[x] - offset) / step;
-							const auto minColor = static_cast<unsigned int>(std::floor(realColor));
-							const auto diff = realColor - minColor;
-							values[minColor] += 1 - diff;
-							if (diff > 0)
-								values[minColor + 1] += diff;
-						}
-					}
-				}
-			}
-			return total;
-		}
-
-		static void ApplyHistogram(FramePlane^ input, FramePlane^ output, IInterpolation^ averageInterpolator, double min, double max, Nullable<int> seed)
-		{
-			switch (input->byteDepth)
-			{
-			case 1:
-				switch (output->byteDepth)
-				{
-				case 1:
-					ApplyHistogram<unsigned char, unsigned char>(input, output, averageInterpolator, min, max, seed);
-					break;
-				case 2:
-					ApplyHistogram<unsigned char, unsigned short>(input, output, averageInterpolator, min, max, seed);
-					break;
-				case 4:
-					ApplyHistogram<unsigned char, float>(input, output, averageInterpolator, min, max, seed);
-					break;
-				default:
-					throw gcnew InvalidOperationException();
-				}
-				break;
-			case 2:
-				switch (output->byteDepth)
-				{
-				case 1:
-					ApplyHistogram<unsigned short, unsigned char>(input, output, averageInterpolator, min, max, seed);
-					break;
-				case 2:
-					ApplyHistogram<unsigned short, unsigned short>(input, output, averageInterpolator, min, max, seed);
-					break;
-				case 4:
-					ApplyHistogram<unsigned short, float>(input, output, averageInterpolator, min, max, seed);
-					break;
-				default:
-					throw gcnew InvalidOperationException();
-				}
-				break;
-			case 4:
-				switch (output->byteDepth)
-				{
-				case 1:
-					ApplyHistogram<float, unsigned char>(input, output, averageInterpolator, min, max, seed);
-					break;
-				case 2:
-					ApplyHistogram<float, unsigned short>(input, output, averageInterpolator, min, max, seed);
-					break;
-				case 4:
-					ApplyHistogram<float, float>(input, output, averageInterpolator, min, max, seed);
-					break;
-				default:
-					throw gcnew InvalidOperationException();
-				}
-				break;
-			default:
-				throw gcnew InvalidOperationException();
-			}
-		}
-
-		template <typename TInput, typename TOutput> static void ApplyHistogram(
-			FramePlane^ input, FramePlane^ output, IInterpolation^ averageInterpolator, 
-			double min, double max, Nullable<int> seed)
-		{
-			const auto random = seed.HasValue ? gcnew FastRandom(seed.Value) : gcnew FastRandom();
-			auto inData = static_cast<TInput*>(input->pointer);
-			auto outData = static_cast<TOutput*>(output->pointer);
-			const auto width = input->width;
-			const auto pixelSize = input->pixelSize;
-			const auto height = input->height;
-			const auto inStride = input->stride;
-			const auto outStride = output->stride;
-			std::unordered_map<TInput, TOutput> cache;
-			cache.reserve(10000);
-			if (output->byteDepth == 4)
-			{
-				for (auto y = 0; y < height; y++, inData += inStride, outData += outStride)
-				{
-					for (auto x = 0; x < width; x += pixelSize)
-					{
-						TInput& src = inData[x];
-						auto iter = cache.find(src);
-						if (iter == cache.end())
-						{
-							outData[x] = cache[src] = static_cast<TOutput>(Interpolate(src, min, max, averageInterpolator));
-						}
-						else
-						{
-							outData[x] = iter->second;
-						}
-					}
-				}
-			}
-			else
-			{
-				for (auto y = 0; y < height; y++, inData += inStride, outData += outStride)
-				{
-					for (auto x = 0; x < width; x += pixelSize)
-					{
-						TInput& src = inData[x];
-						auto iter = cache.find(src);
-						if (iter == cache.end())
-						{
-							outData[x] = cache[src] = static_cast<TOutput>(InterpolateInteger(src, min, max, averageInterpolator, random));
-						}
-						else
-						{
-							outData[x] = iter->second;
-						}
-					}
-				}
-			}
-		}
-
-		static double InterpolateInteger(const double color, const double min, const double max, IInterpolation^ interpolator, FastRandom^ random)
-		{
-			auto interpolated = interpolator->Interpolate(color);
-			const auto floor = std::floor(interpolated);
-			const auto diff = interpolated - floor;
-			if (diff < EPSILON)
-				return floor;
-			interpolated = random->NextDouble() < diff ? floor : floor + 1;
-			if (interpolated < min)
-				return min;
-			if (interpolated > max)
-				return max;
-			return interpolated;
-		}
-
-		static double Interpolate(const double color, const double min, const double max, IInterpolation^ interpolator)
-		{
-			const auto interpolated = interpolator->Interpolate(color);
-			if (interpolated < min)
-				return min;
-			if (interpolated > max)
-				return max;
-			return interpolated;
-		}
-
-		static double NextNormal(FastRandom^ random)
-		{
-			double u1 = random->NextDouble();
-			double u2 = random->NextDouble();
-			return std::sqrt(-2.0 * std::log(u1)) * std::sin(2.0 * std::numbers::pi * u2) / std::numbers::pi;
 		}
 	};
 };

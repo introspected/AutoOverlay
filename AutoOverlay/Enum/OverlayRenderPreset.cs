@@ -2,6 +2,7 @@
 {
     public enum OverlayRenderPreset
     {
+        Default,
         FitSource,
         FitScreen,
         FitScreenBlur,

@@ -3,23 +3,17 @@ using System.Drawing;
 
 namespace AutoOverlay.Overlay
 {
-    public struct SizeD
+    public struct SizeD(double width, double height)
     {
         public static SizeD Empty = new();
 
         public const double EPSILON = 0.000001;
 
-        public double Width { get; set; }
+        public double Width { get; set; } = width;
 
-        public double Height { get; set; }
+        public double Height { get; set; } = height;
 
         public double Area => Width * Height;
-
-        public SizeD(double width, double height)
-        {
-            Width = width;
-            Height = height;
-        }
 
         public SizeD Invert()
         {
@@ -29,6 +23,8 @@ namespace AutoOverlay.Overlay
         public bool IsEmpty => Empty.Equals(this);
 
         public double AspectRatio => Width / Height;
+
+        public Size Floor() => new((int)Width, (int)Height);
 
         public static implicit operator SizeD(Size size)
         {
@@ -40,16 +36,20 @@ namespace AutoOverlay.Overlay
             return new SizeD(size.Width, size.Height);
         }
 
-        public static implicit operator SizeF(SizeD size)
+        public static explicit operator SizeF(SizeD size)
         {
             return new SizeF((float) size.Width, (float) size.Height);
         }
 
+        public static explicit operator Size(SizeD size)
+        {
+            return new Size((int)Math.Round(size.Width), (int)Math.Round(size.Height));
+        }
+
         public override bool Equals(object obj)
         {
-            if (!(obj is SizeD)) return false;
-            var s = (SizeD) obj;
-            return Math.Abs(Width - s.Width) < EPSILON && Math.Abs(Height - s.Height) < EPSILON;
+            if (!(obj is SizeD d)) return false;
+            return Math.Abs(Width - d.Width) < EPSILON && Math.Abs(Height - d.Height) < EPSILON;
         }
 
         public static bool operator ==(SizeD left, SizeD right)
@@ -66,7 +66,7 @@ namespace AutoOverlay.Overlay
         {
             unchecked
             {
-                return (Width.GetHashCode() * 397) ^ Height.GetHashCode();
+                return (Math.Round(Width, 2).GetHashCode() * 397) ^ Math.Round(Height, 2).GetHashCode();
             }
         }
 

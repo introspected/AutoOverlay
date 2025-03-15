@@ -8,7 +8,7 @@ using AvsFilterNet;
 [assembly: AvisynthFilterClass(typeof(OverlayMask),
     nameof(OverlayMask),
     "[template]c[width]i[height]i[left]i[top]i[right]i[bottom]i[noise]b[gradient]b[seed]i",
-    OverlayUtils.DEFAULT_MT_MODE)]
+    OverlayConst.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
     public class OverlayMask : OverlayFilter
@@ -41,8 +41,8 @@ namespace AutoOverlay
         [AvsArgument]
         public int Seed { get; protected set; }
 
-        private const double FLOAT_MAX = float.MaxValue * 2.0;
         private bool rgb;
+        private int depth;
         private ushort shortMaxValue;
         private ColorSpaces pixelType;
         private Clip background;
@@ -83,11 +83,20 @@ namespace AutoOverlay
                         pixelType.HasFlag(ColorSpaces.CS_RGB_TYPE) ? 3 : 1, pixelType.GetBitDepth())
                 ];
             rgb = GetVideoInfo().IsRGB();
-            shortMaxValue = (ushort)(255 << (pixelType.GetBitDepth() - 8));
+            depth = pixelType.GetBitDepth();
+            shortMaxValue = (ushort)((1 << depth) - 1);
         }
 
         protected override void AfterInitialize()
         {
+            if (!rgb && depth is > 8 and < 32)
+            {
+                var sdr = pixelType.ChangeBitDepth(8).GetName();
+                background = DynamicEnv
+                    .BlankClip(width: Width, height: Height, pixel_type: sdr, color_yuv: 0xFF8080)
+                    .ConvertBits(depth, fulls: true, fulld: true);
+                return;
+            }
             background = rgb
                 ? DynamicEnv.BlankClip(width: Width, height: Height, pixel_type: pixelType.GetName(), color: 0xFFFFFF)
                 : DynamicEnv.BlankClip(width: Width, height: Height, pixel_type: pixelType.GetName(), color_yuv: 0xFF8080);
@@ -107,7 +116,7 @@ namespace AutoOverlay
                     void LeftRightByte(int length, Func<int, int> offset, int seed)
                     {
                         if (length == 0) return;
-                        var random = new FastRandom(seed);
+                        using var random = new FastRandom(seed);
                         for (var x = 0; x < length; x++)
                         {
                             var data = (byte*)framePlane.pointer + offset(x) * pixelSize;
@@ -129,7 +138,7 @@ namespace AutoOverlay
                     void TopBottomByte(int length, Func<int, int> offset, int seed)
                     {
                         if (length == 0) return;
-                        var random = new FastRandom(seed);
+                        using var random = new FastRandom(seed);
                         for (var y = 0; y < length; y++)
                         {
                             var data = (byte*)framePlane.pointer + offset(rgb ? (Height - y - 1) : y) * stride;
@@ -151,7 +160,7 @@ namespace AutoOverlay
                     void LeftRightShort(int length, Func<int, int> offset, int seed)
                     {
                         if (length == 0) return;
-                        var random = new FastRandom(seed);
+                        using var random = new FastRandom(seed);
                         for (var x = 0; x < length; x++)
                         {
                             var data = (ushort*)framePlane.pointer + offset(x) * pixelSize;
@@ -173,7 +182,7 @@ namespace AutoOverlay
                     void TopBottomShort(int length, Func<int, int> offset, int seed)
                     {
                         if (length == 0) return;
-                        var random = new FastRandom(seed);
+                        using var random = new FastRandom(seed);
                         for (var y = 0; y < length; y++)
                         {
                             var data = (ushort*)framePlane.pointer +offset(rgb ? (Height - y - 1) : y) * stride;
@@ -195,7 +204,7 @@ namespace AutoOverlay
                     void LeftRightFloat(int length, Func<int, int> offset, int seed)
                     {
                         if (length == 0) return;
-                        var random = new FastRandom(seed);
+                        using var random = new FastRandom(seed);
                         for (var x = 0; x < length; x++)
                         {
                             var data = (float*)framePlane.pointer + offset(x) * pixelSize;
@@ -207,7 +216,7 @@ namespace AutoOverlay
 
                                 if (Noise && random.Next(length) > x && random.Next(length) > x)
                                     val = 0;
-                                if (Math.Abs(val - float.MaxValue) > float.Epsilon)
+                                if (Math.Abs(val) > float.Epsilon)
                                     for (var i = 0; i < pixelSize; i++)
                                         data[i] = val;
                             }
@@ -217,7 +226,7 @@ namespace AutoOverlay
                     void TopBottomFloat(int length, Func<int, int> offset, int seed)
                     {
                         if (length == 0) return;
-                        var random = new FastRandom(seed);
+                        using var random = new FastRandom(seed);
                         for (var y = 0; y < length; y++)
                         {
                             var data = (float*)framePlane.pointer + offset(rgb ? (Height - y - 1) : y) * stride;
@@ -272,7 +281,13 @@ namespace AutoOverlay
 
         private float GradientValFloat(int current, int total)
         {
-            return !Gradient ? float.MaxValue : (float)(FLOAT_MAX * ((current + 1.0) / (total + 1)) - float.MaxValue);
+            return !Gradient ? 1 : (float)((current + 1.0) / (total + 1));
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            background?.Dispose();
+            base.Dispose(disposing);
         }
     }
 }

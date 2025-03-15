@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Linq;
 using AvsFilterNet;
 
@@ -10,50 +11,42 @@ namespace AutoOverlay.Overlay
     {
         public dynamic Clip { get; set; }
         public dynamic Mask { get; }
+        public dynamic WhiteMask { get; }
         public double Opacity { get; }
-        public Rectangle Rectangle { get; }
+        public Rectangle Rectangle { get; } // after rotation and canvas intersection
         public Rectangle ExtraBorders { get; }
         public bool Source { get; }
         public List<OverlayInfo> History { get; }
         public int Index { get; private set; }
         public Rectangle Union { get; }
         public OverlayData Data { get; }
+        public string ResizeFunc { get; }
+
+        public bool Rotation => !Source && Data.OverlayAngle != 0;
 
         public static List<OverlayLayer> GetLayers(int frameNumber, OverlayContext ctx, List<OverlayInfo> history, List<OverlayInfo>[] extra)
         {
-            var input = new OverlayInput
-            {
-                SourceSize = ctx.SourceInfo.Size,
-                OverlaySize = ctx.OverlayInfo.Size,
-                TargetSize = ctx.TargetInfo.Size,
-                InnerBounds = ctx.Render.InnerBounds,
-                OuterBounds = ctx.Render.OuterBounds,
-                OverlayBalance = ctx.Render.OverlayBalance,
-                FixedSource = ctx.Render.FixedSource,
-                ExtraClips = ctx.ExtraClips
-            };
-            var data = OverlayMapper.For(frameNumber, input, history, extra).GetOverlayData();
+            var data = OverlayMapper.For(frameNumber, ctx.Input, history, ctx.Render.Stabilization, extra).GetOverlayData();
             OverlayData lumaData = null;
             if (ctx.Plane.IsChroma())
             {
-                var subsample = new Size(ctx.Render.ColorSpace.GetWidthSubsample(), ctx.Render.ColorSpace.GetHeightSubsample());
-                lumaData = OverlayMapper.For(frameNumber, input.Scale(subsample), history, extra).GetOverlayData();
+                lumaData = OverlayMapper.For(frameNumber, ctx.Input.Scale(ctx.SubSample), history, ctx.Render.Stabilization, extra).GetOverlayData();
             }
             var layers = new List<OverlayLayer>(2 + ctx.ExtraClips.Count)
             {
-                new(data, true, ctx.Source, ctx.SourceMask, 1, ctx.Render, lumaData, history)
+                new(data, true, ctx.Source, ctx.SourceMask, 1, ctx.Render, ctx, lumaData, history, ctx.SubSample)
             };
             var extraLayers = ctx.ExtraClips
-                .Select((tuple, i) => new OverlayLayer(data.ExtraClips[i], false, tuple.Clip, tuple.Mask, tuple.Opacity, ctx.Render, lumaData?.ExtraClips[i], extra[i]));
+                .Select((tuple, i) => new OverlayLayer(data.ExtraClips[i], false, tuple.Clip, tuple.Mask, tuple.Opacity, ctx.Render, ctx, lumaData?.ExtraClips[i], extra[i], ctx.SubSample));
             layers.AddRange(extraLayers);
-            layers.Insert(ctx.Render.OverlayOrder + 1, new(data, false, ctx.Overlay, ctx.OverlayMask, ctx.Render.Opacity, ctx.Render, lumaData, history));
+            layers.Insert(ctx.Render.OverlayOrder + 1, new(data, false, ctx.Overlay, ctx.OverlayMask, ctx.Render.Opacity, ctx.Render, ctx, lumaData, history, ctx.SubSample));
             for (var i = 0; i < layers.Count; i++)
                 layers[i].Index = i;
             return layers;
         }
 
         private OverlayLayer(OverlayData data, bool source, Clip clip, Clip mask, double opacity,
-            OverlayRender render, OverlayData lumaData, List<OverlayInfo> history)
+            OverlayRender render, OverlayContext ctx, OverlayData lumaData, List<OverlayInfo> history, Size subSample)
         {
             Data = data;
             Source = source;
@@ -63,43 +56,68 @@ namespace AutoOverlay.Overlay
             RectangleF crop;
             float angle;
             Warp warp;
+            Rectangle unrotated;
             if (Source)
             {
-                Rectangle = data.Source;
+                unrotated = data.Source;
                 crop = data.SourceCrop;
                 angle = 0;
                 warp = data.SourceWarp;
             }
             else
             {
-                Rectangle = data.Overlay;
+                unrotated = data.Overlay;
                 crop = data.OverlayCrop;
                 angle = data.OverlayAngle;
                 warp = data.OverlayWarp;
+                if (mask == null && angle != 0)
+                    mask = AvsUtils.InitClip(clip.Dynamic(), unrotated.Size, ctx.Plane.IsRgb() ? 0xFFFFFF : 0xFF8080);
             }
             var vi = clip.GetVideoInfo();
             var bitDepth = vi.pixel_type.GetBitDepth();
             var size = vi.GetSize();
 
-            var resizeFunc = Rectangle.Width > size.Width ? render.Upsize : render.Downsize;
-            Clip = render.ResizeRotate(clip, resizeFunc, render.Rotate, Rectangle.Width, Rectangle.Height, angle, crop, warp);
-            Mask = render.MaskMode 
-                ? angle.IsNearlyZero() ? null : OverlayUtils.GetBlankClip(clip, false)
-                : render.ResizeRotate(mask, resizeFunc, render.Rotate, Rectangle.Width, Rectangle.Height, angle, crop, warp);
+            var canvas = new Rectangle(Point.Empty, ctx.Input.TargetSize);
+            var rotated = new Rectangle(unrotated.Location, BilinearRotate.CalculateSize(unrotated.Size, angle).Floor());
+            Rectangle = Rectangle.Intersect(canvas, rotated);
+            var roi = Rectangle with
+            {
+                X = Math.Max(0, -rotated.X), 
+                Y = Math.Max(0, -rotated.Y)
+            };
+
+            ResizeFunc = Rectangle.Width > size.Width ? render.Upsize : render.Downsize;
+
+            dynamic Prepare(Clip clp, Warp warp) => render.ResizeRotate(clp, ResizeFunc, render.Rotate, unrotated.Width, unrotated.Height, angle, crop, warp)?.ROI(roi);
+
+            Clip = Prepare(clip, warp);
+            Mask = render.MaskMode ? null : Prepare(mask, warp);
+            if (Rotation)
+            {
+                Mask ??= WhiteMask = Prepare(AvsUtils.InitClip(clip.Dynamic(), unrotated.Size, ctx.Plane.IsRgb() ? 0xFFFFFF : 0xFF8080), Warp.Empty);
+            }
+            else
+            {
+                WhiteMask = AvsUtils.GetBlankClip(Clip, true);
+            }
 
             if (render.ColorAdjust < double.Epsilon && bitDepth != render.BitDepth)
             {
                 Clip = Clip.ConvertBits(render.BitDepth);
             }
 
-            if (lumaData != null)
+            if (lumaData == null)
             {
-                var luma = Source ? lumaData.Source : lumaData.Overlay;
-                ExtraBorders = Rectangle.FromLTRB(luma.X % 2, luma.Y % 2, luma.Right % 2, luma.Bottom % 2);
+                ExtraBorders = Rectangle.Empty;
             }
             else
             {
-                ExtraBorders = Rectangle.Empty;
+                var luma = Source ? lumaData.Source : lumaData.Overlay;
+                ExtraBorders = Rectangle.FromLTRB(
+                    Math.Sign(luma.X % subSample.Width),
+                    Math.Sign(luma.Y % subSample.Height),
+                    Math.Sign(luma.Right % subSample.Width),
+                    Math.Sign(luma.Bottom % subSample.Height));
             }
         }
     }

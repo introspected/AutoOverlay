@@ -11,6 +11,8 @@ namespace AutoOverlay
         private static readonly ConcurrentDictionary<Type, Action<SupportFilter, BinaryReader>> Readers = new();
         private static readonly ConcurrentDictionary<Type, Action<SupportFilter, BinaryWriter>> Writers = new();
 
+        protected sealed override bool GenerateId => true;
+
         public static T FindFilter<T>(Clip clip, int position) where T : SupportFilter
         {
             return (T) FindFilter(typeof(T), clip, position);

@@ -13,15 +13,17 @@ namespace AutoOverlay.Overlay
         public const int MAX_POINTS = 16;
 
         private const string PATTERN = @"(?:^|;)\s*(\d{1,5}(?:\.\d{1,2})?),(\d{1,5}(?:\.\d{1,2})?)\s*\[(-?\d{1,3}(?:\.\d{1,3})?),(-?\d{1,3}(?:\.\d{1,3})?)\]";
-        private static readonly Regex regex = new Regex(PATTERN, RegexOptions.Compiled | RegexOptions.Singleline);
+        private static readonly Regex regex = new(PATTERN, RegexOptions.Compiled | RegexOptions.Singleline);
 
-        public static readonly Warp Empty = new Warp(0);
+        public static readonly Warp Empty = new(0);
 
         private RectangleD[] points;
 
-        public bool IsEmpty => points.Length == 0;
+        public bool IsEmpty => points.Length == 0 || points.All(p => p.IsEmpty);
 
         public int Length => points.Length;
+
+        public int Direction { get; set; }
 
         public Warp(int length)
         {
@@ -66,48 +68,62 @@ namespace AutoOverlay.Overlay
             return warp;
         }
 
+        public Warp Reverse()
+        {
+            var warp = new Warp(Length);
+            for (var i = 0; i < Length; i++)
+            {
+                warp.points[i] = points[Length - i - 1];
+            }
+            return warp;
+        }
+
+        public Warp Shift(int value) => new(Length)
+        {
+            points = points.Shift(value).ToArray()
+        };
+
         public RectangleD this[int index]
         {
             get => index >= points.Length ? RectangleD.Empty : points[index];
             set => points[index] = value;
         }
 
-        public double[] ToArray()
-        {
-            return points.SelectMany(p => new[] {p.X, p.Y, p.Width, p.Height}).ToArray();
-        }
+        public double[] ToArray() => points
+            .OrderBy(p => p.X)
+            .ThenBy(p => p.Y)
+            .SelectMany(p => new[] { p.X, p.Y, p.Width, p.Height })
+            .ToArray();
 
-        public static Warp Read(BinaryReader reader)
+        public static Warp Read(BinaryReader reader, Func<BinaryReader, double> extract)
         {
-            var points = ReadImpl(reader).ToArray();
-            if (!points.Any())
-                return Empty;
-            return new Warp(0) {points = points};
+            var points = ReadImpl(reader, extract).ToArray();
+            return !points.Any() ? Empty : new Warp(0) {points = points};
         }
 
         public void Write(BinaryWriter writer)
         {
             foreach (var point in points)
             {
-                writer.Write((float) point.X);
-                writer.Write((float) point.Y);
-                writer.Write((float) point.Width);
-                writer.Write((float) point.Height);
+                writer.Write(point.X);
+                writer.Write(point.Y);
+                writer.Write(point.Width);
+                writer.Write(point.Height);
             }
 
             for (var i = points.Length * 4; i < MAX_POINTS * 4; i++)
             {
-                writer.Write(-1.0f);
+                writer.Write(-1.0);
             }
         }
 
-        private static IEnumerable<RectangleD> ReadImpl(BinaryReader reader)
+        private static IEnumerable<RectangleD> ReadImpl(BinaryReader reader, Func<BinaryReader, double> extract)
         {
             for (var i = 0; i < MAX_POINTS; i++)
             {
                 var point = new RectangleD(
-                    reader.ReadSingle(), reader.ReadSingle(),
-                    reader.ReadSingle(), reader.ReadSingle());
+                    extract(reader), extract(reader),
+                    extract(reader), extract(reader));
                 if (point.X >= -RectangleD.EPSILON)
                     yield return point;
             }
@@ -156,7 +172,7 @@ namespace AutoOverlay.Overlay
         public override string ToString()
         {
             if (IsEmpty)
-                return "disabled";
+                return "none";
             return string.Join("; ",
                 points.Select(p => FormattableString.Invariant($"{p.X:F2},{p.Y:F2} [{p.Width:F3},{p.Height:F3}]")));
         }

@@ -30,8 +30,8 @@
         {
             this.components = new System.ComponentModel.Container();
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(OverlayEditor));
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(OverlayEditor));
             this.panel1 = new System.Windows.Forms.Panel();
             this.trackBar = new System.Windows.Forms.TrackBar();
             this.panel3 = new System.Windows.Forms.Panel();
@@ -49,10 +49,23 @@
             this.label20 = new System.Windows.Forms.Label();
             this.panelManage = new System.Windows.Forms.Panel();
             this.grid = new System.Windows.Forms.DataGridView();
+            this.intervalDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.xDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Resolution = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.Angle = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.diffDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Fixed = new System.Windows.Forms.DataGridViewCheckBoxColumn();
+            this.frameIntervalBindingSource = new System.Windows.Forms.BindingSource(this.components);
             this.panel2 = new System.Windows.Forms.Panel();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
+            this.groupBox4 = new System.Windows.Forms.GroupBox();
+            this.btnEnhanceClip = new System.Windows.Forms.Button();
+            this.btnEnhanceScene = new System.Windows.Forms.Button();
+            this.btnEnhanceFrame = new System.Windows.Forms.Button();
+            this.gpUpdate = new System.Windows.Forms.GroupBox();
+            this.btnUpdateClip = new System.Windows.Forms.Button();
+            this.btnUpdateScene = new System.Windows.Forms.Button();
+            this.btnUpdateFrame = new System.Windows.Forms.Button();
             this.gbScan = new System.Windows.Forms.GroupBox();
             this.btnScanClip = new System.Windows.Forms.Button();
             this.btnScanScene = new System.Windows.Forms.Button();
@@ -72,6 +85,7 @@
             this.nudDeviation = new System.Windows.Forms.NumericUpDown();
             this.label27 = new System.Windows.Forms.Label();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
+            this.cbNoise = new System.Windows.Forms.CheckBox();
             this.label25 = new System.Windows.Forms.Label();
             this.chbColorAdjust = new System.Windows.Forms.CheckBox();
             this.chbRGB = new System.Windows.Forms.CheckBox();
@@ -85,11 +99,9 @@
             this.label23 = new System.Windows.Forms.Label();
             this.label24 = new System.Windows.Forms.Label();
             this.label6 = new System.Windows.Forms.Label();
-            this.nudNoiseSize = new System.Windows.Forms.NumericUpDown();
             this.nudGradientSize = new System.Windows.Forms.NumericUpDown();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
-            this.label11 = new System.Windows.Forms.Label();
             this.nudOutputWidth = new System.Windows.Forms.NumericUpDown();
             this.label5 = new System.Windows.Forms.Label();
             this.nudOutputHeight = new System.Windows.Forms.NumericUpDown();
@@ -126,11 +138,6 @@
             this.btnDelete = new System.Windows.Forms.ToolStripButton();
             this.pictureBox = new System.Windows.Forms.PictureBox();
             this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
-            this.intervalDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.xDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.Angle = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.diffDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.frameIntervalBindingSource = new System.Windows.Forms.BindingSource(this.components);
             this.panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trackBar)).BeginInit();
             this.panel3.SuspendLayout();
@@ -141,8 +148,11 @@
             ((System.ComponentModel.ISupportInitialize)(this.nudCurrentFrame)).BeginInit();
             this.panelManage.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.grid)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.frameIntervalBindingSource)).BeginInit();
             this.panel2.SuspendLayout();
             this.groupBox3.SuspendLayout();
+            this.groupBox4.SuspendLayout();
+            this.gpUpdate.SuspendLayout();
             this.gbScan.SuspendLayout();
             this.gbAlign.SuspendLayout();
             this.gbAdjust.SuspendLayout();
@@ -152,7 +162,6 @@
             this.groupBox2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.tbColorAdjust)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.tbOpacity)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudNoiseSize)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudGradientSize)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudOutputWidth)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudOutputHeight)).BeginInit();
@@ -165,7 +174,6 @@
             ((System.ComponentModel.ISupportInitialize)(this.nudOverlayWidth)).BeginInit();
             this.toolStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.frameIntervalBindingSource)).BeginInit();
             this.SuspendLayout();
             // 
             // panel1
@@ -188,7 +196,7 @@
             this.trackBar.Margin = new System.Windows.Forms.Padding(4);
             this.trackBar.Maximum = 999999;
             this.trackBar.Name = "trackBar";
-            this.trackBar.Size = new System.Drawing.Size(630, 56);
+            this.trackBar.Size = new System.Drawing.Size(630, 30);
             this.trackBar.TabIndex = 0;
             this.trackBar.TickStyle = System.Windows.Forms.TickStyle.None;
             this.trackBar.Scroll += new System.EventHandler(this.trackBar_Scroll);
@@ -445,13 +453,31 @@
             this.grid.RowHeadersVisible = false;
             this.grid.RowHeadersWidth = 51;
             this.grid.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.grid.Size = new System.Drawing.Size(584, 163);
+            this.grid.Size = new System.Drawing.Size(584, 210);
             this.grid.TabIndex = 1;
             this.grid.VirtualMode = true;
             this.grid.CellValueNeeded += new System.Windows.Forms.DataGridViewCellValueEventHandler(this.grid_CellValueNeeded);
             this.grid.RowPrePaint += new System.Windows.Forms.DataGridViewRowPrePaintEventHandler(this.grid_RowPrePaint);
             this.grid.KeyDown += new System.Windows.Forms.KeyEventHandler(this.SuppressKeyPress);
             this.grid.KeyUp += new System.Windows.Forms.KeyEventHandler(this.SuppressKeyPress);
+            // 
+            // intervalDataGridViewTextBoxColumn
+            // 
+            this.intervalDataGridViewTextBoxColumn.DataPropertyName = "Interval";
+            this.intervalDataGridViewTextBoxColumn.HeaderText = "Interval";
+            this.intervalDataGridViewTextBoxColumn.MinimumWidth = 6;
+            this.intervalDataGridViewTextBoxColumn.Name = "intervalDataGridViewTextBoxColumn";
+            this.intervalDataGridViewTextBoxColumn.ReadOnly = true;
+            this.intervalDataGridViewTextBoxColumn.Width = 79;
+            // 
+            // xDataGridViewTextBoxColumn
+            // 
+            this.xDataGridViewTextBoxColumn.DataPropertyName = "Placement";
+            this.xDataGridViewTextBoxColumn.HeaderText = "Location";
+            this.xDataGridViewTextBoxColumn.MinimumWidth = 6;
+            this.xDataGridViewTextBoxColumn.Name = "xDataGridViewTextBoxColumn";
+            this.xDataGridViewTextBoxColumn.ReadOnly = true;
+            this.xDataGridViewTextBoxColumn.Width = 87;
             // 
             // Resolution
             // 
@@ -462,6 +488,26 @@
             this.Resolution.ReadOnly = true;
             this.Resolution.Width = 62;
             // 
+            // Angle
+            // 
+            this.Angle.DataPropertyName = "Angle";
+            this.Angle.HeaderText = "Angle";
+            this.Angle.MinimumWidth = 6;
+            this.Angle.Name = "Angle";
+            this.Angle.ReadOnly = true;
+            this.Angle.Width = 71;
+            // 
+            // diffDataGridViewTextBoxColumn
+            // 
+            this.diffDataGridViewTextBoxColumn.DataPropertyName = "Diff";
+            dataGridViewCellStyle1.Format = "F1";
+            this.diffDataGridViewTextBoxColumn.DefaultCellStyle = dataGridViewCellStyle1;
+            this.diffDataGridViewTextBoxColumn.HeaderText = "Diff";
+            this.diffDataGridViewTextBoxColumn.MinimumWidth = 6;
+            this.diffDataGridViewTextBoxColumn.Name = "diffDataGridViewTextBoxColumn";
+            this.diffDataGridViewTextBoxColumn.ReadOnly = true;
+            this.diffDataGridViewTextBoxColumn.Width = 55;
+            // 
             // Fixed
             // 
             this.Fixed.DataPropertyName = "Fixed";
@@ -471,6 +517,10 @@
             this.Fixed.ReadOnly = true;
             this.Fixed.Width = 46;
             // 
+            // frameIntervalBindingSource
+            // 
+            this.frameIntervalBindingSource.DataSource = typeof(AutoOverlay.FrameInterval);
+            // 
             // panel2
             // 
             this.panel2.Controls.Add(this.groupBox3);
@@ -478,14 +528,16 @@
             this.panel2.Controls.Add(this.groupBox1);
             this.panel2.Controls.Add(this.toolStrip1);
             this.panel2.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.panel2.Location = new System.Drawing.Point(0, 163);
+            this.panel2.Location = new System.Drawing.Point(0, 210);
             this.panel2.Margin = new System.Windows.Forms.Padding(4);
             this.panel2.Name = "panel2";
-            this.panel2.Size = new System.Drawing.Size(584, 592);
+            this.panel2.Size = new System.Drawing.Size(584, 545);
             this.panel2.TabIndex = 2;
             // 
             // groupBox3
             // 
+            this.groupBox3.Controls.Add(this.groupBox4);
+            this.groupBox3.Controls.Add(this.gpUpdate);
             this.groupBox3.Controls.Add(this.gbScan);
             this.groupBox3.Controls.Add(this.gbAlign);
             this.groupBox3.Controls.Add(this.gbAdjust);
@@ -495,7 +547,7 @@
             this.groupBox3.Controls.Add(this.nudDistance);
             this.groupBox3.Controls.Add(this.nudDeviation);
             this.groupBox3.Controls.Add(this.label27);
-            this.groupBox3.Location = new System.Drawing.Point(7, 191);
+            this.groupBox3.Location = new System.Drawing.Point(7, 192);
             this.groupBox3.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox3.Name = "groupBox3";
             this.groupBox3.Padding = new System.Windows.Forms.Padding(4);
@@ -503,6 +555,106 @@
             this.groupBox3.TabIndex = 18;
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "Frame processing";
+            // 
+            // groupBox4
+            // 
+            this.groupBox4.Controls.Add(this.btnEnhanceClip);
+            this.groupBox4.Controls.Add(this.btnEnhanceScene);
+            this.groupBox4.Controls.Add(this.btnEnhanceFrame);
+            this.groupBox4.Location = new System.Drawing.Point(375, 23);
+            this.groupBox4.Margin = new System.Windows.Forms.Padding(4);
+            this.groupBox4.Name = "groupBox4";
+            this.groupBox4.Padding = new System.Windows.Forms.Padding(4);
+            this.groupBox4.Size = new System.Drawing.Size(84, 130);
+            this.groupBox4.TabIndex = 12;
+            this.groupBox4.TabStop = false;
+            this.groupBox4.Text = "Enhance";
+            // 
+            // btnEnhanceClip
+            // 
+            this.btnEnhanceClip.BackColor = System.Drawing.SystemColors.MenuBar;
+            this.btnEnhanceClip.Location = new System.Drawing.Point(8, 96);
+            this.btnEnhanceClip.Margin = new System.Windows.Forms.Padding(4);
+            this.btnEnhanceClip.Name = "btnEnhanceClip";
+            this.btnEnhanceClip.Size = new System.Drawing.Size(68, 28);
+            this.btnEnhanceClip.TabIndex = 0;
+            this.btnEnhanceClip.Text = "Clip";
+            this.btnEnhanceClip.UseVisualStyleBackColor = false;
+            this.btnEnhanceClip.Click += new System.EventHandler(this.btnEnhanceClip_Click);
+            // 
+            // btnEnhanceScene
+            // 
+            this.btnEnhanceScene.BackColor = System.Drawing.SystemColors.Info;
+            this.btnEnhanceScene.Location = new System.Drawing.Point(8, 60);
+            this.btnEnhanceScene.Margin = new System.Windows.Forms.Padding(4);
+            this.btnEnhanceScene.Name = "btnEnhanceScene";
+            this.btnEnhanceScene.Size = new System.Drawing.Size(68, 28);
+            this.btnEnhanceScene.TabIndex = 0;
+            this.btnEnhanceScene.Text = "Scene";
+            this.btnEnhanceScene.UseVisualStyleBackColor = false;
+            this.btnEnhanceScene.Click += new System.EventHandler(this.btnEnhanceScene_Click);
+            // 
+            // btnEnhanceFrame
+            // 
+            this.btnEnhanceFrame.BackColor = System.Drawing.SystemColors.InactiveBorder;
+            this.btnEnhanceFrame.Location = new System.Drawing.Point(8, 25);
+            this.btnEnhanceFrame.Margin = new System.Windows.Forms.Padding(4);
+            this.btnEnhanceFrame.Name = "btnEnhanceFrame";
+            this.btnEnhanceFrame.Size = new System.Drawing.Size(68, 28);
+            this.btnEnhanceFrame.TabIndex = 0;
+            this.btnEnhanceFrame.Text = "Frame";
+            this.btnEnhanceFrame.UseVisualStyleBackColor = false;
+            this.btnEnhanceFrame.Click += new System.EventHandler(this.btnEnhanceFrame_Click);
+            // 
+            // gpUpdate
+            // 
+            this.gpUpdate.Controls.Add(this.btnUpdateClip);
+            this.gpUpdate.Controls.Add(this.btnUpdateScene);
+            this.gpUpdate.Controls.Add(this.btnUpdateFrame);
+            this.gpUpdate.Location = new System.Drawing.Point(283, 23);
+            this.gpUpdate.Margin = new System.Windows.Forms.Padding(4);
+            this.gpUpdate.Name = "gpUpdate";
+            this.gpUpdate.Padding = new System.Windows.Forms.Padding(4);
+            this.gpUpdate.Size = new System.Drawing.Size(84, 130);
+            this.gpUpdate.TabIndex = 12;
+            this.gpUpdate.TabStop = false;
+            this.gpUpdate.Text = "Update";
+            // 
+            // btnUpdateClip
+            // 
+            this.btnUpdateClip.BackColor = System.Drawing.SystemColors.MenuBar;
+            this.btnUpdateClip.Location = new System.Drawing.Point(8, 96);
+            this.btnUpdateClip.Margin = new System.Windows.Forms.Padding(4);
+            this.btnUpdateClip.Name = "btnUpdateClip";
+            this.btnUpdateClip.Size = new System.Drawing.Size(68, 28);
+            this.btnUpdateClip.TabIndex = 0;
+            this.btnUpdateClip.Text = "Clip";
+            this.btnUpdateClip.UseVisualStyleBackColor = false;
+            this.btnUpdateClip.Click += new System.EventHandler(this.btnUpdateClip_Click);
+            // 
+            // btnUpdateScene
+            // 
+            this.btnUpdateScene.BackColor = System.Drawing.SystemColors.Info;
+            this.btnUpdateScene.Location = new System.Drawing.Point(8, 60);
+            this.btnUpdateScene.Margin = new System.Windows.Forms.Padding(4);
+            this.btnUpdateScene.Name = "btnUpdateScene";
+            this.btnUpdateScene.Size = new System.Drawing.Size(68, 28);
+            this.btnUpdateScene.TabIndex = 0;
+            this.btnUpdateScene.Text = "Scene";
+            this.btnUpdateScene.UseVisualStyleBackColor = false;
+            this.btnUpdateScene.Click += new System.EventHandler(this.btnUpdateScene_Click);
+            // 
+            // btnUpdateFrame
+            // 
+            this.btnUpdateFrame.BackColor = System.Drawing.SystemColors.InactiveBorder;
+            this.btnUpdateFrame.Location = new System.Drawing.Point(8, 25);
+            this.btnUpdateFrame.Margin = new System.Windows.Forms.Padding(4);
+            this.btnUpdateFrame.Name = "btnUpdateFrame";
+            this.btnUpdateFrame.Size = new System.Drawing.Size(68, 28);
+            this.btnUpdateFrame.TabIndex = 0;
+            this.btnUpdateFrame.Text = "Frame";
+            this.btnUpdateFrame.UseVisualStyleBackColor = false;
+            this.btnUpdateFrame.Click += new System.EventHandler(this.btnUpdateFrame_Click);
             // 
             // gbScan
             // 
@@ -657,7 +809,7 @@
             // label18
             // 
             this.label18.AutoSize = true;
-            this.label18.Location = new System.Drawing.Point(327, 63);
+            this.label18.Location = new System.Drawing.Point(492, 62);
             this.label18.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label18.Name = "label18";
             this.label18.Size = new System.Drawing.Size(62, 16);
@@ -667,7 +819,7 @@
             // label17
             // 
             this.label17.AutoSize = true;
-            this.label17.Location = new System.Drawing.Point(307, 31);
+            this.label17.Location = new System.Drawing.Point(474, 16);
             this.label17.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label17.Name = "label17";
             this.label17.Size = new System.Drawing.Size(80, 16);
@@ -676,7 +828,7 @@
             // 
             // nudScale
             // 
-            this.nudScale.Location = new System.Drawing.Point(403, 60);
+            this.nudScale.Location = new System.Drawing.Point(494, 80);
             this.nudScale.Margin = new System.Windows.Forms.Padding(4);
             this.nudScale.Maximum = new decimal(new int[] {
             999,
@@ -694,7 +846,7 @@
             // 
             // nudDistance
             // 
-            this.nudDistance.Location = new System.Drawing.Point(403, 28);
+            this.nudDistance.Location = new System.Drawing.Point(494, 36);
             this.nudDistance.Margin = new System.Windows.Forms.Padding(4);
             this.nudDistance.Name = "nudDistance";
             this.nudDistance.Size = new System.Drawing.Size(60, 22);
@@ -713,7 +865,7 @@
             0,
             0,
             65536});
-            this.nudDeviation.Location = new System.Drawing.Point(403, 92);
+            this.nudDeviation.Location = new System.Drawing.Point(494, 128);
             this.nudDeviation.Margin = new System.Windows.Forms.Padding(4);
             this.nudDeviation.Maximum = new decimal(new int[] {
             99,
@@ -728,15 +880,16 @@
             // label27
             // 
             this.label27.AutoSize = true;
-            this.label27.Location = new System.Drawing.Point(297, 95);
+            this.label27.Location = new System.Drawing.Point(462, 108);
             this.label27.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label27.Name = "label27";
-            this.label27.Size = new System.Drawing.Size(90, 16);
+            this.label27.Size = new System.Drawing.Size(93, 16);
             this.label27.TabIndex = 3;
-            this.label27.Text = "Max deviation";
+            this.label27.Text = "Scene Area %";
             // 
             // groupBox2
             // 
+            this.groupBox2.Controls.Add(this.cbNoise);
             this.groupBox2.Controls.Add(this.label25);
             this.groupBox2.Controls.Add(this.chbColorAdjust);
             this.groupBox2.Controls.Add(this.chbRGB);
@@ -750,40 +903,48 @@
             this.groupBox2.Controls.Add(this.label23);
             this.groupBox2.Controls.Add(this.label24);
             this.groupBox2.Controls.Add(this.label6);
-            this.groupBox2.Controls.Add(this.nudNoiseSize);
             this.groupBox2.Controls.Add(this.nudGradientSize);
             this.groupBox2.Controls.Add(this.label1);
             this.groupBox2.Controls.Add(this.label2);
-            this.groupBox2.Controls.Add(this.label11);
             this.groupBox2.Controls.Add(this.nudOutputWidth);
             this.groupBox2.Controls.Add(this.label5);
             this.groupBox2.Controls.Add(this.nudOutputHeight);
             this.groupBox2.Controls.Add(this.label26);
             this.groupBox2.Controls.Add(this.label22);
             this.groupBox2.Controls.Add(this.label3);
-            this.groupBox2.Location = new System.Drawing.Point(7, 361);
+            this.groupBox2.Location = new System.Drawing.Point(7, 360);
             this.groupBox2.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox2.Name = "groupBox2";
             this.groupBox2.Padding = new System.Windows.Forms.Padding(4);
-            this.groupBox2.Size = new System.Drawing.Size(563, 193);
+            this.groupBox2.Size = new System.Drawing.Size(563, 156);
             this.groupBox2.TabIndex = 17;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Display settings";
             // 
+            // cbNoise
+            // 
+            this.cbNoise.AutoSize = true;
+            this.cbNoise.Location = new System.Drawing.Point(487, 95);
+            this.cbNoise.Name = "cbNoise";
+            this.cbNoise.Size = new System.Drawing.Size(65, 20);
+            this.cbNoise.TabIndex = 10;
+            this.cbNoise.Text = "Noise";
+            this.cbNoise.UseVisualStyleBackColor = true;
+            // 
             // label25
             // 
             this.label25.AutoSize = true;
-            this.label25.Location = new System.Drawing.Point(500, 160);
+            this.label25.Location = new System.Drawing.Point(511, 126);
             this.label25.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label25.Name = "label25";
-            this.label25.Size = new System.Drawing.Size(52, 16);
+            this.label25.Size = new System.Drawing.Size(34, 16);
             this.label25.TabIndex = 3;
-            this.label25.Text = "overlay";
+            this.label25.Text = "over";
             // 
             // chbColorAdjust
             // 
             this.chbColorAdjust.AutoSize = true;
-            this.chbColorAdjust.Location = new System.Drawing.Point(251, 160);
+            this.chbColorAdjust.Location = new System.Drawing.Point(357, 127);
             this.chbColorAdjust.Margin = new System.Windows.Forms.Padding(4);
             this.chbColorAdjust.Name = "chbColorAdjust";
             this.chbColorAdjust.Size = new System.Drawing.Size(18, 17);
@@ -794,7 +955,7 @@
             // chbRGB
             // 
             this.chbRGB.AutoSize = true;
-            this.chbRGB.Location = new System.Drawing.Point(461, 57);
+            this.chbRGB.Location = new System.Drawing.Point(487, 61);
             this.chbRGB.Margin = new System.Windows.Forms.Padding(4);
             this.chbRGB.Name = "chbRGB";
             this.chbRGB.Size = new System.Drawing.Size(58, 20);
@@ -806,11 +967,11 @@
             // tbColorAdjust
             // 
             this.tbColorAdjust.LargeChange = 25;
-            this.tbColorAdjust.Location = new System.Drawing.Point(343, 153);
+            this.tbColorAdjust.Location = new System.Drawing.Point(406, 122);
             this.tbColorAdjust.Margin = new System.Windows.Forms.Padding(4);
             this.tbColorAdjust.Maximum = 100;
             this.tbColorAdjust.Name = "tbColorAdjust";
-            this.tbColorAdjust.Size = new System.Drawing.Size(151, 56);
+            this.tbColorAdjust.Size = new System.Drawing.Size(104, 56);
             this.tbColorAdjust.SmallChange = 10;
             this.tbColorAdjust.TabIndex = 8;
             this.tbColorAdjust.TickFrequency = 50;
@@ -820,11 +981,11 @@
             // tbOpacity
             // 
             this.tbOpacity.LargeChange = 25;
-            this.tbOpacity.Location = new System.Drawing.Point(336, 90);
+            this.tbOpacity.Location = new System.Drawing.Point(77, 122);
             this.tbOpacity.Margin = new System.Windows.Forms.Padding(4);
             this.tbOpacity.Maximum = 100;
             this.tbOpacity.Name = "tbOpacity";
-            this.tbOpacity.Size = new System.Drawing.Size(157, 56);
+            this.tbOpacity.Size = new System.Drawing.Size(154, 56);
             this.tbOpacity.SmallChange = 10;
             this.tbOpacity.TabIndex = 8;
             this.tbOpacity.TickFrequency = 50;
@@ -836,7 +997,7 @@
             this.chbDebug.AutoSize = true;
             this.chbDebug.Checked = true;
             this.chbDebug.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.chbDebug.Location = new System.Drawing.Point(379, 23);
+            this.chbDebug.Location = new System.Drawing.Point(453, 24);
             this.chbDebug.Margin = new System.Windows.Forms.Padding(4);
             this.chbDebug.Name = "chbDebug";
             this.chbDebug.Size = new System.Drawing.Size(99, 20);
@@ -851,7 +1012,7 @@
             this.chbPreview.AutoSize = true;
             this.chbPreview.Checked = true;
             this.chbPreview.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.chbPreview.Location = new System.Drawing.Point(301, 23);
+            this.chbPreview.Location = new System.Drawing.Point(269, 26);
             this.chbPreview.Margin = new System.Windows.Forms.Padding(4);
             this.chbPreview.Name = "chbPreview";
             this.chbPreview.Size = new System.Drawing.Size(77, 20);
@@ -864,10 +1025,10 @@
             // 
             this.cbMatrix.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.cbMatrix.FormattingEnabled = true;
-            this.cbMatrix.Location = new System.Drawing.Point(343, 54);
+            this.cbMatrix.Location = new System.Drawing.Point(357, 57);
             this.cbMatrix.Margin = new System.Windows.Forms.Padding(4);
             this.cbMatrix.Name = "cbMatrix";
-            this.cbMatrix.Size = new System.Drawing.Size(109, 24);
+            this.cbMatrix.Size = new System.Drawing.Size(122, 24);
             this.cbMatrix.TabIndex = 6;
             this.cbMatrix.SelectedIndexChanged += new System.EventHandler(this.Render);
             // 
@@ -888,10 +1049,10 @@
             "SoftLight",
             "HardLight",
             "Exclusion"});
-            this.cbOverlayMode.Location = new System.Drawing.Point(77, 87);
+            this.cbOverlayMode.Location = new System.Drawing.Point(77, 90);
             this.cbOverlayMode.Margin = new System.Windows.Forms.Padding(4);
             this.cbOverlayMode.Name = "cbOverlayMode";
-            this.cbOverlayMode.Size = new System.Drawing.Size(191, 24);
+            this.cbOverlayMode.Size = new System.Drawing.Size(154, 24);
             this.cbOverlayMode.TabIndex = 6;
             this.cbOverlayMode.SelectedIndexChanged += new System.EventHandler(this.Render);
             // 
@@ -899,61 +1060,42 @@
             // 
             this.cbMode.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.cbMode.FormattingEnabled = true;
-            this.cbMode.Location = new System.Drawing.Point(77, 54);
+            this.cbMode.Location = new System.Drawing.Point(77, 57);
             this.cbMode.Margin = new System.Windows.Forms.Padding(4);
             this.cbMode.Name = "cbMode";
-            this.cbMode.Size = new System.Drawing.Size(191, 24);
+            this.cbMode.Size = new System.Drawing.Size(154, 24);
             this.cbMode.TabIndex = 6;
             this.cbMode.SelectedIndexChanged += new System.EventHandler(this.Render);
             // 
             // label23
             // 
             this.label23.AutoSize = true;
-            this.label23.Location = new System.Drawing.Point(159, 160);
+            this.label23.Location = new System.Drawing.Point(266, 126);
             this.label23.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label23.Name = "label23";
-            this.label23.Size = new System.Drawing.Size(79, 16);
+            this.label23.Size = new System.Drawing.Size(78, 16);
             this.label23.TabIndex = 3;
-            this.label23.Text = "Color Adjust";
+            this.label23.Text = "Color Match";
             // 
             // label24
             // 
             this.label24.AutoSize = true;
-            this.label24.Location = new System.Drawing.Point(283, 160);
+            this.label24.Location = new System.Drawing.Point(380, 126);
             this.label24.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label24.Name = "label24";
-            this.label24.Size = new System.Drawing.Size(48, 16);
+            this.label24.Size = new System.Drawing.Size(25, 16);
             this.label24.TabIndex = 3;
-            this.label24.Text = "source";
+            this.label24.Text = "src";
             // 
             // label6
             // 
             this.label6.AutoSize = true;
-            this.label6.Location = new System.Drawing.Point(277, 97);
+            this.label6.Location = new System.Drawing.Point(12, 126);
             this.label6.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label6.Name = "label6";
             this.label6.Size = new System.Drawing.Size(53, 16);
             this.label6.TabIndex = 3;
             this.label6.Text = "Opacity";
-            // 
-            // nudNoiseSize
-            // 
-            this.nudNoiseSize.Increment = new decimal(new int[] {
-            10,
-            0,
-            0,
-            0});
-            this.nudNoiseSize.Location = new System.Drawing.Point(201, 121);
-            this.nudNoiseSize.Margin = new System.Windows.Forms.Padding(4);
-            this.nudNoiseSize.Maximum = new decimal(new int[] {
-            500,
-            0,
-            0,
-            0});
-            this.nudNoiseSize.Name = "nudNoiseSize";
-            this.nudNoiseSize.Size = new System.Drawing.Size(68, 22);
-            this.nudNoiseSize.TabIndex = 5;
-            this.nudNoiseSize.ValueChanged += new System.EventHandler(this.Render);
             // 
             // nudGradientSize
             // 
@@ -962,7 +1104,7 @@
             0,
             0,
             0});
-            this.nudGradientSize.Location = new System.Drawing.Point(77, 121);
+            this.nudGradientSize.Location = new System.Drawing.Point(357, 90);
             this.nudGradientSize.Margin = new System.Windows.Forms.Padding(4);
             this.nudGradientSize.Maximum = new decimal(new int[] {
             500,
@@ -970,14 +1112,14 @@
             0,
             0});
             this.nudGradientSize.Name = "nudGradientSize";
-            this.nudGradientSize.Size = new System.Drawing.Size(68, 22);
+            this.nudGradientSize.Size = new System.Drawing.Size(122, 22);
             this.nudGradientSize.TabIndex = 5;
             this.nudGradientSize.ValueChanged += new System.EventHandler(this.Render);
             // 
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(8, 25);
+            this.label1.Location = new System.Drawing.Point(8, 28);
             this.label1.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(33, 16);
@@ -987,26 +1129,16 @@
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(147, 25);
+            this.label2.Location = new System.Drawing.Point(147, 63);
             this.label2.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(13, 16);
             this.label2.TabIndex = 2;
             this.label2.Text = "x";
             // 
-            // label11
-            // 
-            this.label11.AutoSize = true;
-            this.label11.Location = new System.Drawing.Point(153, 123);
-            this.label11.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label11.Name = "label11";
-            this.label11.Size = new System.Drawing.Size(43, 16);
-            this.label11.TabIndex = 3;
-            this.label11.Text = "Noise";
-            // 
             // nudOutputWidth
             // 
-            this.nudOutputWidth.Location = new System.Drawing.Point(77, 22);
+            this.nudOutputWidth.Location = new System.Drawing.Point(77, 25);
             this.nudOutputWidth.Margin = new System.Windows.Forms.Padding(4);
             this.nudOutputWidth.Maximum = new decimal(new int[] {
             10000,
@@ -1031,7 +1163,7 @@
             // label5
             // 
             this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(8, 123);
+            this.label5.Location = new System.Drawing.Point(266, 96);
             this.label5.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label5.Name = "label5";
             this.label5.Size = new System.Drawing.Size(58, 16);
@@ -1040,7 +1172,7 @@
             // 
             // nudOutputHeight
             // 
-            this.nudOutputHeight.Location = new System.Drawing.Point(163, 22);
+            this.nudOutputHeight.Location = new System.Drawing.Point(163, 25);
             this.nudOutputHeight.Margin = new System.Windows.Forms.Padding(4);
             this.nudOutputHeight.Maximum = new decimal(new int[] {
             10000,
@@ -1065,7 +1197,7 @@
             // label26
             // 
             this.label26.AutoSize = true;
-            this.label26.Location = new System.Drawing.Point(8, 91);
+            this.label26.Location = new System.Drawing.Point(8, 94);
             this.label26.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label26.Name = "label26";
             this.label26.Size = new System.Drawing.Size(54, 16);
@@ -1075,7 +1207,7 @@
             // label22
             // 
             this.label22.AutoSize = true;
-            this.label22.Location = new System.Drawing.Point(288, 58);
+            this.label22.Location = new System.Drawing.Point(266, 63);
             this.label22.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label22.Name = "label22";
             this.label22.Size = new System.Drawing.Size(42, 16);
@@ -1085,7 +1217,7 @@
             // label3
             // 
             this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(8, 58);
+            this.label3.Location = new System.Drawing.Point(8, 61);
             this.label3.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(56, 16);
@@ -1111,7 +1243,7 @@
             this.groupBox1.Controls.Add(this.label28);
             this.groupBox1.Controls.Add(this.label13);
             this.groupBox1.Controls.Add(this.label12);
-            this.groupBox1.Location = new System.Drawing.Point(7, 7);
+            this.groupBox1.Location = new System.Drawing.Point(7, 8);
             this.groupBox1.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox1.Name = "groupBox1";
             this.groupBox1.Padding = new System.Windows.Forms.Padding(4);
@@ -1122,7 +1254,7 @@
             // 
             // btnFix
             // 
-            this.btnFix.Location = new System.Drawing.Point(369, 21);
+            this.btnFix.Location = new System.Drawing.Point(473, 19);
             this.btnFix.Margin = new System.Windows.Forms.Padding(4);
             this.btnFix.Name = "btnFix";
             this.btnFix.Size = new System.Drawing.Size(81, 28);
@@ -1159,7 +1291,7 @@
             0,
             0,
             196608});
-            this.nudCompare.Location = new System.Drawing.Point(457, 55);
+            this.nudCompare.Location = new System.Drawing.Point(402, 55);
             this.nudCompare.Margin = new System.Windows.Forms.Padding(4);
             this.nudCompare.Maximum = new decimal(new int[] {
             1,
@@ -1167,7 +1299,7 @@
             0,
             0});
             this.nudCompare.Name = "nudCompare";
-            this.nudCompare.Size = new System.Drawing.Size(97, 22);
+            this.nudCompare.Size = new System.Drawing.Size(67, 22);
             this.nudCompare.TabIndex = 15;
             this.nudCompare.Value = new decimal(new int[] {
             999,
@@ -1178,10 +1310,10 @@
             // 
             // btnCompare
             // 
-            this.btnCompare.Location = new System.Drawing.Point(457, 21);
+            this.btnCompare.Location = new System.Drawing.Point(473, 51);
             this.btnCompare.Margin = new System.Windows.Forms.Padding(4);
             this.btnCompare.Name = "btnCompare";
-            this.btnCompare.Size = new System.Drawing.Size(97, 28);
+            this.btnCompare.Size = new System.Drawing.Size(81, 28);
             this.btnCompare.TabIndex = 14;
             this.btnCompare.Text = "Compare";
             this.btnCompare.UseVisualStyleBackColor = true;
@@ -1269,7 +1401,7 @@
             0,
             0,
             65536});
-            this.nudAngle.Location = new System.Drawing.Point(293, 23);
+            this.nudAngle.Location = new System.Drawing.Point(278, 23);
             this.nudAngle.Margin = new System.Windows.Forms.Padding(4);
             this.nudAngle.Maximum = new decimal(new int[] {
             360,
@@ -1282,7 +1414,7 @@
             0,
             -2147483648});
             this.nudAngle.Name = "nudAngle";
-            this.nudAngle.Size = new System.Drawing.Size(68, 22);
+            this.nudAngle.Size = new System.Drawing.Size(54, 22);
             this.nudAngle.TabIndex = 6;
             this.nudAngle.ValueChanged += new System.EventHandler(this.Render);
             // 
@@ -1349,7 +1481,7 @@
             // label14
             // 
             this.label14.AutoSize = true;
-            this.label14.Location = new System.Drawing.Point(243, 25);
+            this.label14.Location = new System.Drawing.Point(233, 25);
             this.label14.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label14.Name = "label14";
             this.label14.Size = new System.Drawing.Size(42, 16);
@@ -1359,12 +1491,13 @@
             // label28
             // 
             this.label28.AutoSize = true;
-            this.label28.Location = new System.Drawing.Point(403, 57);
+            this.label28.Location = new System.Drawing.Point(350, 57);
             this.label28.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label28.Name = "label28";
             this.label28.Size = new System.Drawing.Size(47, 16);
             this.label28.TabIndex = 9;
             this.label28.Text = "Min eq";
+            this.label28.Click += new System.EventHandler(this.label28_Click);
             // 
             // label13
             // 
@@ -1400,9 +1533,9 @@
             this.btnSeparate,
             this.btnResetInterval,
             this.btnDelete});
-            this.toolStrip1.Location = new System.Drawing.Point(0, 561);
+            this.toolStrip1.Location = new System.Drawing.Point(0, 518);
             this.toolStrip1.Name = "toolStrip1";
-            this.toolStrip1.Size = new System.Drawing.Size(584, 31);
+            this.toolStrip1.Size = new System.Drawing.Size(584, 27);
             this.toolStrip1.TabIndex = 14;
             this.toolStrip1.Text = "toolStrip1";
             // 
@@ -1413,7 +1546,7 @@
             this.btnSave.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.btnSave.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnSave.Name = "btnSave";
-            this.btnSave.Size = new System.Drawing.Size(45, 28);
+            this.btnSave.Size = new System.Drawing.Size(45, 24);
             this.btnSave.Text = "Save";
             this.btnSave.Click += new System.EventHandler(this.SaveStat);
             // 
@@ -1424,7 +1557,7 @@
             this.btnReset.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.btnReset.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnReset.Name = "btnReset";
-            this.btnReset.Size = new System.Drawing.Size(52, 28);
+            this.btnReset.Size = new System.Drawing.Size(52, 24);
             this.btnReset.Text = "Reset";
             this.btnReset.Click += new System.EventHandler(this.Reset);
             // 
@@ -1435,7 +1568,7 @@
             this.btnResetCurrent.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.btnResetCurrent.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnResetCurrent.Name = "btnResetCurrent";
-            this.btnResetCurrent.Size = new System.Drawing.Size(61, 28);
+            this.btnResetCurrent.Size = new System.Drawing.Size(61, 24);
             this.btnResetCurrent.Text = "Reload";
             this.btnResetCurrent.Click += new System.EventHandler(this.ResetCurrent);
             // 
@@ -1446,7 +1579,7 @@
             this.btnJoinTo.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
             this.btnJoinTo.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnJoinTo.Name = "btnJoinTo";
-            this.btnJoinTo.Size = new System.Drawing.Size(57, 28);
+            this.btnJoinTo.Size = new System.Drawing.Size(57, 24);
             this.btnJoinTo.Text = "Join to";
             this.btnJoinTo.Click += new System.EventHandler(this.btnJoinTo_Click);
             // 
@@ -1457,7 +1590,7 @@
             this.btnJoinNext.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
             this.btnJoinNext.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnJoinNext.Name = "btnJoinNext";
-            this.btnJoinNext.Size = new System.Drawing.Size(59, 28);
+            this.btnJoinNext.Size = new System.Drawing.Size(59, 24);
             this.btnJoinNext.Text = "Join ->";
             this.btnJoinNext.Click += new System.EventHandler(this.btnJoinNext_Click);
             // 
@@ -1468,7 +1601,7 @@
             this.btnJoinPrev.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
             this.btnJoinPrev.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnJoinPrev.Name = "btnJoinPrev";
-            this.btnJoinPrev.Size = new System.Drawing.Size(59, 28);
+            this.btnJoinPrev.Size = new System.Drawing.Size(59, 24);
             this.btnJoinPrev.Text = "<- Join";
             this.btnJoinPrev.Click += new System.EventHandler(this.btnJoinPrev_Click);
             // 
@@ -1479,7 +1612,7 @@
             this.btnSeparate.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
             this.btnSeparate.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnSeparate.Name = "btnSeparate";
-            this.btnSeparate.Size = new System.Drawing.Size(72, 28);
+            this.btnSeparate.Size = new System.Drawing.Size(72, 24);
             this.btnSeparate.Text = "Separate";
             this.btnSeparate.Click += new System.EventHandler(this.btnSeparate_Click);
             // 
@@ -1491,7 +1624,7 @@
             this.btnResetInterval.Image = ((System.Drawing.Image)(resources.GetObject("btnResetInterval.Image")));
             this.btnResetInterval.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnResetInterval.Name = "btnResetInterval";
-            this.btnResetInterval.Size = new System.Drawing.Size(84, 28);
+            this.btnResetInterval.Size = new System.Drawing.Size(84, 24);
             this.btnResetInterval.Text = "Reload All";
             this.btnResetInterval.Click += new System.EventHandler(this.ResetInterval);
             // 
@@ -1504,7 +1637,7 @@
             this.btnDelete.Image = ((System.Drawing.Image)(resources.GetObject("btnDelete.Image")));
             this.btnDelete.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnDelete.Name = "btnDelete";
-            this.btnDelete.Size = new System.Drawing.Size(57, 28);
+            this.btnDelete.Size = new System.Drawing.Size(57, 24);
             this.btnDelete.Text = "Delete";
             this.btnDelete.Click += new System.EventHandler(this.btnDelete_Click);
             // 
@@ -1518,48 +1651,6 @@
             this.pictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.pictureBox.TabIndex = 2;
             this.pictureBox.TabStop = false;
-            // 
-            // intervalDataGridViewTextBoxColumn
-            // 
-            this.intervalDataGridViewTextBoxColumn.DataPropertyName = "Interval";
-            this.intervalDataGridViewTextBoxColumn.HeaderText = "Interval";
-            this.intervalDataGridViewTextBoxColumn.MinimumWidth = 6;
-            this.intervalDataGridViewTextBoxColumn.Name = "intervalDataGridViewTextBoxColumn";
-            this.intervalDataGridViewTextBoxColumn.ReadOnly = true;
-            this.intervalDataGridViewTextBoxColumn.Width = 79;
-            // 
-            // xDataGridViewTextBoxColumn
-            // 
-            this.xDataGridViewTextBoxColumn.DataPropertyName = "Placement";
-            this.xDataGridViewTextBoxColumn.HeaderText = "Location";
-            this.xDataGridViewTextBoxColumn.MinimumWidth = 6;
-            this.xDataGridViewTextBoxColumn.Name = "xDataGridViewTextBoxColumn";
-            this.xDataGridViewTextBoxColumn.ReadOnly = true;
-            this.xDataGridViewTextBoxColumn.Width = 87;
-            // 
-            // Angle
-            // 
-            this.Angle.DataPropertyName = "Angle";
-            this.Angle.HeaderText = "Angle";
-            this.Angle.MinimumWidth = 6;
-            this.Angle.Name = "Angle";
-            this.Angle.ReadOnly = true;
-            this.Angle.Width = 71;
-            // 
-            // diffDataGridViewTextBoxColumn
-            // 
-            this.diffDataGridViewTextBoxColumn.DataPropertyName = "Diff";
-            dataGridViewCellStyle1.Format = "F1";
-            this.diffDataGridViewTextBoxColumn.DefaultCellStyle = dataGridViewCellStyle1;
-            this.diffDataGridViewTextBoxColumn.HeaderText = "Diff";
-            this.diffDataGridViewTextBoxColumn.MinimumWidth = 6;
-            this.diffDataGridViewTextBoxColumn.Name = "diffDataGridViewTextBoxColumn";
-            this.diffDataGridViewTextBoxColumn.ReadOnly = true;
-            this.diffDataGridViewTextBoxColumn.Width = 55;
-            // 
-            // frameIntervalBindingSource
-            // 
-            this.frameIntervalBindingSource.DataSource = typeof(AutoOverlay.FrameInterval);
             // 
             // OverlayEditor
             // 
@@ -1589,10 +1680,13 @@
             ((System.ComponentModel.ISupportInitialize)(this.nudCurrentFrame)).EndInit();
             this.panelManage.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.grid)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.frameIntervalBindingSource)).EndInit();
             this.panel2.ResumeLayout(false);
             this.panel2.PerformLayout();
             this.groupBox3.ResumeLayout(false);
             this.groupBox3.PerformLayout();
+            this.groupBox4.ResumeLayout(false);
+            this.gpUpdate.ResumeLayout(false);
             this.gbScan.ResumeLayout(false);
             this.gbAlign.ResumeLayout(false);
             this.gbAdjust.ResumeLayout(false);
@@ -1603,7 +1697,6 @@
             this.groupBox2.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.tbColorAdjust)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.tbOpacity)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudNoiseSize)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudGradientSize)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudOutputWidth)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudOutputHeight)).EndInit();
@@ -1618,7 +1711,6 @@
             this.toolStrip1.ResumeLayout(false);
             this.toolStrip1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.frameIntervalBindingSource)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -1663,8 +1755,6 @@
         private System.Windows.Forms.ToolStripButton btnResetCurrent;
         private System.Windows.Forms.Panel panel2;
         private System.Windows.Forms.GroupBox groupBox2;
-        private System.Windows.Forms.NumericUpDown nudNoiseSize;
-        private System.Windows.Forms.Label label11;
         private System.Windows.Forms.GroupBox groupBox1;
         private System.Windows.Forms.GroupBox groupBox3;
         private System.Windows.Forms.ToolStripButton btnJoinTo;
@@ -1724,5 +1814,14 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn diffDataGridViewTextBoxColumn;
         private System.Windows.Forms.DataGridViewCheckBoxColumn Fixed;
         private System.Windows.Forms.ToolStripButton btnResetInterval;
+        private System.Windows.Forms.GroupBox gpUpdate;
+        private System.Windows.Forms.Button btnUpdateClip;
+        private System.Windows.Forms.Button btnUpdateScene;
+        private System.Windows.Forms.Button btnUpdateFrame;
+        private System.Windows.Forms.GroupBox groupBox4;
+        private System.Windows.Forms.Button btnEnhanceClip;
+        private System.Windows.Forms.Button btnEnhanceScene;
+        private System.Windows.Forms.Button btnEnhanceFrame;
+        private System.Windows.Forms.CheckBox cbNoise;
     }
 }

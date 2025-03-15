@@ -9,9 +9,16 @@
 #include <math.h>
 #include <algorithm>
 #include "FastRandom.h"
+#include "NativeRandom.h"
+#include "ColorTable.h"
+#include "CornerGradient.h"
 #include "FramePlane.h"
 #include "PlaneChannel.h"
 #include "NativeUtils.h"
+#include "Lut.h"
+#include "NativeInterpolator.h"
+#include "ManagedInterpolator.h"
+#include "IInterpolator.h"
 #include <Simd/SimdLib.h>
 
 #endif

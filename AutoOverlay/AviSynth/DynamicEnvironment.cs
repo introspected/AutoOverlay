@@ -47,12 +47,11 @@ namespace AutoOverlay.AviSynth
 
         public static IEnumerable<object> Owners => Env.owners;
 
-        public static object SetOwner(object owner)
+        public static void SetOwner(object owner)
         {
             Env.owner = owner;
             if (owner != null)
                 Env.owners.Add(owner);
-            return default;
         }
 
         public static void OwnerExpired(object owner)
@@ -73,6 +72,14 @@ namespace AutoOverlay.AviSynth
         ~DynamicEnvironment()
         {
             DisposeImpl();
+        }
+
+        public DynamicEnvironment Attach()
+        {
+            if (!detached) return this;
+            detached = false;
+            contexts.Value.Push(this);
+            return this;
         }
 
         public DynamicEnvironment Detach()
@@ -113,8 +120,8 @@ namespace AutoOverlay.AviSynth
             owners.Clear();
             foreach (var val in cache.Values)
             {
-                val.Item1.Dispose();
                 val.Item2?.Dispose();
+                val.Item1.Dispose();
             }
             cache.Clear();
             collector?.Dispose();
@@ -148,18 +155,28 @@ namespace AutoOverlay.AviSynth
 
         public override bool TryInvokeMember(InvokeMemberBinder binder, object[] args, out object result)
         {
-            var function = binder.Name;
-            if (function.Equals("Dynamic"))
+            var function = string.Intern(binder.Name.ToLower());
+            switch (function)
             {
-                result = this;
-                return true;
+                case "roi":
+                    if (args.Length == 1 && args.First() is Rectangle roi)
+                    {
+                        result = Clip.ROI(roi).Dynamic();
+                        return true;
+                    }
+                    break;
+                case "dynamic":
+                    result = this;
+                    return true;
+                case "invoke":
+                    function = (string)args[0];
+                    args = args.Skip(1).ToArray();
+                    break;
+                case "dispose":
+                    Clip.Dispose();
+                    result = this;
+                    return true;
             }
-            if (function.ToLower().Equals("invoke"))
-            {
-                function = (string) args[0];
-                args = args.Skip(1).ToArray();
-            }
-
             args = PrepareArgs(args).ToArray();
 
             if (Clip != null)
@@ -190,11 +207,10 @@ namespace AutoOverlay.AviSynth
             if (!Env.cache.TryGetValue(key, out var tuple))
             {
                 var avsArgList = args.Select(p => p.ToAvsValue()).ToArray();
-                var avsArgs = new AVSValue(avsArgList);
+                using var avsArgs = new AVSValue(avsArgList);
                 var res = ((ScriptEnvironment) Env).Invoke(function, avsArgs, argNames);
 
-                if (res != null && res.IsClip())
-                    res = ((ScriptEnvironment) Env).Invoke("InternalCache", res);
+                res = ((ScriptEnvironment)Env).Invoke("InternalCache", res);
 
                 var clip = res.AsClip();
 #if DEBUG && TRACE
@@ -290,10 +306,10 @@ namespace AutoOverlay.AviSynth
 
         public static implicit operator ScriptEnvironment(DynamicEnvironment env) => env?._env;
 
-        public class Key
+        public sealed class Key
         {
             private readonly string _function;
-            private readonly List<long> _args = new List<long>();
+            private readonly List<long> _args = new();
             private readonly string[] _argNames;
 
             public Key(string function, object[] args, string[] argNames)
@@ -331,8 +347,8 @@ namespace AutoOverlay.AviSynth
             private bool Equals(Key other)
             {
                 return string.Equals(_function, other._function)
-                       && Enumerable.SequenceEqual(_args, other._args)
-                       && Enumerable.SequenceEqual(_argNames, other._argNames);
+                       && _args.SequenceEqual(other._args)
+                       && _argNames.SequenceEqual(other._argNames);
             }
 
             public override bool Equals(object obj)
@@ -349,7 +365,7 @@ namespace AutoOverlay.AviSynth
                 {
                     var hash = _function.GetHashCode() * 23;
                     foreach (var item in _args)
-                        hash = hash * 23 + ((item != null) ? item.GetHashCode() : 0);
+                        hash = hash * 23 + item.GetHashCode();
                     foreach (var item in _argNames)
                         hash = hash * 23 + ((item != null) ? item.GetHashCode() : 0);
                     return hash;

@@ -9,7 +9,7 @@ using AvsFilterNet;
     typeof(ExtractScenes),
     nameof(ExtractScenes),
     "ss[SceneMinLength]i[MaxDiffIncrease]f",
-    OverlayUtils.DEFAULT_MT_MODE)]
+    OverlayConst.DEFAULT_MT_MODE)]
 namespace AutoOverlay.Filters
 {
     public class ExtractScenes : OverlayFilter
@@ -46,7 +46,7 @@ namespace AutoOverlay.Filters
                 else scene.Add(frame);
             }
 
-            return GetSubtitledFrame($"Total scenes: {totalScenes}\nFrames processed: {totalFrames}");
+            return GetSubtitledFrame(() => $"Total scenes: {totalScenes}\nFrames processed: {totalFrames}");
         }
     }
 }

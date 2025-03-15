@@ -1,39 +1,22 @@
 ﻿using System;
-using System.Drawing;
 using System.IO;
 using AutoOverlay.Overlay;
 
 namespace AutoOverlay
 {
-    public class OverlayStatFormat
+    public class OverlayStatFormat(byte version)
     {
-        public byte Version { get; }
+        public byte Version { get; } = version;
 
-        public int FrameSize
+        public int FrameSize => Version switch
         {
-            get
-            {
-                switch (Version)
-                {
-                    case 1:
-                    case 2:
-                        return 26;
-                    case 3:
-                        return 38;
-                    case 4:
-                        return 38 + Warp.MAX_POINTS * 4 * 4;
-                    case 5:
-                        return 40 + Warp.MAX_POINTS * 4 * 4;
-                    default: 
-                        throw new InvalidOperationException();
-                }
-            }
-        }
-
-        public OverlayStatFormat(byte version)
-        {
-            Version = version;
-        }
+            1 or 2 => 26,
+            3 => 38,
+            4 => 38 + Warp.MAX_POINTS * 4 * 4,
+            5 => 40 + Warp.MAX_POINTS * 4 * 4,
+            6 => 64 + Warp.MAX_POINTS * 8 * 4,
+            _ => throw new InvalidOperationException()
+        };
 
         public OverlayInfo ReadFrame(BinaryReader reader)
         {
@@ -108,7 +91,7 @@ namespace AutoOverlay
                         BaseHeight = reader.ReadInt16(),
                         SourceWidth = reader.ReadInt16(),
                         SourceHeight = reader.ReadInt16(),
-                        Warp = Warp.Read(reader)
+                        Warp = Warp.Read(reader, p => p.ReadSingle())
                     }.Convert();
                 case 5:
                     return new OverlayInfo
@@ -119,7 +102,18 @@ namespace AutoOverlay
                         SourceSize = new SizeD(reader.ReadSingle(), reader.ReadSingle()),
                         OverlaySize = new SizeD(reader.ReadSingle(), reader.ReadSingle()),
                         Angle = reader.ReadSingle(),
-                        OverlayWarp = Warp.Read(reader)
+                        OverlayWarp = Warp.Read(reader, p => p.ReadSingle())
+                    };
+                case 6:
+                    return new OverlayInfo
+                    {
+                        FrameNumber = num,
+                        Diff = reader.ReadDouble(),
+                        Placement = new Space(reader.ReadDouble(), reader.ReadDouble()),
+                        SourceSize = new SizeD(reader.ReadDouble(), reader.ReadDouble()),
+                        OverlaySize = new SizeD(reader.ReadDouble(), reader.ReadDouble()),
+                        Angle = reader.ReadSingle(),
+                        OverlayWarp = Warp.Read(reader, p => p.ReadDouble())
                     };
                 default:
                     throw new InvalidOperationException();
@@ -130,15 +124,15 @@ namespace AutoOverlay
         {
             switch (Version)
             {
-                case OverlayUtils.OVERLAY_FORMAT_VERSION:
+                case OverlayConst.OVERLAY_FORMAT_VERSION:
                     writer.Write(info.FrameNumber + 1);
                     writer.Write(info.Diff);
-                    writer.Write((float) info.Placement.X);
-                    writer.Write((float) info.Placement.Y);
-                    writer.Write((float) info.SourceSize.Width);
-                    writer.Write((float) info.SourceSize.Height);
-                    writer.Write((float) info.OverlaySize.Width);
-                    writer.Write((float) info.OverlaySize.Height);
+                    writer.Write(info.Placement.X);
+                    writer.Write(info.Placement.Y);
+                    writer.Write(info.SourceSize.Width);
+                    writer.Write(info.SourceSize.Height);
+                    writer.Write(info.OverlaySize.Width);
+                    writer.Write(info.OverlaySize.Height);
                     writer.Write(info.Angle);
                     info.OverlayWarp.Write(writer);
                     break;

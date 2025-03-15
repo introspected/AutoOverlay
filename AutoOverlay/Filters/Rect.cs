@@ -7,7 +7,7 @@ using AutoOverlay.AviSynth;
 using AutoOverlay.Overlay;
 using AvsFilterNet;
 
-[assembly: AvisynthFilterClass(typeof(Rect), nameof(Rect), "f[Top]f[Right]f[Bottom]f[Debug]b", MtMode.NICE_FILTER)]
+[assembly: AvisynthFilterClass(typeof(Rect), nameof(Rect), "f[Top]f[Right]f[Bottom]f[Debug]b", OverlayConst.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
     [Serializable]
@@ -55,7 +55,7 @@ namespace AutoOverlay
             return frame;
         }
 
-        public static Rect FromFrame(VideoFrame frame)
+        public static RectangleD FromFrame(VideoFrame frame, bool ltrb)
         {
             unsafe
             {
@@ -66,22 +66,26 @@ namespace AutoOverlay
                 var header = reader.ReadString();
                 if (header != nameof(Rect))
                     throw new AvisynthException();
-                return new Rect
-                {
-                    Left = reader.ReadDouble(),
-                    Top = reader.ReadDouble(),
-                    Right = reader.ReadDouble(),
-                    Bottom = reader.ReadDouble()
-                };
+                return ltrb
+                    ? RectangleD.FromLTRB(
+                        reader.ReadDouble(),
+                        reader.ReadDouble(),
+                        reader.ReadDouble(),
+                        reader.ReadDouble())
+                    : new RectangleD(
+                        reader.ReadDouble(),
+                        reader.ReadDouble(),
+                        reader.ReadDouble(),
+                        reader.ReadDouble());
             }
         }
 
         protected bool Equals(Rect other)
         {
-            return Math.Abs(Left - other.Left) < OverlayUtils.EPSILON &&
-                   Math.Abs(Top - other.Top) < OverlayUtils.EPSILON &&
-                   Math.Abs(Right - other.Right) < OverlayUtils.EPSILON &&
-                   Math.Abs(Bottom - other.Bottom) < OverlayUtils.EPSILON;
+            return Math.Abs(Left - other.Left) < OverlayConst.EPSILON &&
+                   Math.Abs(Top - other.Top) < OverlayConst.EPSILON &&
+                   Math.Abs(Right - other.Right) < OverlayConst.EPSILON &&
+                   Math.Abs(Bottom - other.Bottom) < OverlayConst.EPSILON;
         }
 
         public override bool Equals(object obj)
@@ -109,21 +113,6 @@ namespace AutoOverlay
         {
             return $"Rectangle ID: {GetHashCode()}:\n" +
                    $"LTRB: ({Left},{Top},{Right},{Bottom})";
-        }
-
-        public Rectangle ToRectangle()
-        {
-            if (new[] {Left, Top, Right, Bottom}.Any(p => p % 1 != 0))
-            {
-                throw new AvisynthException("Only integer values allowed");
-            }
-
-            return Rectangle.FromLTRB((int) Left, (int) Top, (int) Right, (int) Bottom);
-        }
-
-        public RectangleD ToRectangleD()
-        {
-            return RectangleD.FromLTRB(Left, Top, Right, Bottom);
         }
     }
 }

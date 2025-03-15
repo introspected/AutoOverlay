@@ -31,7 +31,8 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>
+    </DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
@@ -40,6 +41,14 @@
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="AutoOverlayNative, Version=0.0.0.0, Culture=neutral, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\AutoOverlay\bin\Release\AutoOverlayNative.dll</HintPath>
+    </Reference>
+    <Reference Include="AvsFilterNet, Version=1.0.0.0, Culture=neutral, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\AutoOverlay\bin\Release\AvsFilterNet.dll</HintPath>
+    </Reference>
     <Reference Include="nunit.framework, Version=3.12.0.0, Culture=neutral, PublicKeyToken=2638cd05610744eb, processorArchitecture=MSIL">
       <HintPath>..\packages\NUnit.3.12.0\lib\net45\nunit.framework.dll</HintPath>
     </Reference>
@@ -55,9 +64,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="OverlayTest.cs" />
     <Compile Include="WarpTest.cs" />
     <Compile Include="DynamicEnvironmentTest.cs" />
-    <Compile Include="ColorAdjustTest.cs" />
     <Compile Include="EnumTests.cs" />
     <Compile Include="FilterDescGenerator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -66,17 +75,9 @@
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\AutoOverlayNative\AutoOverlayNative.vcxproj">
-      <Project>{901c78ba-c997-418d-90cc-3d5ee93ee220}</Project>
-      <Name>AutoOverlayNative</Name>
-    </ProjectReference>
     <ProjectReference Include="..\AutoOverlay\AutoOverlay.csproj">
       <Project>{570fd8ee-8e77-4ab2-a985-ea566fd838f2}</Project>
       <Name>AutoOverlay</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\AvsFilterNet\AvsFilterNet\AvsFilterNet.vcxproj">
-      <Project>{6679c5bf-bd2a-454f-9a97-719a00cd5be0}</Project>
-      <Name>AvsFilterNet</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

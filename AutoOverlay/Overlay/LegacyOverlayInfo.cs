@@ -40,7 +40,7 @@ namespace AutoOverlay
 
         public int FrameNumber { get; set; } // zero based
 
-        private static readonly OverlayStatFormat format = new OverlayStatFormat(OverlayUtils.OVERLAY_FORMAT_VERSION);
+        private static readonly OverlayStatFormat format = new(OverlayConst.OVERLAY_FORMAT_VERSION);
 
         object ICloneable.Clone() => MemberwiseClone();
 

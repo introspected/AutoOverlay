@@ -68,7 +68,7 @@ namespace AutoOverlay
         public int Last => frames.Keys.LastOrDefault();
         public int Length => frames.Count;
 
-        public bool Fixed => CheckFixed(p => p) != "vary";
+        public bool Fixed => !CheckFixed(p => p).EndsWith("*");
 
         public string Interval => First == Last ? First.ToString() : $"{First} ({Length})";
 
@@ -87,7 +87,10 @@ namespace AutoOverlay
             var value = read(frames.Values.First());
             var isFixed = frames.Values.All(p => read(p).Equals(value));
             format ??= p => p.ToString();
-            return cache[read] = isFixed ? format(value) : "vary";
+            var label = format(value);
+            if (!isFixed)
+                label += "*";
+            return cache[read] = label;
         }
 
         public double Diff => frames.Values.Sum(p => p.Diff) / frames.Count;

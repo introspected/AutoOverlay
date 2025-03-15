@@ -1,13 +1,14 @@
 ﻿using System.Collections.Generic;
 using AutoOverlay;
 using AutoOverlay.AviSynth;
+using AutoOverlay.Overlay;
 using AvsFilterNet;
 
 [assembly: AvisynthFilterClass(
     typeof(OverlayClip),
     nameof(OverlayClip),
-    "cc[mask]c[Opacity]f[Minor]b[Debug]b",
-    OverlayUtils.DEFAULT_MT_MODE)]
+    "cc[mask]c[Crop]c[Opacity]f[Matrix]s[Minor]b[Color]i[Debug]b",
+    OverlayConst.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
     public class OverlayClip : SupportFilter
@@ -18,16 +19,28 @@ namespace AutoOverlay
         [AvsArgument]
         public Clip Mask { get; private set; }
 
+        [AvsArgument]
+        public RectangleD Crop { get; private set; }
+
         [AvsArgument(Min = 0, Max = 1)]
         public double Opacity { get; private set; } = 1;
+
+        [AvsArgument]
+        public string Matrix { get; private set; }
 
         [AvsArgument]
         public bool Minor { get; private set; }
 
         [AvsArgument]
+        public int Color { get; private set; } = 0x808080;
+
+        [AvsArgument]
         public override bool Debug { get; protected set; }
 
-        public List<OverlayInfo> GetOverlayInfo(int frameNumber) =>
-            OverlayInfo.FromFrame(Child.GetFrame(frameNumber, StaticEnv));
+        public List<OverlayInfo> GetOverlayInfo(int frameNumber)
+        {
+            using var frame = Child.GetFrame(frameNumber, StaticEnv);
+            return OverlayInfo.FromFrame(frame);
+        }
     }
 }

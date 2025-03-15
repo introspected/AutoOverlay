@@ -1,32 +1,33 @@
 # AutoOverlay AviSynth plugin
 
 ### Requirements
-- AviSynth+ 3.6+: https://github.com/AviSynth/AviSynthPlus/releases/
+- AviSynth+ 3.7+: https://github.com/AviSynth/AviSynthPlus/releases/
 - AvsFilterNet plugin https://github.com/Asd-g/AvsFilterNet (included)
 - SIMD Library https://github.com/ermig1979/Simd (included)
 - warp plugin v0.1b by wonkey_monkey https://forum.doom9.org/showthread.php?t=176031 (included)
-- Math.NET Numerics (included)
+- Avsresize based on z.lib: https://codeberg.org/StvG/avsresize/releases (for ColorMatchChain, not included)
+- ResampleMT by jpsdr: https://github.com/jpsdr/ResampleMT/releases (for better performance, not included)
 - MVTools https://github.com/pinterf/mvtools/releases (for aoInterpolate, not included)
 - RGTools https://github.com/pinterf/RgTools/releases (for aoInterpolate, not included)
 - .NET framework 4.8+
 - Windows 7+
-
-Windows XP and previous versions of AviSynth are supported only before v0.2.5.
+- For editing and debugging scripts, it is recommended to use AvsPmod: https://github.com/gispos/AvsPmod
 
 ### Installation
-- Copy all files from x86/x64 folder to the AviSynth plugins folder.
-- DLL's may be blocked after downloading. Open file properties to unblock them. 
+- Copy the files from the x86/x64 folders to the AviSynth plugins folders.
+- In the properties of the DLL files in Windows Explorer, it may be necessary to "Unblock" the files.
+- It is recommended to use the x64 version for better performance.
 
 ### Description
-The plugin is designed for auto-aligned optimal overlay of one video clip onto another.  
-The auto-align within OverlayEngine is performed by testing different coordinates (X and Y of the top left corner), resolutions, aspect ratio and rotation angles of the overlay frame in order to find the best combination of these parameters. The function of comparing the areas of two frames is the root-mean-square error (RMSE) on which PSNR is based - but is inversely proportional. The result of this function within the plugin is called simply DIFF since during development other functions were tested, too. The aim of auto-align is to minimize diff value.  
-To increase performance, auto-align is divided into several stages of scaling and tests of different OverlayConfigs which particularly include ranges of acceptable align values. For every OverlayConfig on the first stage all possible combinations are tested in low resolution. On the next, a comparison based on the best align settings from the previous stage. Finally, if the required accuracy is achieved with current OverlayConfig, the remaining are not tested.  
-After auto-align it is possible to overlay one frame onto another in different ways with configurable OverlayRender.
+The plugin is designed for optimal overlaying of one video clip onto another. 
+The alignment of clips relative to each other is performed by the OverlayEngine filter by testing various coordinates of the top-left corner of the overlay, image sizes, aspect ratios, and rotation angles to find the optimal overlay parameters. The function for comparing two image sections of the clips is the mean squared deviation, hereinafter referred to as *diff*. The goal of auto-alignment is to find the minimum *diff* value. 
+To improve performance, auto-alignment is divided into several scaling steps for testing different overlay parameters, which are specified by the OverlayConfig filter. In the first step, all possible overlay combinations are tested at a low resolution. In each subsequent step, at a higher resolution, combinations based on the best results from the previous step are tested. OverlayConfig configurations can be combined into chains. If a particular configuration yields a good result, the testing of subsequent configurations is skipped to save time. 
+After auto-alignment, one clip can be overlaid onto another in various ways using the OverlayRender filter.
 
-### Load plugin in script
+### Loading the Plugin
     LoadPlugin("%plugin folder%\AvsFilterNet.dll")
     LoadNetPlugin("%plugin folder %\AutoOverlay_netautoload.dll")
-AviSynth+ supports plugin auto loading, if .NET plugin filename includes suffix `_netautoload`. So it includes by default. Check the proper filename in LoadNetPlugin clause.
+AviSynth+ supports automatic plugin loading if the .NET plugin file name contains the `_netautoload` suffix, which is present by default.
 
 ## Sample
     portrait=ImageSource("Lenna.portrait.jpg")
@@ -47,614 +48,655 @@ AviSynth+ supports plugin auto loading, if .NET plugin filename includes suffix 
 
 ## Filters
 ### OverlayConfig
-    OverlayConfig(float minOverlayArea, float minSourceArea, float aspectRatio1, float aspectRatio2, 
-                  float angle1, float angle2, clip warpPoints, int warpSteps, int warpOffset, 
-				  int minSampleArea, int requiredSampleArea, float maxSampleDiff, 
-                  int subpixel, float scaleBase, int branches, float branchMaxDiff, float acceptableDiff, 
-                  int correction, int minX, int maxX, int minY, int maxY, int minArea, int maxArea, 
-                  bool fixedAspectRatio, bool debug)
-                  
-This filter describes configuration for OverlayEngine: how to search optimal align settings. It defines the bounds of align values such as coordinates of the top left corner of overlaid image relative source image, width and height of scaled overlaid image and its rotation angle. Configuration contains OverlayEngine settings for auto-align process as well.  
-The filter output is one frame clip that contains given arguments encoded to the image. It is the hack to inject these values to OverlayEngine as independent entity.  
-It is possible to add some clips to config chain with regular splice operator: OverlayConfig(…) + OverlayConfig(…). OverlayEngine then will test each config in given order. As soon as acceptable diff value is reached, it will be returned as best align and other configs will not be processed.
+    OverlayConfig(string preset, float minOverlayArea, float minSourceArea, float aspectRatio1, float aspectRatio2, 
+                  float angle1, float angle2, float minAngleStep, float maxAngleStep, float angleStepCount, 
+                  clip warpPoints, int warpSteps, int warpOffset, int minSampleArea, int requiredSampleArea, 
+                  float maxSampleDiff, int subpixel, float scaleBase, int branches, float branchMaxDiff, 
+                  float acceptableDiff, float correction, float rotationCorrection, int minX, int maxX, 
+                  int minY, int maxY, int minArea, int maxArea, bool fixedAspectRatio, bool debug)
+     
+The filter describes the auto-alignment configuration for OverlayEngine. It contains the boundary values of overlay parameters such as the coordinates of the top-left corner of the overlaid image relative to the base image, the width and height of the overlaid image, and the rotation angle. The configuration also includes parameters for the operation of OverlayEngine. 
+The filter's result is a fake frame in which the parameters are encoded, allowing them to be read by OverlayEngine. 
+It is possible to combine multiple configurations into chains using standard clip concatenation: `OverlayConfig(…) + OverlayConfig(…)`. In this case, OverlayEngine will sequentially test each configuration at each step until an acceptable *diff* value is achieved.
 
 #### Parameters
-- **minOverlayArea** - minimum intersection part of overlay image in percent. By default: max value if overlay image will be completely contain source image (pan&scan). For example, if source clip is 1920x1080 and overlaid one is 1920x800 then value will be 800/1080 = 74%.
-- **minSourceArea** - minimum intersection part of source image in percent. By default: max value if source image will be completely contain overlay image (pan&scan). For example, if source clip is 1440x1080 and overlaid one is 1920x1080 then value will be 1440/1920 = 75%.
-- **aspectRatio1** and **aspectRatio2** - range of acceptable aspect ratio of overlaid image. By default – overlay clip aspect ratio. Can be specified in any order: `aspectRatio1=2.35, aspectRatio2=2.45` is the same as `aspectRatio1=2.45, aspectRatio2=2.35`.
-- **angle1** и **angle2** (default 0) - range of acceptable rotation angle if overlaid image. Can be specified in any order. Negative values – clockwise rotation, positive – counter.
-- **warpPoints** (default empty) – Rect clip series which describes warp transformation source points and max X and Y offsets that will be passed to the warp filter. Example: Rect(0,0,3,3) + Rect(1920,800,3,3) + Rect(1920,0,3,3) + Rect(0,800,3,3) + Rect(960,400,3,3). It describes warp transformations 3px around corners and center of overlay image (1920x800).
-- **warpSteps** (default 3) – warp transformation iteration count. Greater is better but slower. 
-- **warpOffset** (default 0) – warp transformation step offset from last step (to process in low resolution). Lower is better but slower. 
-- **minSampleArea** (default 1500) – minimum area in pixels of downsized source clip at first scale stage. The smaller, the faster, but also the greater risk of getting an incorrect result. Recommended range: 500-3000. 
-- **requiredSampleArea** (default 3000) - maximum area in pixels of downscaled source clip at first scale stage. The smaller, the faster, but also the greater risk of getting an incorrect result. Recommended range: 1000-5000. 
-- **maxSampleDiff** (default 5) – max allowed DIFF between downscaled source clip at previous and current scale iteration. If it is too high then previous iteration will not be processed.  
-- **subpixel** (default 0) – subpixel align accuracy. 0 – one pixel accuracy, 1 – half pixel, 2 – quarter and so on. Zero is recommended if one clip is much smaller then another. 1-3 if both clips have about the same resolution. Negative values are also supported.
-- **scaleBase** (default 1.5) – base to calculate downscale coefficient by formula `coef=scaleBase^(1 - (maxStep - currentStep))`.
-- **branches** (default 1) - how many best align params from previous scale stage will be analyzed at the next one.  1-10 is recommended. The higher - the longer.
-- **branchMaxDiff** (default 0.2) - maximum difference between best branch and current one to accept
-- **acceptableDiff** (default 5) – acceptable DIFF value. If it will be achieved with current OverlayConfig the remaining configs in the chain will not be processed.
-- **correction** (default 1) – the value of correction the best align params between scale stages. The higher, then more different align params are tested. 
-- **minX**, **maxX**, **minY**, **maxY** - ranges of top left corner coordinates, unlimited by default.
-- **minArea**, **maxArea** - area range of overlaid image in pixels, unlimited by default.
-- **fixedAspectRatio** (default false) - maximum accurate aspect ratio. May be true only if aspectRatio1=aspectRatio2.
-- **debug** (default false) – output given arguments, slower.
+- **preset** (default medium) - preset for the main parameters. The *low*, *medium*, *high*, and *extreme* presets adjust quality and performance. *low* is the fastest and least accurate, while *extreme* is the opposite. The *fixed* preset is intended for cases where one image is clearly inscribed within the boundaries of the base clip.
+
+| Parameter / Preset  |   Low   |  Medium  |   High   |  Extreme  |   Fixed   |
+| ------------------- | ------- | -------- | -------- | --------- | --------- |
+| Subpixel            | 0       | 1        | 2        | 3         | 0         |
+| Branches            | 1       | 2        | 3        | 4         | 1         |
+| MinSampleArea       | 1000    | 1500     | 1500     | 2000      | 1500      |
+| RequiredSampleArea  | 1000    | 3000     | 4000     | 5000      | 3000      |
+| RequiredSampleArea  | 1000    | 3000     | 4000     | 5000      | 3000      |
+| RotationCorrection  | 0.5     | 0.5      | 1        | 1         | 0.5       |
+| FixedAspectRatio    | false   | false    | false    | false     | true      |
+| MinOverlayArea      | default | default  | default  | default   | 100       |
+
+- **minOverlayArea** - the minimum ratio of the used portion to the total area of the overlaid image, in percent. By default, it is calculated so that the overlaid clip can fully cover the base clip (panscan mode). For example, if the base clip resolution is 1920x1080 and the overlaid clip is 1920x800, the parameter value will be 800/1080=74%. 
+- **minSourceArea** - the minimum ratio of the used portion to the total area of the base image, in percent. By default, it is calculated so that the base clip can fully include the overlaid clip (panscan mode). For example, if the base clip resolution is 1920x1080 and the overlaid clip is 1440x800, the parameter value will be 1440/1920=75%. 
+- **aspectRatio1** and **aspectRatio2** - the range of acceptable aspect ratios for the overlaid image. By default, it is the aspect ratio of the overlaid clip. It can be specified in any order: `aspectRatio1=2.35, aspectRatio2=2.45` is the same as `aspectRatio1=2.45, aspectRatio2=2.35`. By default, it equals the aspect ratio of the overlaid clip if *FixedAspectRatio = true*; otherwise, a tolerance is added as *minDimension + (Correction + rotationShift) × 1.5) / minDimension - 1*, where *minDimension* is the smaller side of the overlaid clip, and *rotationShift* equals *RotationCorrection* if the angles are non-zero, otherwise 0. 
+- **angle1** and **angle2** (default 0) - the range of acceptable rotation angles for the overlaid image. Can be specified in any order. Negative values indicate clockwise rotation, positive values indicate counterclockwise rotation.
+- **minAngleStep** (default 0.05) - the minimum rotation step of the image, in degrees.
+- **maxAngleStep** (default 1) - the maximum rotation step of the image, in degrees.
+- **angleStepCount** (default 2) - the number of rotation steps at each overlay parameter selection step.
+- **warpPoints** (default empty) - a sequence of Rect-type clips describing the initial points of warp transformations and possible deviations along the X and Y axes, which will be passed to the warp filter. Example: `Rect(0,0,3,3) + Rect(1920,800,3,3) + Rect(1920,0,3,3) + Rect(0,800,3,3) + Rect(960,400,3,3)`. This describes warp transformations with a maximum range of 3 pixels at the corners and center of an image sized 1920x800.
+- **warpSteps** (default 3) - the number of warp transformation iterations. Higher values are better but slower.
+- **warpOffset** (default 0) - the magnitude of the warp transformation shift from the last step to the first (at a lower resolution). Lower values are better but slower.
+- **minSampleArea** (default 1500) - the minimum area in pixels of the base image at the first step. Smaller values are faster but increase the risk of incorrect results. Recommended range: 500-3000. 
+- **requiredSampleArea** (default 3000) - the maximum area in pixels of the base image at the first step. Smaller values are faster but increase the risk of incorrect results. Recommended range: 1000-5000.
+- **maxSampleDiff** (default 5) - the maximum allowable *diff* value of the reduced base image between steps. If this value is exceeded, the previous step will not be performed. Used to select the initial image size between *minSampleArea* and *requiredSampleArea* and the corresponding step.
+- **subpixel** (default 0) - the level of subpixel overlay precision. 0 - one-pixel precision, 1 - half-pixel, 2 - quarter-pixel, and so on. Zero is recommended if one clip has significantly lower resolution than the other. 1-3 is recommended if both clips have roughly the same resolution. Negative values are also supported, in which case the overlay will be performed with reduced precision but faster. 
+- **scaleBase** (default 1.5) - the base for calculating the reduction coefficient using the formula `coef=scaleBase^(1 - (maxStep - currentStep))`. Lower values result in more steps. 
+- **branches** (default 1) - the number of best overlay parameters from the previous step to use for the search in the current step. Higher values are better but slower. Essentially, this is the branching depth.    
+- **branchMaxDiff** (default 0.2) - the maximum difference at the current step between the *diff* values of the best search parameters and others. Used to discard unpromising search branches.  
+- **acceptableDiff** (default 5) - the acceptable *diff* value, after which subsequent configurations in the OverlayConfig chain are not tested.
+- **correction** (default 1) - the magnitude of correction for a certain parameter from the previous step to the current step. Higher values test more parameter variations but take longer. 
+- **rotationCorrection** (default 0.5) - additional correction if the image rotation angle is non-zero.
+- **minX**, **maxX**, **minY**, **maxY** - the allowable range of coordinates for the top-left corner of the overlay, unlimited by default. 
+- **minArea**, **maxArea** - the range of allowable area for the overlaid image, in pixels. Unlimited by default.
+- **fixedAspectRatio** (default false) - a mode for exact aspect ratio of the overlaid clip, applicable only when *aspectRatio1=aspectRatio2*.
+- **debug** (default false) - display of configuration parameters.
 
 ### OverlayEngine                  
-    OverlayEngine(clip source, clip overlay, string statFile, int backwardFrames, int forwardFrames, 
-                  clip sourceMask, clip overlayMask, float maxDiff, float maxDiffIncrease, float maxDeviation, 
-                  int scanDistance, float scanScale, bool stabilize, float stickLevel, float stickDistance, 
-                  clip configs, string presize, string resize, string rotate, bool editor, string mode, 
-                  int colorAdjust, string sceneFile, bool simd, bool debug)
+    OverlayEngine(clip source, clip overlay, clip sourceMask, clip overlayMask, string statFile, 
+                  string preset, int sceneBuffer, int shakeBuffer, bool stabilize, bool scan, bool correction,
+                  float frameDiffTolerance, float frameAreaTolerance, float sceneDiffTolerance, float sceneAreaTolerance,
+                  float frameDiffBias, float maxDiff, bool legacyMode, int backwardFrames, int forwardFrames, 
+                  float maxDiffIncrease, int scanDistance, float scanScale, float stickLevel, float stickDistance,
+                  clip configs, string presize, string resize, string rotate, bool editor, string mode,
+                  int colorAdjust, string sceneFile, bool SIMD, bool debug)
 
-Filter takes two clips: source and overlay. It performs auto-align by resizing, rotation and shifting an overlay clip to find the best diff value. Best align settings are encoded into output frame so it could be read by another filter. The sequence of these align settings frame-by-frame (statistics) could be written to in-memory cache or file for reuse and manual editing via built-in visual editor. 
+The filter takes two clips as input: the base clip and the overlaid clip, and performs an auto-alignment procedure by resizing, rotating, and shifting the overlaid clip to find the minimum *diff* value. The optimal overlay parameters are encoded into the output frame so they can be read by other filters. The sequence of such frame-by-frame overlay parameters (statistics) can be accumulated in memory or in a file for reuse without needing to repeat the costly auto-alignment procedure. The statistics file can be analyzed and edited in the built-in graphical editor. Statistics are accumulated as the clip is navigated in any direction, provided the movement is frame-by-frame sequential; otherwise, neighboring frames will not be considered.
+
 #### Parameters
-- **source** (required) - first, base clip.
-- **overlay** (required) - second, overlaid clip. Both clips must be in the same color space. Any planar YUV (8-16 bit), RGB24 and RGB48 color spaces are supported.
-- **statFile** (default empty) – path to the file with current align values. If empty then in-memory cache is used. Recommended use-case: to test different OverlayConfigs use in-memory cache. After that set statFile and run analysis pass. If the file from previous plugin version was specified it will be saved and then converted to the new version. 
-- **backwardFrames** and **forwardFrames** (default 3) – count of previous and forward frames for searching align params of current frame. 
-- **sourceMask**, **overlayMask** (default empty) – mask clips for source and overlaid clips. If mask was specified then pixels that correspond to zero values in mask will be excluded from comparison function. In RGB color space all channels are analyzed independent. In YUV only luma channel is analyzed. Masks and clips should be in the same type color space. Note that in planar color space masks should be in full range (`ColorYUV(levels="TV->PC")`). 
-- **maxDiff** (default 5) – diff value below which auto-align is marked as correct. It is used for scene detection. 
-- **maxDiffIncrease** (default 1) – maximum allowed diff increasing in the frame sequence.
-- **maxDeviation** (default 1) – maximum allowed difference in percent between union and intersection area of two align configurations to detect scene change. Lower values prevent scene detection. Higher values may cause wrong scenes but more stable overlay params.
-- **scanDistance** (default 0) – maximum allowed shift in pixels between two frames in scene. Use it only if source clips are not stabilized to each other. 
-- **scanScale** (default 3) – maximum allowed overlay clip resolution scaling in ppm between two frames in scene.
-- **stabilize** (default true) – attempt to stabilize align params at the beginning of scene when there is no enough backward frames including to current scene. If true `panScanDistance` should be 0.
-- **stickLevel** (default 0) - max difference between DIFF values of best align params and another one when image may be sticked to borders of source.
-- **stickDistance** (default 1) - max distance between borders of source and overlay with best align params when image may be sticked to borders of source.
-- **configs** (default OverlayConfig with default values) – configuration list in the form of clip. Example: `configs=OverlayConfig(subpixel=1, acceptableDiff=10) + OverlayConfig(angle1=-1, angle2=1)`. If during analyses of first configuration it founds align values with diff below 10 then second one with high ranges and low performance will be skipped.
-- **presize** (default *BilinearResize*) – resize function for steps with less than one pixel accuracy.
-- **resize** (default *BicubicResize*) – resize function for steps with one pixel or subpixel accuracy.
-- **rotate** (default *BilinearRotate*) – rotation function. Currently built-in one is used which based on AForge.NET.
-- **editor** (default false). If true then visual editor form will be open at the script loading. 
-- **mode** (default "default") – engine mode:  
-DEFAULT – default mode  
-UPDATE – as default but with forced diff update   
-ERASE – erase statistics  
-READONLY – use only existing align statistics
-PROCESSED – include only processed frames from stat file
-UNPROCESSED – include only unprocessed frames from stat file
-- **colorAdjust** - not implemented yet
-- **sceneFile** - scene file path with keyframes to separate scenes during auto-align process 
-- **simd** (default true) - SIMD Library using to increase performance in some cases
-- **debug** (default false) - output align values, slower.
+- **source** (required) - the first, base clip.
+- **overlay** (required) - the second, overlaid clip. Both clips must be in the same color space type (YUV or RGB) and bit depth.
+- **sourceMask**, **overlayMask** (default empty) - masks for the base and overlaid clips. If a mask is specified, pixels in the clip corresponding to a value of 0 in the mask are ignored in the *diff* calculation. This is useful, for example, to exclude a logo from the *diff* calculation. In RGB clips, channels are analyzed separately. In YUV, only the luma channel is analyzed. The mask must be in full range (`ColorYUV(levels="TV->PC")`).
+- **statFile** (default empty) - the path to the file with overlay parameter statistics. If not specified, statistics are accumulated only in memory within a single session. Recommended usage scenario: for initial manual parameter tuning, do not use a statistics file; use it for a test run to gather statistics, analyze, and adjust them in the editor.
+- **preset** (default medium) - preset for the filter's main parameters, affecting the balance of quality and performance.
 
-#### How it works
-The engine searches optimal align params: coordinates of overlaid clip’s top left corner (x=0,y=0 is the left top corner of source clip), rotation angle in degrees, overlaid clip width and height, floating-point crop values from 0 to 1 for subpixel accuracy (left, top, right, bottom) and DIFF value.  
-*OverlayConfig* chain provides ranges of acceptable align values. The engine runs each config one-by-one while align values with acceptable diff would not be found. Auto-align process for each configuration includes multiple scaling stages. At the first stage all possible combinations of align values are tested in the lowest resolution. The count of best align value sets passed to the next stage is given by `OverlayConfig.branches` parameter. At the next stages best sets from previous are corrected. Note that, simplified, one pixel in low resolution includes four from high. *OverlayConfig* contains `correction` parameter to set correction limit for all directions and resolutions in pixels.  
-Image resizing is performed by functions from *presize* and *resize* parameters. First one is used at the intermediate scale stages, last one at the final. So it’s recommended to use something better than BilinearResize at the end. The functions must have signature as follow: `Resize(clip clip, int target_width, int target_height, float src_left, float src_top, float src_width, float src_height)`. Additional parameters are allowed, that is, the signature corresponds to standard resize functions. It is recommended to use the ResampleMT plugin, which provides the same functions but internally multithreaded.  
-Besides auto-align of given frame the engine analyses sequence of neighboring frames is specified by *backwardFrames* and *forwardFrames* parameters according to *maxDiff, maxDiffIncrease, maxDeviation, stabilize, panScanDistance, panScanScale* params as described below:  
-1. Request align values of current frame.
-2. Return data from statFile or in-memory cache if this frame was auto-aligned already.
-3. If previous frames in quantity of *backwardFrames* are already aligned with the same values and their DIFF don’t exceed *maxDiff* value, then the same align values will be tested for the current frame. 
-4. If maximum DIFF is increasing within sequence is lower than *maxDiffIncrease*, then the engine analyzes next frames in quantity of *forwardFrames* otherwise current frame will be marked as independent from previous – that means scene change.
-5. If current frame was included to the sequence with previous frames then the same align values will be tested on forward frames if *forwardFrames* is greater than zero. If all next frames are good at the same align then current frame will be included to the sequence. 
-6. If some of next frames exceed *maxDiff* value or difference between next frame diff and average diff is higher than *maxDiffIncrease* then the engine will work out optimal auto-align values for next frame. If new align values significantly differ from previous then we have scene change otherwise there is pan&scan episode and each frame should be processed independently. The parameter that used for this decision is *maxDeviation*.
-7. If current frame is marked as independent after previous operations and *OverlayEngine.stablize=true* then engine tries to find equal align params for the next frames too to start new scene.
-8. If *backwardFrames* is equal to zero then each frame is independent. This scenario has very low performance and may cause image shaking.
-9. If the sources are not stabilized to each other use *panScanDistance* and *panScanScale* params. 
+| Parameter / Preset  |   Low   |  Medium  |   High   |
+| ------------------- | ------- | -------- | -------- |
+| SceneBuffer         | 10      | 15       | 20       |
+| ShakeBuffer         | 1       | 2        | 3        |
+| FrameDiffTolerance  | 5       | 4        | 3        |
+| SceneDiffTolerance  | 75      | 50       | 25       |
+| MaxDiff             | 20      | 15       | 10       |
 
-##### Visual editor
-Displayed when *OverlayEngine.editor* is true. It is useful after analysis pass when statFile is specified to check all scenes and manually correct incorrect aligned frames. 
-Preview from the left side. Below there is trackbar by total frame count and current frame input field. Grid with equal aligned frame sequences on the right. It is possible to move between scenes by row selection. Below grid there is a control panel.  
-*Overlay settings* contains controls to change align values of current scene.
+- **sceneBuffer** (default 15) - the number of neighboring previous and subsequent frames (i.e., a total of x2) that will be analyzed for inclusion in the interval.
+- **shakeBuffer** (default 2) - the number of neighboring frames used for the initial determination of overlay parameters for the interval.
+- **stabilize** (default true) - an attempt to fully stabilize the overlay parameters of neighboring frames. If the clips are not the result of cropping from a single original mastering, this parameter should be set to *false*.
+- **scan** (default true) - an attempt to detect scanning between neighboring frames, i.e., smooth changes in overlay parameters without outliers. Applied if full stabilization fails. It is recommended to disable this if it is known in advance that such episodes are absent in the sources. If both *stabilize* and *scan* are disabled, each frame will be aligned from scratch, which is resource-intensive and may introduce outliers.
+- **correction** (default true) - an attempt to retrospectively correct the overlay parameters of previously processed frames after processing subsequent frames.
+- **frameDiffTolerance** (default 4) - the allowable *diff* deviation in percent during frame stabilization.
+- **frameAreaTolerance** (default 0.2) - the allowable deviation of the intersection area in percent during frame stabilization.
+- **sceneDiffTolerance** (default 4) - the allowable *diff* deviation in percent between neighboring frames.
+- **sceneAreaTolerance** (default 0.5) - the allowable deviation of the intersection area in percent between neighboring frames.
+- **frameDiffBias** (default 1.5) - a value added to *diff* to smooth differences during comparison.
+- **maxDiff** (default 5) - the *diff* value above which a frame cannot be included in a scene.
+- **legacyMode** (default false) - if *true*, the old scene detection algorithm will be used with the parameters *backwardFrames*, *forwardFrames*, *maxDiffIncrease*, *maxDeviation*, *scanDistance*, and *scanScale* instead of *sceneBuffer*, *shakeBuffer*, etc.
+- **backwardFrames** and **forwardFrames** (default 3) - the number of previous and subsequent frames analyzed in a single scene for stabilization and speeding up the overlay parameter search.
+- **maxDiffIncrease** (default 1) - the maximum allowable *diff* excess of the current frame over the average value in a sequence (scene).
+- **maxDeviation** (default 1) - the maximum allowable difference in percent between the union and intersection of two alignment configurations for scene detection. Higher values may lead to erroneous merging of multiple scenes into one but provide better stabilization within a scene.
+- **scanDistance** (default 0) - the maximum allowable shift of the overlaid image between neighboring frames in a scene. Used if the sources are not stabilized relative to each other.
+- **scanScale** (default 3) - the maximum allowable size change in permille of the overlaid image between neighboring frames in a scene.
+- **stickLevel** (default 0) - the maximum allowable difference between *diff* values for the best overlay parameters and those that would cause the overlaid image to stick to the base clip's boundaries.
+- **stickDistance** (default 1) - the maximum allowable distance between the edges of the overlaid image for the best overlay parameters and those that would cause the overlaid image to stick to the base clip's boundaries.
+- **configs** (default OverlayConfig with default values) - a list of configurations as a clip. Example: `configs=OverlayConfig(subpixel=1, acceptableDiff=10) + OverlayConfig(angle1=-1, angle2=1)`. If, during auto-alignment, the first configuration yields a *diff* value less than 10 after its run, the next configuration with "heavier" parameters (rotation) will be skipped.
+- **presize** (default *BilinearResize*) - the image resizing function for the initial scaling steps.
+- **resize** (default *BicubicResize* or *BicubicResizeMT* if available) - the image resizing function for the final scaling steps.
+- **rotate** (default *BilinearRotate*) - the image rotation function. Currently, the default implementation is from the AForge.NET library.
+- **editor** (default false) - if *true*, the visual editor will launch when the script is loaded.
+- **mode** (default "default") - the mode of working with statistics:  
+  - DEFAULT - default mode
+  - UPDATE - same as the previous mode, but the current frame’s *diff* is always recalculated
+  - ENHANCE - refine the overlay parameters for each specific frame based on previously collected statistics, losing stabilization
+  - ERASE - erase statistics (used to clear information about specific frames in conjunction with the *Trim* function)
+  - READONLY - use but do not update the statistics file
+  - PROCESSED - include only already processed frames
+  - UNPROCESSED - include only unprocessed frames
+- **colorAdjust** - color correction of clips during overlay for more accurate alignment: 0 - towards the base clip, 1 - towards the overlaid clip.
+- **sceneFile** - the path to a file with keyframes for separating scenes during the image auto-alignment process.
+- **simd** (default true) - use of the SIMD Library to improve performance in some cases.
+- **debug** (default false) - display of overlay parameters, reduces performance.
 
-*Frame processing* section below.
-Align - frame auto-align without analyzing other frames
-Adjust - auto-align every choosen frame based on current frame (or first frame in scene if scene is not current) with parameters Distance (X and Y deviation), Scale (Width x Height deviation) and Max deviation of joined and intersection area. 
-Scan - auto-align based on previous frame in scene started from first one with parameters Distance, Scale and Max deviation.
+#### Operating Principle
+*OverlayEngine* searches for optimal overlay parameters: the coordinates of the top-left corner of the overlaid clip relative to the base clip, the rotation angle in degrees, the width and height of the overlaid image, and the crop values of the overlaid image edges for subpixel positioning.  
+The *OverlayConfig* chain, provided as a clip, defines the boundaries of acceptable values and the algorithm for finding the optimal parameters. The engine processes each configuration sequentially until overlay parameters with an acceptable *diff* are found. The auto-alignment process for each configuration consists of several steps. In the first step, all possible combinations of overlay parameters are tested at a low resolution. A certain number of the best combinations, specified by the *OverlayConfig.branches* parameter, are passed to the next step. At each subsequent step, the overlay parameters are refined at a higher resolution, with the search area defined by the *correction* parameter.  
+Image scaling is performed by the functions specified in the *presize* and *resize* parameters. The former is used in the preliminary auto-alignment steps, while the latter is used in the final steps when working at full resolution. For the final steps, it is recommended to use a filter with good interpolation. The scaling function must have the following signature: `Resize(clip clip, int target_width, int target_height, float src_left, float src_top, float src_width, float src_height)`. Additional parameters are allowed. This signature is used in standard AviSynth functions. It is highly recommended to use the ResampleMT plugin, which provides the same results as built-in filters but operates significantly faster due to parallel computations.
 
-Frame - current frame processing (in Align mode when scene is fixed all frames will changed)
-Single - current frame processing. When scene is fixed and align params will changed current frame will seperated)
-Scene - current scene processing (current row in grid)
-Clip - whole clip processing (all rows in grid)
+##### Visual Editor
+Launched if *OverlayEngine.editor=true*.  
+On the left is a frame preview. At the bottom, there is a trackbar for the number of frames and a field to input the current frame. On the right is a table displaying frames with identical overlay parameters grouped into episodes. You can switch between episodes. Below the grid is a control panel.  
+*Overlay settings* - overlay parameters for the current episode.
 
-Below there is *Display settings*. It includes the same settings as OverlayRender filter: output resolution, overlay mode, gradient and noise length, opacity in percent, *preview* and *display info* checkboxes. If preview is disabled then source clip is displayed.  
-*Max deviation* needs to regulate how frames joins into scenes in grid. 
+Below is the *Frame processing* section:  
+- *Align* - auto-overlay "from scratch" without considering other frames.  
+- *Adjust* - correction of each scene relative to the current frame (or the first frame of the scene if the current frame is not part of the scene) considering *Distance* (X and Y deviation), *Scale* (deviation of the product of Width and Height), and *Max deviation* (deviation of the intersection area from the union area of frames).  
+- *Scan* - sequential scanning mode relative to the previous frame, starting from the first frame of the scene, considering *Distance*, *Scale*, and *Max deviation*.  
 
-At the bottom of control panel there are button panel.  
-The scenes that were changed by user are highlighted with yellow color in grid. *Save* button will apply changes to statFile. *Reset* will reload all data from file. *Reload* will reload data only for current frame and apply it to while scene.  
-*Separate* will exclude the current frame from scene. *Join prev* will join previous scene to current and overwrite align values. *Join next* will join next scene to current and overwrite align values. *Join to* will join current scene to specified frame and overwrite align values.
+Buttons:
+- *Frame* - processing of the current frame (in the case of *Align*, if the scene is *Fixed*, the parameters of the entire scene will change).  
+- *Single* - processing of the current frame; if the scene is *Fixed* and the overlay parameters change, the frame will be separated into a new scene.  
+- *Scene* - processing of the current scene (the current row in the table).  
+- *Clip* - processing of all scenes in the table.  
 
-**Hotkeys**:
-* Ctrl + S - save
-* Ctrl + R - reload
-* D - enable/disable difference
-* P - enable/disable preview
-* Ctrl + arrow keys - move overlay image
-* Ctrl + add/subtract - scale overlay image
-* A, Z - next/previous frame
+Modified and unsaved episodes are highlighted in yellow in the grid. The *Save* button saves changes. *Reset* discards changes and reloads the data. *Reload* reloads the characteristics for the current frame, applying them to the entire episode.  
+*Separate* - isolates the frame. *Join prev* - merges with the frames of the previous episode. *Join next* - merges with the frames of the next episode. *Join to* - merges frames up to and including the specified frame.
+
+**Hotkeys**:  
+- *Ctrl + S* - save  
+- *Ctrl + R* - reload  
+- *D* - enable/disable difference  
+- *P* - enable/disable preview  
+- *Ctrl + arrow keys* - move overlay image  
+- *Ctrl + add/subtract* - scale overlay image  
+- *A, Z* - next/previous frame  
 
 ### OverlayRender
-    OverlayRender(clip engine, clip source, clip overlay, clip sourceMask, clip overlayMask, clip extraClips, string preset, 
-                  clip innerBounds, clip outerBounds, float overlayBalanceX, float overlayBalanceY, bool fixedSource, 
-                  int overlayOrder, string overlayMode, int width, int height, string pixelType, int gradient, int noise, bool dynamicNoise, 
-                  int borderControl, float borderMaxDeviation, clip borderOffset, clip srcColorBorderOffset, clip overColorBorderOffset, 
-                  bool maskMode, float opacity, float colorAdjust, int colorBuckets, string colorInterpolation, float colorExclude, 
-                  int colorFramesCount, float colorFramesDiff, float colorMaxDeviation, string adjustChannels, string matrix, 
-                  string upsize, string downsize, string rotate, bool simd, bool debug, bool invert, bool extrapolation, 
-                  string background, clip backgroundClip, int blankColor, float backBalance, int backBlur, 
-                  bool fullScreen, string edgeGradient, int bitDepth)
+    OverlayRender(clip engine, clip source, clip overlay, clip sourceMask, clip overlayMask, 
+                  clip sourceCrop, clip overlayCrop, clip extraClips, string preset, 
+                  clip innerBounds, clip outerBounds, float overlayBalanceX, float overlayBalanceY, 
+                  bool fixedSource, int overlayOrder, 
+                  float stabilizationDiffTolerance, float stabilizationAreaTolerance, int stabilizationLength, 
+                  string overlayMode, int width, int height, string pixelType, int gradient, bool noise, 
+                  int borderControl, float borderMaxDeviation, clip borderOffset, 
+                  clip srcColorBorderOffset, rectangle overColorBorderOffset, bool maskMode, float opacity, 
+                  float colorAdjust, int colorBuckets, float colorDither, float colorExclude, 
+                  int colorFramesCount, float colorFramesDiff, float colorMaxDeviation, 
+                  bool colorBufferedExtrapolation, float gradientColor, clip colorMatchTarget, 
+                  string adjustChannels, string matrix, string sourceMatrix, string overlayMatrix,
+                  string upsize, string downsize, string rotate, bool preview, bool debug, 
+                  bool invert, string background, clip backgroundClip, int blankColor, 
+                  float backBalance, int backBlur, bool fullScreen, string edgeGradient, int bitDepth)
                   
-This filter preforms rendering of the result clip using align values from the engine. 
+The filter renders the result of combining two or more clips with specific settings.
 
 #### Parameters
-- **engine** (required) - *OverlayEngine* clip.
-- **source** (required) - first, base clip.
-- **overlay** (required) - second, overlaid clip. Any planar YUV (8-16 bit), RGB24 and RGB48 color spaces are supported.
-- **sourceMask** and **overlayMask** (default empty) - mask clips for source and overlaid clips. Unlike masks in overlay engine in this filter they work as avisynth built-in overlay filter masks. If both masks are specified then they are joined to one according align values. The purpose of the masks is maximum hiding of logos and other unwanted parts of the clips at transparent or gradient parts, which could be specified by *gradient* and *noise* parameters. The masks should be in the target clip bit depth. 
-- **extraClips** (default empty) - series of OverlayClip to overlay additional clips.
-- **preset** (default not set) - presets are used to set some other parameters (if they are not passed explicitly) according to preset purpose.
+- **engine** (required) - a clip of type *OverlayEngine* that provides the overlay parameters.
+- **source** (required) - the first, base clip.
+- **overlay** (required) - the second clip overlaid onto the first. 
+- **sourceMask** and **overlayMask** (default empty) - masks for the base and overlaid clips. Unlike in OverlayEngine, the meaning of these masks is the same as in the standard *Overlay* filter. Masks adjust the overlay intensity of the clips relative to each other. Masks must have the same bit depth as the relative clip.
+- **sourceCrop** and **overlayCrop** (default 0) - Rect-type clips that allow accounting for cropping differences between the statistics (OverlayEngine) and the *source* and *overlay* clips. Positive values indicate cropping, negative values indicate the opposite.
+- **extraClips** (default empty) - a clip composed of concatenated OverlayClip-type clips describing additional clips for overlay.
+- **preset** (default not set) - presets are used for batch pre-setting of other parameters (if not explicitly specified).
 
-|       Preset       |       Parameter       |         Value         |
-| ------------------ | --------------------- | --------------------- |
-| FitSource          | FixedSource           | true                  |
-| FitSource          | OverlayBalance(X,Y)   | -1                    |
-| FitScreen          | InnerBounds           | 1                     |
-| FitScreenBlur      | InnerBounds           | 1                     |
-| FitScreenBlur      | EdgeGradient          | inside                |
-| FitScreenBlur      | Background            | blur                  |
-| FitScreenBlur      | Gradient              | 50                    |
-| FitScreenMask      | InnerBounds           | 1                     |
-| FitScreenMask      | MaskMode              | true                  |
-| FullFrame          | InnerBounds           | 1                     |
-| FullFrame          | OuterBounds           | 1                     |
-| FullFrameBlur      | InnerBounds           | 1                     |
-| FullFrameBlur      | OuterBounds           | 1                     |
-| FullFrameBlur      | EdgeGradient          | inside                |
-| FullFrameBlur      | Background            | blur                  |
-| FullFrameBlur      | Gradient              | 50                    |
-| FullFrameMask      | InnerBounds           | 1                     |
-| FullFrameMask      | OuterBounds           | 1                     |
-| FullFrameMask      | MaskMode              | true                  |
-| Difference         | FixedSource           | true                  |
-| Difference         | OverlayBalance(X,Y)   | -1                    |
-| Difference         | OverlayMode           | difference            |
-| Difference         | Debug                 | true                  |
+| Parameter / Preset  |  FitSource  |  FitScreen  | FitScreenBlur | FitScreenMask |  FullFrame  | FullFrameBlur | FullFrameMask |  Difference  |
+| ------------------- | ----------- | ----------- | ------------- | ------------- | ----------- | ------------- | ------------- | ------------ |
+| FixedSource         | true        | false       | false         | false         | false       | false         | false         | true         |
+| OverlayBalance      | -1          | 0           | 0             | 0             | 0           | 0             | 0             | -1           |
+| InnerBounds         | 0           | 1           | 1             | 1             | 1           | 1             | 1             | 0            |
+| OuterBounds         | 0           | 0           | 0             | 0             | 1           | 1             | 1             | 0            |
+| Gradient            | 50          | 50          | 50            | 0             | 50          | 50            | 0             | 0            |
+| EdgeGradient        | none        | none        | inside        | none          | none        | inside        | none          | none         |
+| Background          | blank       | blank       | blur          | blank         | blank       | blur          | blank         | blank        |
+| MaskMode            | false       | false       | false         | true          | false       | false         | true          | false        |
+| OverlayMode         | blend       | blend       | blend         | blend         | blend       | blend         | blend         | difference   |
+| Debug               | false       | false       | false         | false         | false       | false         | false         | true         |
 
-- **innerBounds** (default 0) - clip of type Rect to limit empty areas inside union area of all clips. Values in range from 0 to 1 are coefficients. Values higher than 1 are absolute values in pixels.
-- **outerBounds** (default 0) - clip of type Rect to limit empty areas outside union area of all clips. Values in range from 0 to 1 are coefficients. Values higher than 1 are absolute values in pixels.
-- **overlayBalanceX** (default 0) - balance between source (-1) and overlaid (1) images on X coordinate in range from 0 to 1.
-- **overlayBalanceY** (default 0) - balance between source (-1) and overlaid (1) images on Y coordinate in range from 0 to 1.
-- **fixedSource** (default false) - fixed alignment of source clip.
-- **overlayOrder** (default 0) - serial number of overlaid clip to overlay it after extra clips.
-- **overlayMode** (default blend) – overlay mode for built-in `Overlay` filter. To check auto align result use `difference`.
-- **width** и **height** - output width and height. By default are taken from source clip.
-- **pixelType** - the color space of output clip. Should be planar or RGB according to aligned clips. Source clip color space is used by default.
-- **gradient** (default 0) – length of gradient at the overlay mask to make borders between images smoother. Useful when clips are scientifically differ in colors or align is not very good.
-- **noise** (default 0) - length of "noise gradient" at the overlay mask to make borders between images smoother. Useful when clips are in the same color and align is very good. Combine this with gradient to adjust more accurate align. 
-- **dynamicNoise** (default true) – use dynamic noise gradient if *noise* > 0.
-- **borderControl** (default 0) – backward and forward frame count to analyze which side of overlay mask should be used for current frame according to borderOffset parameter.
-- **borderMaxDeviation** (default 0.5) – max deviation of total area between current and adjacent frame to include frame to the scene for border control. 
-- **borderOffset** (default empty) - *Rect* type clip to specify offsets from borders (left, top, right, bottom) that will be ignored for gradient mask.
-- **srcColorBorderOffset** (default empty) - (not implemented) *Rect* type clip to specify offsets from source clip borders (left, top, right, bottom) that will be ignored for color adjustment.
-- **overColorBorderOffset** (default empty) - (not implemented) *Rect* type clip to specify offsets from overlay clip borders (left, top, right, bottom) that will be ignored for color adjustment.
-- **maskMode** (defualt false) - if true then all clips are replaced by white masks.
-- **opacity** (default 1) – opacity of overlaid image from 0 to 1.
-- **colorAdjust** (default -1, disabled) - value between 0 and 1. 0 - color adjusts to source clip. 1 - to overlay clip. 0.5 - average. Only descrete values -1, 0, 1 are supported with additional clips. Color adjustment performs by histogram matching in the intersection area.
-- **colorBuckets** (default maximum 1024 depending on color depth) - see ColorMatch.colorBuckets
-- **colorInterpolation** (default linear) - see ColorAdjust.interpolation
-- **colorExclude** (default 0) - see ColorAdjust.exclude
-- **colorFramesCount** (default 0) - forward and backward frames count that include to the color transition map for color adjustment 
-- **colorFramesDiff** (default 1) -  max RMSE of difference between sample and reference histogram for current and adjacent frame for color adjustment 
-- **colorMaxDeviation** (default 1) -  max deviation of total area between current and adjacent frame to include frame to the scene for color adjustment 
-- **adjustChannels** (default empty) - which channels to adjust. Examples: "yuv", "y", "rgb", "rg".
-- **matrix** (default empty). If specified YUV image converts to RGB with given matrix for color adjustment and then back to output color space. 
-- **downsize** и **upsize** (default *BicubicResize*) - downsize and upsize functions. It’s recommended to use functions with high quality interpolation. If only one parameter was specified the other will take the same value.
-- **rotate** (default *BilinearRotate*) – rotation function.
-- **simd** (default *true*) – SIMD Library using to increase performance in some cases.
-- **debug** -  output align settings to the top left corner.
-- **invert** - swap source and overlay clips.
-- **extrapolation** - see ColorAdjust.extrapolation.
-- **background** (default blank) - background filling algorithm: blank (blank color filling), blur (resized blur output image), inpaint (not implemented). 
-- **backgroundClip** (default empty) - if specified will be used as background. Should have the same resolution as output clip.
-- **blankColor** (default `0x008080` for YUV and `0x000000` for RGB) - blank color in HEX format.
-- **backBalance** - real value between -1 and 1 to set what clip should be used as blurred background. -1 - source, 1 - overlay clips.
-- **backBlur** (default 15) - blur strength when `background` is `blur`.
-- **fullScreen** (default false) - background image fills all output clip area instead of just union area of aligned clips.
-- **edgeGradient** (default none) - gradient mode at edges of aligned clips: `none` - disabled, `inside` - only inside union area, `full` - everywhere. 
-- **bitDepth** (default unused) - target bit depth of output clip
-
-### ColorAdjust
-    ColorAdjust(clip sample, clip reference, clip sampleMask, clip referenceMask, bool greyMask,
-                float intensity, int seed, int adjacentFramesCount, float adjacentFramesDiff, 
-	            bool limitedRange, string channels, float dither, float exclude, string interpolation, 
-				bool extrapolation, bool dynamicNoise, bool simd, int threads, bool debug)
-    
-Color matching. Input clip, sample clip and reference clip must be in the same type of color space (YUV or RGB). Any planar YUV (8-16 bit), RGB24 and RGB48 color spaces are supported. Input clip and sample clip must have the same bit depth (usually sample is the cropped or resized input clip). The bit depth of output clip will changed to the reference one. The filter provides perfect matching only if sample and reference are represent the same area of frame while the input (first argument) may have different framing. This filter is used inside OverlayRender but it is also useful as standalone.
-
-#### Parameters
-- **clip** (required) - clip for color adjustment
-- **sample** (required) - the sample clip (usually the first clip or cropped) 
-- **reference** (required) - reference clip (usually the same time and area from different master)
-- **sampleMask** and **referenceMask** (default empty) - 8 bit planar mask clips to exclude some parts from sample or reference clips. Only Y plane is used. Used only pixels with 255 value (white color).
-- **greyMask** (default true) - one mask (luma channel) for all planes or not.
-- **intensity** (default 1) - intensity of color adjustment.
-- **seed** (default is constant) - seed for dynamic noise if there is multiple using of filter for rendering one frame
-- **adjacentFramesCount** (default 0) - forward and backward frames count that include to the color transition map
-- **adjacentFramesDiff** (default 1) - max RMSE of difference between sample and reference histogram for current and adjacent frame
-- **limitedRange** (default true) - TV or PC range for YUV clips
-- **channels** (default yuv or rgb) - planes to process for YUV clips or channels for RGB. Any combination of y,u,v and r,g,b supported (ex: y, uv, r, br).
-- **dither** (default 0.95) - dither level from 0 (disable) to 1 (aggressive). 
-- **exclude** (default 0) - value to exclude rare colors by formula: *current_color_pixel_count / total_pixel_count < exclude*.
-- **interpolation** (default linear) - interpolation mode for Math.NET Numerics (spline, akima, linear, none).
-- **extrapolation** (default false, experimental) - adjust the colors of input clip out of bounds colors of sample clip.
-- **dynamicNoise** (default true) - dynamic noise if color mapping is the same between frames.
-- **simd** (default true) - SIMD Library using to increase performance in some cases.
-- **threads** (.NET default) - maximum thread count
+- **innerBounds** (default 0) - a Rect-type clip limiting the length of gaps within the union of clips. Values from 0 to 1 are interpreted as a coefficient, while values above 1 are treated as an absolute pixel value relative to the combined area.
+- **outerBounds** (default 0) - a Rect-type clip limiting the length of fields relative to the resulting clip. Values from 0 to 1 are interpreted as a coefficient, while values above 1 are treated as an absolute pixel value.
+- **overlayBalanceX** (default 0) - horizontal centering of the image relative to the base clip (-1) or overlaid clip (1) in the range from -1 to 1.
+- **overlayBalanceY** (default 0) - vertical centering of the image relative to the base clip (-1) or overlaid clip (1) in the range from -1 to 1.
+- **fixedSource** (default false) - fixed centering of the resulting clip relative to the base clip.
+- **overlayOrder** (default 0) - the layer number for the overlaid clip. Allows overlaying the clip after additional clips.
+- **stabilizationDiffTolerance** (default 200) - the allowable *diff* difference between neighboring frames during scene rendering stabilization.
+- **stabilizationAreaTolerance** (default 1.5) - the allowable difference in percent between the intersection areas of neighboring frames during scene rendering stabilization.
+- **stabilizationLength** (default 0, max 20) - the number of neighboring frames on each side for scene rendering stabilization. Stabilization is disabled by default. It makes sense to enable this if *innerBounds > 0* and the clips are not originally stabilized relative to each other (i.e., statistics were collected with *stabilize = false*). Enabling it will result in a slight cropping of the output frame, but the image will be stabilized. The *sceneFile* from OverlayEngine is also taken into account.
+- **overlayMode** (default `blend`) - the overlay mode for the built-in *Overlay* filter. For evaluating the overlay result, it is recommended to use `difference`.
+- **width** and **height** - the width and height of the output image. Defaults to the base clip’s dimensions.
+- **pixelType** - the color space of the resulting clip, must match the color space type of the overlaid clips (YUV or RGB). Defaults to the base clip’s color space.
+- **gradient** (default 0) - the length of a transparent gradient in pixels at the edges of the overlaid area. Makes the transition between images smoother.
+- **noise** (default false) - adds noise to the intersection boundaries to make transitions less noticeable. Works in conjunction with the *gradient* parameter.
+- **borderControl** (default 0) - the number of neighboring frames on both sides analyzed to determine which sides of the overlay mask should be included for the current frame, considering the *borderOffset* parameter.
+- **borderMaxDeviation** (default 0.5) - the maximum deviation of the total area between the current and neighboring frames for use in a frame sequence when creating the overlay mask.
+- **borderOffset** (default empty) - a Rect-type clip specifying "empty" image borders (left, top, right, bottom) that will be ignored when calculating the gradient mask.
+- **srcColorBorderOffset** (default empty) - (not implemented) a Rect-type clip for determining "empty" borders of the base clip (left, top, right, bottom) that will be ignored during color correction.
+- **overColorBorderOffset** (default empty) - (not implemented) a Rect-type clip for determining "empty" borders of the overlaid clip (left, top, right, bottom) that will be ignored during color correction.
+- **maskMode** (default false) - if *true*, replaces all clips with a white mask.
+- **opacity** (default 1) - the opacity level of the overlaid image, from 0 to 1.
+- **colorAdjust** (default -1, disabled) - a float value between 0 and 1. 0 - towards the base clip’s color, 1 - towards the overlaid clip’s color, 0.5 - averaged color. With additional clips, only values -1, 0, and 1 are supported. Color correction is based on comparing histograms of the intersection area.
+- **colorBuckets** (default 2000) - see *ColorMatch.length*.
+- **colorDither** (default 0.95) - see *ColorMatch.dither*.
+- **colorExclude** (default 0) - see *ColorMatch.exclude*.
+- **colorFramesCount** (default 0) - the number of neighboring frames on both sides whose information is included in building the color correspondence map for color correction.
+- **colorFramesDiff** (default 1) - the maximum mean squared deviation of color difference histograms between the sample and reference from the current frame to neighboring frames for color correction.
+- **colorMaxDeviation** (default 0.5) - the maximum deviation of the total area between the current and neighboring frames for use in a frame sequence during color correction.
+- **colorBufferedExtrapolation** - see *ColorMatch.bufferedExtrapolation*.
+- **gradientColor** - see *ColorMatch.gradient*.
+- **colorMatchTarget** - used for complex color correction scenarios within the *ColorMatchChain* filter.
+- **adjustChannels** (default empty) - the channels in which to adjust color. Examples: "yuv", "y", "rgb", "rg".
+- **matrix** (default empty) - if specified, the YUV image is converted to RGB using the specified matrix during processing.
+- **sourceMatrix** and **overlayMatrix** (default empty) - options to override the matrix for the base or overlaid clip, used in conjunction with the *matrix* parameter.
+- **downsize** and **upsize** (default *Spline16Resize* or *Spline16ResizeMT* if available) - functions for downsizing and upsizing images. If only one parameter is specified, the other takes the same value.
+- **rotate** (default *BilinearRotate*) - the function for rotating the overlaid image.
+- **preview** - output preview.
+- **debug** - output overlay parameters and preview.
+- **invert** - swap the base and overlaid clips, "inverting" the overlay parameters.
+- **background** (default blank) - background fill method: *blank* (solid fill), *blur* (stretched image with fill), *inpaint* (not implemented).
+- **backgroundClip** (default empty) - if specified, this clip is used as the background and must have the same resolution as the resulting clip.
+- **blankColor** (default `0x008080` for YUV and `0x000000` for RGB) - the color in HEX format for filling empty areas.
+- **backBalance** - a float value from -1 to 1 specifying the source of the blurred background if *background* is set to *blur*. -1 - base clip, 1 - overlaid clip.
+- **backBlur** (default 15) - the blur strength if *background* is set to *blur*.
+- **fullScreen** (default false) - the background image fills the entire image area, not just the combined image area.
+- **edgeGradient** (default none) - gradient at image edges. *none* - disabled, *inside* - only within the combined area, *full* - everywhere.
+- **bitDepth** (default unused) - the bit depth of the output image.
 
 ### ColorMatch
-    ColorMatch(clip sample, clip reference, clip sampleMask, clip referenceMask, bool greyMask, 
-	           float intensity, int length, string channels, bool limitedRange, float exclude)
-
-### ComplexityOverlay
-    ComplexityOverlay(clip source, clip overlay, string channels, int steps, float preference, bool mask, 
-                      float smooth, int threads, bool debug)
-    
-Independent filter to combine most complexity parts of two source clips. It is useful to get result clip with best parts of the image from two low quality sources. The clips must have the same framing, color grading, resolutions and color spaces. 
+    ColorMatch(clip, clip reference, clip sample, clip sampleMask, clip referenceMask, bool greyMask, 
+               float intensity, int length, float dither, string channels, 
+               int frameBuffer, float frameDiff, bool bufferedExtrapolation, bool limitedRange, 
+               float exclude, float gradient, int frame, int seed, string plane, string cacheId)
+			   
+Automatic color correction by matching color histograms. The input clip, *sample*, and *reference* clips must be in the same color space type (YUV or RGB). The input clip and *sample* clip must have the same bit depth. The input clip’s bit depth will change to match the *reference* clip’s bit depth. The filter yields good results only if the *sample* and *reference* clips have similar frame content. The filter is used within *OverlayRender*, cropping the *sample* and *reference* clips based on overlay parameters, but it can also be used independently, for example, to convert HDR to SDR or vice versa for clips with identical framing.
 
 #### Parameters
-- **source** and **overlay** - source clips
-- **channels** (default yuv or rgb) - planes to process for YUV clips or channels for RGB. Any combination of y,u,v and r,g,b supported (ex: y, uv, r, br).
-- **steps** (default 1) - number of steps to analyze clips.
-- **preference** (default 0) - if greater than 0 overlay clip will be more preferred, otherwise source clip. Recommended range: -1 to 1. 
-- **mask** (default false) - mask output instead of combined clip.
-- **smooth** (default 0) - smooth overlay mask to prevent much sharpening. Recommended range: 0 to 1.
-- **threads** (.NET default) - maximum thread count
+- **clip** (required) - the input clip whose color will be corrected.
+- **reference** (required) - the reference clip with the same content as the *sample* clip.
+- **sample** - the clip compared to the reference clip. If not specified, the input clip will be used without cropping.
+- **sampleMask** and **referenceMask** (default empty) - masks for including only pixels with the maximum value in the specified bit depth in processing, i.e., 255, 1023, etc.
+- **greyMask** (default true) - mask based only on luma or all channels (used only for YUV).
+- **intensity** (default 1) - the intensity of color correction.
+- **length** (default 2000, max 1000000) - the histogram length; higher values improve quality but slow performance. The actual length is limited by the bit depth (256 for 8-bit, 1024 for 10-bit, etc.).
+- **dither** (default 0.95) - dithering level from 0 (disabled) to 1 (aggressive). Applied only if the actual histogram length equals the bit depth. Adds ordered noise if one source color must be split into multiple colors based on their weights.
+- **channels** (default yuv or rgb) - the planes or channels to process. Any combination of y, u, v or r, g, b is allowed (e.g., y, uv, r, br).
+- **frameBuffer** (default 0) - the number of neighboring frames on both sides whose information is included in building the color correspondence map.
+- **frameDiff** (default 1) - the maximum mean squared deviation of color difference histograms between the sample and reference from the current frame to neighboring frames.
+- **bufferedExtrapolation** (default true) - whether to use neighboring frames from *frameBuffer* only for color extrapolation, i.e., for colors absent in the frame intersection area.
+- **limitedRange** (default false) - TV range. Generally, there is no need to enable this even if the source clips are in TV range.
+- **exclude** (default 0) - exclusion of rare colors in images from histograms using a formula ranging from 0 to 1. Helps avoid random outliers. For example, in a FullHD clip with a value of 0.000002, colors with fewer than five pixels will be discarded.
+- **gradient** (default 0, max 1000000) - if greater than zero, activates gradient color correction mode, where four histograms are generated per frame, emphasizing different corners of the image. This allows uneven color correction across the image. Suitable primarily for clips with different original mastering. Higher values increase the effect.
+- **frame** (default -1) - calculate the LUT based on a specific frame rather than the current one.
+- **seed** (default is constant) - seed for dithering if the filter is used multiple times for rendering a single frame. Typically, there is no need to change it.
+- **plane** and **cacheId** - used internally by *OverlayRender*.
+
+### ColorMatchChain
+    ColorMatchChain(clip, clip reference, string sampleSpace, string referenceSpace, clip chain, 
+                    string preset, clip sample, clip sampleMask, clip referenceMask, bool greyMask, 
+                    clip engine, clip sourceCrop, clip overlayCrop, bool invert, int iterations, 
+                    string space, string format, string resize, int length, float dither, 
+                    float gradient, int frameBuffer, float frameDiff, float frameMaxDeviation, 
+                    bool bufferedExtrapolation, float exclude, int frame, bool matrixConversionHQ)
+					
+Multi-step automatic color correction with support for statistics from *OverlayEngine*. Allows flexible color correction of clips before combining them via *OverlayRender*.  
+For example, for YUV clips, first convert their color space to RGB HDR, correct the color, then convert to YUV HDR and correct the color again.  
+Color space conversions can be performed using built-in AviSynth filters or z.lib. The latter can be used for SDR 709 to HDR 2020 conversions and vice versa.  
+The transformation chain is defined using concatenated *ColorMatchStep* filters (see below). Built-in presets generate a ready-made chain.
+
+#### Parameters
+- **clip** (required) - the input clip whose color will be corrected.
+- **reference** (required) - the reference clip. If the *engine* parameter is not specified, it must have the same content as the *sample* clip; otherwise, it must match the content in *OverlayEngine*.
+- **sampleSpace** and **referenceSpace** (required) - the color spaces (matrices) of the source and reference, respectively, in z.lib or AviSynth terms, e.g., *2020ncl:st2084:2020:f* or *PC.2020*.
+- **chain** (required) - concatenated *ColorMatchStep*-type clips defining the transformation chain.
+- **preset** - preset for the filter’s main parameters to perform common transformation types:  
+  - *HdrConversion* - single-step conversion of SDR 709 to HDR PQ 2020 or vice versa, depending on the input clips’ bit depth, with intermediate conversion to RGB 32-bit.  
+  - *HdrConversionHQ* - two-step conversion of SDR 709 to HDR PQ 2020 or vice versa, depending on the input clips’ bit depth, with intermediate conversion to RGB 32-bit, then YUV 32-bit.  
+  - *RgbYuv32* - two-step conversion of clips in any color space to RGB 32-bit, then YUV 32-bit.  
+  - *YuvRgb32* - two-step conversion of clips in any color space to YUV 32-bit, then RGB 32-bit.  
+  - *RgbYuv10* - two-step conversion of clips in any color space to RGB 10-bit, then YUV 10-bit.  
+  - *YuvRgb10* - two-step conversion of clips in any color space to YUV 10-bit, then RGB 10-bit.
+- **sample** - the clip compared to the reference clip. If not specified, the input clip will be used without cropping. When using *engine*, it must be the same clip used to collect statistics as the base.
+- **sampleMask** and **referenceMask** (default empty) - masks for including only pixels with the maximum value in the specified bit depth in processing, i.e., 255, 1023, etc.
+- **greyMask** (default true) - mask based only on luma or all channels (used only for YUV).
+- **engine** - an *OverlayEngine*-type clip where the overlaid clip corresponds to the *reference* clip. For inversion, use *invert=true*.
+- **sourceCrop** and **overlayCrop** - see *OverlayRender.sourceCrop* and *OverlayRender.overlayCrop*.
+- **iterations** (default 1) - the number of chain transformation repetitions. Higher values may yield better results but reduce performance.
+- **space** - the resulting clip’s color space, e.g., *2020ncl:st2084:2020:f* or *PC.2020*. Defaults to the last color space in the transformation chain.
+- **format** - the resulting clip’s format, e.g., *YUV420P10*. Defaults to the last format in the transformation chain.
+- **resize** (default BilinearResize) - the filter for resizing images when using the *engine* parameter; high quality is not required.
+- **length** (default 2000) - see *ColorMatch.length*.
+- **dither** (default 0.95) - see *ColorMatch.dither*.
+- **gradient** (default 0) - see *ColorMatch.gradient*.
+- **frameBuffer** (default 0) - see *ColorMatch.frameBuffer*.
+- **frameDiff** (default 1) - see *ColorMatch.frameDiff*.
+- **frameMaxDeviation** (default 0.5) - see *OverlayRender.colorMaxDeviation*.
+- **bufferedExtrapolation** (default false) - see *ColorMatch.bufferedExtrapolation*.
+- **exclude** (default 0) - see *ColorMatch.exclude*.
+- **frame** - see *ColorMatch.frame*.
+- **matrixConversionHQ** (default false) - high-quality color matrix conversion in YUV space with conversion to 32-bit.
+
+### ColorMatchStep
+    ColorMatchStep(string sample, string reference, string space, float intensity, clip merge, 
+                   float weight, float chromaWeight, string channels, int length, float dither, 
+                   float gradient, int frameBuffer, float frameDiff, float exclude, bool debug)
+				   
+A helper filter for defining the transformation chain within *ColorMatchChain*.
+
+#### Parameters
+- **sample** - the target format of the corrected clip, e.g., YV12.
+- **reference** - the target format of the reference clip.
+- **space** - the target color space in z.lib format or AviSynth matrix.
+- **intensity** - overrides *ColorMatchChain.intensity*.
+- **merge** - a child *ColorMatchStep*. If specified, the conversion result will be blended with weights from the *weight* and *chromaWeight* parameters.
+- **channels** - see *ColorMatch.channels*.
+- **length** - overrides *ColorMatchChain.length*.
+- **dither** - overrides *ColorMatchChain.dither*.
+- **gradient** - overrides *ColorMatchChain.gradient*.
+- **frameBuffer** - overrides *ColorMatchChain.frameBuffer*.
+- **frameDiff** - overrides *ColorMatchChain.frameDiff*.
+- **exclude** - overrides *ColorMatchChain.exclude*.
+
+### ComplexityOverlay
+    ComplexityOverlay(clip source, clip overlay, string channels, int steps, float preference, 
+                      bool mask, float smooth, bool invert, int threads, bool debug)
+    
+An independent filter for combining the most complex sections of two clips. Suitable for combining two low-quality sources. Clips must have identical framing, color, resolution, and color spaces.
+
+#### Parameters
+- **source** and **overlay** - input clips.
+- **channels** (default yuv or rgb) - the planes or channels to process. Any combination of y, u, v or r, g, b is allowed (e.g., y, uv, r, br).
+- **steps** (default 1) - the number of steps for forming the overlay mask.
+- **preference** (default 0) - if greater than zero, the second clip is preferred; otherwise, the first clip is preferred. Recommended range: -1 to 1.
+- **mask** (default false) - output the overlay mask instead of the combination.
+- **smooth** (default 0) - blur the overlay mask to reduce sharpness.
+- **invert** (default false) - invert the mask, i.e., prefer the least complex image sections.
+- **threads** (.NET default) - the maximum number of threads.
 
 ### ComplexityOverlayMany
-    ComplexityOverlayMany(clip source, clip[] overlays, string channels, int steps, int threads, bool debug)
+    ComplexityOverlayMany(clip source, clip[] overlays, string channels, int steps, bool invert, int threads, bool debug)
 	
-The same as ComplexityOverlay but for multiple clips.
+Similar to *ComplexityOverlay*, but allows combining an arbitrary number of clips.
 
 ### OverlayCompare
     OverlayCompare(clip engine, clip source, clip overlay, string sourceText, string overlayText, int sourceColor, 
                    int overlayColor, int borderSize, float opacity, int width, int height, bool debug)
-This filter generates comparison clip from source and overlay clips with borders and labels.
+				   
+A filter for visualizing the combination of two clips.
 
 #### Parameters
-- **engine** (required) - *OverlayEngine* clip.
-- **source** (required) - first, base clip.
-- **overlay** (required) - second, overlaid clip.
-- **sourceText** (default "Source") - source clip name.
-- **overlayText** (default "Source") - overlay clip name.
-- **sourceColor** (default 0x0000FF) - source clip border color.
-- **overlayColor** (default 0x00FF00) - overlay clip border color.
-- **borderSize** (default 2) - border size.
-- **opacity** (default 0.51) - opacity of overlay clip.
-- **width** (source clip width by default) - output width.
-- **height** (source clip height by default) - output height.
-- **debug** (default false) - print align settings. 
+- **engine** (required) - an *OverlayEngine* clip.
+- **source** (required) - the first, base clip.
+- **overlay** (required) - the second, overlaid clip.
+- **sourceText** (default "Source") - the name of the source clip.
+- **overlayText** (default "Source") - the name of the overlay clip.
+- **sourceColor** (default 0x0000FF) - the border color of the source clip.
+- **overlayColor** (default 0x00FF00) - the border color of the overlay clip.
+- **borderSize** (default 2) - the border size.
+- **opacity** (default 0.51) - the opacity of the overlay clip.
+- **width** (source clip width by default) - the output width.
+- **height** (source clip height by default) - the output height.
+- **debug** (default false) - print alignment settings.
 
 ### StaticOverlayRender
-    StaticOverlayRender(clip source, clip overlay, float x, float y, float angle, float overlayWidth, float overlayHeight,
+    StaticOverlayRender(clip source, clip overlay, float x, float y, float angle, float overlayWidth, float overlayHeight, 
                         string warpPoints, float diff, clip sourceMask, clip overlayMask, string preset, 
-                        clip innerBounds, clip outerBounds, float overlayBalanceX, float overlayBalanceY, bool fixedSource,
-                        int overlayOrder, string overlayMode, int width, int height, string pixelType, int gradient, int noise, bool dynamicNoise,
-                        int borderControl, float borderMaxDeviation, clip borderOffset, clip srcColorBorderOffset, clip overColorBorderOffset,
-                        bool maskMode, float opacity, float colorAdjust, int colorBuckets, string colorInterpolation, float colorExclude,
-                        int colorFramesCount, float colorFramesDiff, float colorMaxDeviation, string adjustChannels, string matrix,
-                        string upsize, string downsize, string rotate, bool simd, bool debug, bool invert, bool extrapolation,
-                        string background, clip backgroundClip, int blankColor, float backBalance, int backBlur,
-                        bool fullScreen, string edgeGradient, int bitDepth)
+                        clip innerBounds, clip outerBounds, float overlayBalanceX, float overlayBalanceY, bool fixedSource, 
+                        string overlayMode, int width, int height, string pixelType, int gradient, bool noise, 
+                        clip borderOffset, clip srcColorBorderOffset, clip overColorBorderOffset, bool maskMode, float opacity, 
+                        float colorAdjust, int colorBuckets, float colorDither, float colorExclude, int colorFramesCount, 
+                        float colorFramesDiff, bool colorBufferedExtrapolation, string adjustChannels, float gradientColor, 
+                        string matrix, string sourceMatrix, string overlayMatrix, string upsize, string downsize, string rotate, 
+                        bool preview, bool debug, bool invert, string background, clip backgroundClip, int blankColor, 
+                        float backBalance, int backBlur, bool fullScreen, string edgeGradient, int bitDepth)
 
-As OverlayRender but with fixed align settings without OverlayEngine.
-
-#### Parameters
-- **source** (required) - first, base clip.
-- **overlay** (required) - second, overlaid clip.
-- **x** (required) - x coordinate.
-- **y** (required) - y coordinate.
-- **angle** (default 0) - rotation angle.
-- **overlayWidth** (overlay clip width by default) - width of overlay clip after resize.
-- **overlayHeight** (overlay clip height by default) - height of overlay clip after resize.
-- **diff** (default 0) - DIFF value for debug output. 
-Other parameters are same as for *OverlayRender* filter.
+Similar to *OverlayRender*, but without *OverlayEngine*; the clip overlay parameters are specified manually.
 
 ### CustomOverlayRender
     CustomOverlayRender(clip engine, clip source, clip overlay, string function, int width, int height, bool debug)
 	
-This filter allows to override default overlay algorithms by user using overlay settings from OverlayEngine via user function with parameters: `clip engine, clip source, clip overlay, int x, int y, float angle, int overlayWidth, int overlayHeight, float diff)` 
+A filter that allows visualizing the overlay result using a user-defined function with parameters `clip engine, clip source, clip overlay, int x, int y, float angle, int overlayWidth, int overlayHeight, float diff)`.
 
 #### Parameters
-- **engine** (required) - *OverlayEngine* clip.
-- **source** (required) - first, base clip.
-- **overlay** (required) - second, overlaid clip.
-- **function** (required) - user function name. The function must have the following parameters: `clip engine, clip source, clip overlay, int x, int y, float angle, int overlayWidth, int overlayHeight, float cropLeft, float cropTop, float cropRight, float cropBottom, float diff)`
-- **width** (source clip width by default) - output clip width.
-- **height** (source clip height by default) - output clip height.
+- **engine** (required) - an *OverlayEngine* clip.
+- **source** (required) - the first, base clip.
+- **overlay** (required) - the second, overlaid clip.
+- **function** (required) - the name of the user function. The function must have the following parameters:
+- **width** (source clip width by default) - the output clip width.
+- **height** (source clip height by default) - the output clip height.
 - **debug** (default false) - debug mode.
 
 ### OverlayClip
-    OverlayClip(clip clip, clip mask, float opacity, bool debug)
+    OverlayClip(clip clip, clip mask, clip crop, float opacity, string matrix, bool minor, int color, bool debug)
 	
-Support filter to specify additional overlaid clip, mask and opacity level.
+A helper filter that allows specifying an additional clip, mask, and opacity level for *OverlayRender*.
 
 ### Rect
     Rect(float left, float top, float right, float bottom, bool debug)
     
-Support filter to use as argument on other clips. It represents a rectangle. If specified only left then all values take the same value. If specified only left and top then right and bottom will be the same.
-    
-#### Parameters
-Left, top, right, bottom integer values. 
+A helper filter that allows specifying parameters for the left, top, right, and bottom parts of the image, respectively. If only *left* is specified, its value is applied to all. If *left* and *top* are specified, *right* and *bottom* will equal them, respectively.
 
 ### ColorRangeMask
     ColorRangeMask(clip, int low, int high, bool greyMask)
-Support filter which provides mask clip by color range: white if pixel value is between low and high arguments. For YUV clips only luma channel is used. For RGB clips all channels are processed independently. Output is the clip in the same color space. Limited range is not supported. 
+A support filter that provides a mask clip based on a color range: white if the pixel value is between the *low* and *high* arguments. For YUV clips, only the luma channel is used. For RGB clips, all channels are processed independently. The output is a clip in the same color space. Limited range is not supported.
 
 #### Parameters
-- **input** (required) - input clip.
-- **low** (default 0) - lower bound of color range.
-- **high** (default 0) - higher bound of color range.
-- **greyMask** (default true) - one mask (luma channel) for all planes or not.
+- **input** (required) - the input clip.
+- **low** (default 0) - the lower bound of the color range.
+- **high** (default 0) - the higher bound of the color range.
+- **greyMask** (default true) - mask based only on luma or all channels.
 
 ### BilinearRotate
     BilinearRotate(clip, float)
-Support filter for rotation by angle with bilinear interpolation.
+A support filter for rotation by angle with bilinear interpolation.
 
 #### Parameters
-- **input** (required) - input clip.
-- **angle** (required) - rotation angle.
+- **input** (required) - the input clip.
+- **angle** (required) - the rotation angle.
 
 ### OverlayMask
     OverlayMask(clip template, int width, int height, 
                 int left, int top, int right, int bottom, 
                 bool noise, bool gradient, int seed)
-Support filter which provides mask clip for overlay with gradient or noise at borders.
+A support filter that provides a mask clip for overlay with a gradient or noise at the borders.
 
 #### Parameters
-- **template** (default empty) - if specified width, height and color space will be used from template clip for output.
-- **width** - output clip width if template is not specified. 
-- **height** - output clip height if template is not specified.
-- **left**, **top**, **right**, **bottom** - border size.
+- **template** (default empty) - if specified, the width, height, and color space will be taken from the template clip for the output.
+- **width** - the output clip width if *template* is not specified.
+- **height** - the output clip height if *template* is not specified.
+- **left**, **top**, **right**, **bottom** - the border size.
 - **noise** - noise generation on borders.
 - **gradient** - gradient borders.
 - **seed** - seed for noise generation.
 
 ### ExtractScenes
 	ExtractScenes(string statFile, string sceneFile, int sceneMinLength, float maxDiffIncrease)
-Filter to extract and save scene key frames to text file based on stat file of aligning target clip to the target.Trim(1,0) clip. 
+A filter to extract and save scene keyframes to a text file based on the statistics file of aligning the target clip to the *target.Trim(1,0)* clip.
 
 #### Parameters
-- **statFile** - stat file path
-- **sceneFile** - scene file path
-- **sceneMinLength** (default 10) - scene minimal length
-- **maxDiffIncrease** (default 15) - scene detection DIFF value
+- **statFile** - the statistics file path.
+- **sceneFile** - the scene file path.
+- **sceneMinLength** (default 10) - the minimum scene length.
+- **maxDiffIncrease** (default 15) - the scene detection *diff* value.
 
-## User functions
-In additional to "native" filters there is some useful user functions in the file OverlayUtils.avsi.
-They are designed to make two clips synchronization easier and prepare a source for auto-aligning.
+## User Functions
+In addition to the filters listed above, user functions are defined in the *OverlayUtils.avsi* file.  
+They are intended to simplify the process of synchronizing two clips and preparing sources for auto-alignment.
 
 ### aoShift
     aoShift(clip clp, int pivot, int length)
-Shift frames starting from pivot to delete previous frames or insert blank frames depending on direction.
-Positive length - to the right inserting blank frames before pivot
-Negative length - to the left deleting frames before pivot
+Shifts frames starting from the *pivot* frame number, removing previous frames or inserting blank ones depending on the direction.  
+Positive *length* value - shift right with blank frames inserted before *pivot*.  
+Negative *length* value - shift left with frames removed before *pivot*.
 
 ### aoDelay
     aoDelay(clip clp, int length)
-A special case of 'aoShift' function to insert blank or delete frames at clip beginning.
-Positive length - how many blank frames insert 
-Negative length - how many frames delete
+A common case of *aoShift* for inserting or removing frames at the beginning of the clip.  
+Positive *length* value - the number of blank frames to insert.  
+Negative *length* value - the number of frames to remove.
 
 ### aoDelete
     aoDelete(clip clp, int start, int end)
-Delete scene from 'start' to 'end' frame inclusive
+Deletes a sequence of frames from *start* to *end* inclusive.
 
 ### aoReplace
     aoReplace(clip clp, clip replace, int start, int "end")
-Replacing frame sequence from 'start' to 'end' inclusive from another (synchronized) clip starting from same frame.
-'end' equal to 'start' by default (one frame replacing)
-explicit zero 'end' means last frame of the clip
+Replaces a sequence of frames with a similar one from another (synchronized) clip.  
+The *end* parameter defaults to *start*, convenient for replacing a single frame.  
+An explicitly specified zero in *end* is replaced with the last frame.
 
 ### aoOverwrite
     aoOverwrite(clip clp, clip scene, int frame)
-Insert whole clip as a 'scene' from specified 'frame' of input clip with overwriting.
+Inserts another clip *scene* starting from the *frame* in the current clip with overwriting.
 
 ### aoInsert
     aoInsert(clip clp, clip insert, int start, int "end")
-'Insert' scene from another clip from 'start' to 'end' inclusive without overwiting
-'end' equal to 'start' by default (one frame inserting)
-explicit zero 'end' means last frame of the clip
+Inserts a segment from another clip without overwriting, starting at position *start* in both clips, ending at *end* in the inserted clip.  
+The *end* parameter defaults to *start* (inserting a single frame).  
+An explicitly specified zero in *end* is replaced with the last frame.
 
 ### aoTransition
     aoTransition(clip prev, clip next, int transitionStart, int transitionEnd, 
 	             int "reverseTransitionStart", int "reverseTransitionEnd")
-Smooth transition between synchronized clips.
-transitionStart - first frame of transition
-Positive 'transitionEnd' - last frame of transition
-Negative 'transitionEnd' - transition length
-reverseTransitionStart -  first frame of reverse transition, no reverse transition by default
-reverseTransitionEnd - last frame or length of reverse transition, equal to direct transition length by default
+Smooth transition between synchronized clips.  
+- *transitionStart* - the starting frame of the transition, inclusive.  
+- Positive *transitionEnd* value - the last frame of the transition, inclusive.  
+- Negative *transitionEnd* value - the transition duration in frames, inclusive.  
+- *reverseTransitionStart* - the starting frame of the reverse transition; by default, there is no reverse transition.  
+- *reverseTransitionEnd* - the last frame or duration of the reverse transition; by default, it equals the forward transition duration.
 
 ### aoTransitionScene
     aoTransitionScene(clip prev, clip next, int start, int end, int "length")
-Smooth transition of specified 'length' between synchronized clips for scene replacing from 'start' to 'end' frame.
+Smooth transition of a specified *length* between synchronized clips from *start* to *end* to replace a segment in the source clip, a specific case of *aoTransition*.
 
 ### aoBorders
     aoBorders(clip clp, int left, int top, int "right", int "bottom", 
 	          int "refLength", int "segments", float "blur", float "dither")
-Fix invalid color level near borders using ColorAdjust filter.
-left, top, right, bottom params specified how much lines or columns need to fix
-right and bottom are optional and equal to left and right by default
-refLength (default 1) describes number of columns or lines after LTRB that will be used as color reference
-segments (default 1) allows to split image into blocks and process them separatly with smooth transition to avoid invalid color adjustment when image is complicated
-blur (default 0, max 1.5) makes nearest to edge pixels more smooth to avoid noise
-dither - dithering level for ColorAdjust filter
+Corrects color levels near frame borders using the *ColorMatch* filter.  
+- *left*, *top*, *right*, *bottom* - determine how many pixels from the borders to process.  
+- *right* and *bottom* default to *left* and *top*, respectively.  
+- *refLength* (default 1) - sets the width/height of the area immediately adjacent to the corrected area to be used as a color reference.  
+- *segments* (default 1) - allows splitting borders into segments and processing each separately with smooth transitions to avoid color correction errors over a larger frame area, especially if the frame contains many objects.  
+- *blur* (default 0, max 1.5) - blurs pixels closest to the borders to reduce noise.  
+- *dither* - the dithering level for the *ColorMatch* filter.
 
 ### aoInvertBorders
     aoInvertBorders(clip clp, int left, int top, int "right", int "bottom")
-Invert color at borders, useful for masks.
-If input is YUV only luma will be processed 
-right and bottom equal to left and top by default
+Inverts colors at frame borders, suitable for creating masks.  
+In a YUV clip, only luma is processed.  
+*right* and *bottom* default to *left* and *top*, respectively.
 
 ### aoInterpolate
     aoInterpolate(clip clp, int length, int "start", int "end", int "removeGrain")
-Interpolate frame sequence from 'start' to 'end' to the target 'length' with MVTools.
+Interpolates a sequence of clip frames from *start* to *end* inclusive, reducing or increasing their number using the *MVTools* plugin.
 
 ### aoInterpolateScene
     aoInterpolateScene(clip clp, int inStart, int inEnd, int outStart, int outEnd, int "removeGrain")
-Interpolate frame sequence from 'inStart' to 'inEnd' to the target scene from 'outStart' to 'outEnd' with MVTools.
+Interpolates a sequence of clip frames from *inStart* to *inEnd* inclusive, overwriting the result onto frames from *outStart* to *outEnd* using the *MVTools* plugin.
 
 ### aoInterpolateOne
     aoInterpolateOne(clip clp, int frame, bool "insert", int "removeGrain")
-Insert by default or replace with interpolated frame from the nearest with MVTools.
+Inserts (by default) or replaces a single frame interpolated from neighboring frames using the *MVTools* plugin.
 
 ### aoDebug
     aoDebug(clip clp)
-Special function for other functions debugging. 
-In case of aoReplace it removes all frames except replacements. 
+A debugging function for other package functions.  
+For the *aoReplace* function, all frames except the replaced ones will be removed.
 
 ### aoExpand
     aoExpand(clip mask, int pixels, string mode, float "blur")
 	
-Expand the black mask (mode=darken) or white mask (mode=lighten)
+Expands the black mask (*mode=darken*) or white mask (*mode=lighten*).
 
-## Examples
-#### Simple script 
-    OM=AviSource("OpenMatte.avs")
-    WS=AviSource("Widescreen.avs")
-    OverlayEngine(OM, WS, configs = OverlayConfig(subpixel=2)) 
-    OverlayRender(OM, WS, debug = true)
-#### Three clips 
-    OM=AviSource("OpenMatte.avs")
-    WS=AviSource("Widescreen.avs")
-	FS=AviSource("Fullscreen.avs")
-    wsEngine=OverlayEngine(OM, WS)
-	fsEngine=OverlayEngine(OM, FS)
-    wsEngine.OverlayRender(OM, WS, extraClips=fsEngine.OverlayClip(FS))
-#### Analysis pass without render
-    OM=AviSource("OpenMatte.avs")
-    WS=AviSource("Widescreen.avs")
-	# Aspect ratio range was specified
-    config=OverlayConfig(aspectRatio1=2.3, aspectRatio2=2.5)
-	# Set editor=true after analysis pass to edit align params
-    OverlayEngine(OM, WS, configs = config, statFile="Overlay.stat", editor=false)
-	# Uncomment to render aligned clips
-	# OverlayRender(OM, WS, debug=true, noise=50, upsize="Spline64Resize")
-	
-## Use cases
+## Usage Scenarios
 
-### Improvement by other clip with different framing and better quality
+### Clip Preparation
+1. Before performing any actions to combine or color-correct two clips, they must be synchronized frame-by-frame.  
+   AviSynth’s built-in functionality is suitable for this: *Trim*, *DeleteFrame*, *DuplicateFrame*, etc.  
+   Additionally, the *aoShift*, *aoDelay*, *aoDelete*, *aoReplace*, *aoOverwrite*, and *aoInsert* functions can be used.  
+2. If the video has borders, they must be cropped using the *Crop* function.  
+3. Clips must be in the same color space type - YUV or RGB; YUV is recommended.  
+4. If there are overexposures or darkening at the borders, you can try restoring brightness using *aoBorders*.  
+5. Clips can be prepared in separate *.avs* files, which should then be imported into the main script using the *Import* function.  
+6. If the source videos undergo heavy filtering that significantly impacts performance, it is recommended to encode them in a lossless format before processing in *OverlayEngine*.
 
-### Improvement by other clip with same framing and probably quality
+### Combining Clips with Auto-Alignment
+1. First, decide which clip to use as the base. Typically, this is the source with greater frame content.
+2. For automatic combination, both clips must have the same bit depth, e.g., 8-bit or 10-bit. If one source is in HDR and the other in SDR, it is recommended to convert the HDR clip to SDR. This is especially convenient if an SDR alternative with the same framing already exists for the HDR clip; then, the *ColorMatchChain* filter with the *HdrConversion* preset can be used.
+3. Next, prepare a script template for combining with debug mode enabled to evaluate the result and adjust alignment parameters:
+    ```
+    OM=Import("OM.avs")
+    WS=Import("WS.avs")
+    WStest = WS.ColorMatchChain(Import("WS_SDR.avs"), preset = "HdrConversion") # Example of preliminary color correction with bit depth change for use in OverlayEngine instead of the WS clip
+    config = OverlayConfig() # Add necessary parameters as needed, e.g., aspectRatio1, aspectRatio2, preset, etc.
+    engine = OverlayEngine(OM, WS, configs = config)
+    engine.OverlayRender(OM, WS, debug = true, preset = "difference")
+4. In AvsPmod, review the result. The intersection area should be as uniformly gray as possible without contours. If necessary, adjust the *OverlayConfig* and *OverlayEngine* parameters.
+5. After determining the optimal parameters, specify a statistics file and run a test pass to collect statistics. In AvsPmod: *Video/Tools/Run analysis pass*. Temporarily commenting out *OverlayRender* will improve performance:
+    ```
+    config = OverlayConfig(preset = "high", aspectRatio1 = 2.38, aspectRatio2 = 2.42) # Selected parameters
+    engine = OverlayEngine(OM, WS, configs = config, statFile = "WS.stat")
+    engine#.OverlayRender(OM, WS, debug = true, preset = "difference") # OverlayRender commented out with #
+6. After the test run, review and edit the result using the editor by adding the *editor=true* parameter to *OverlayEngine*.
+7. Now, prepare the final video by uncommenting *OverlayRender* and adding the necessary parameters:
+    ```
+    engine = OverlayEngine(OM, WS, configs = config, statFile = "WS.stat")
+    engine.OverlayRender(OM, WS, debug = false, preset = "FullFrame", colorAdjust = 0) # Maximize frame content with color correction based on the base clip
+8. If the overlaid clip is of lower quality than the base clip, make it transparent in *OverlayRender*, i.e., *opacity=0*.
 
-### Visible frame area maximization
+### Combining Sources with Identical Frame Content for Improved Quality
+To do this, use the *ComplexityOverlay* or *ComplexityOverlayMany* filter if there are multiple sources:
 
-### Color matching
+    ComplexityOverlay(clip1, clip2, steps = 2, smooth = 0.5)
 
-### HDR to SDR conversion
+It is advisable to use *ComplexityOverlay* before applying filters that globally affect the image, such as *ColorMatch*. If filtering is needed, first create an overlay mask in *mask=true* mode, then apply the filters, and overlay the clips using the mask:
+    
+    mask = ComplexityOverlay(clip1, clip2, steps = 2, smooth = 0.5)
+    clip2 = clip2.ColorMatch(clip1)
+    clip1.Overlay(clip2, mask = mask)
 
-### SDR to HDR conversion
+### Automatic Color Correction
+1. The *ColorMatch* and *ColorMatchChain* filters are designed for this purpose.
+2. If the clips have different dynamic framing, they must first be aligned using *OverlayEngine*.
+3. If the source clips are in the same color space and the color has undergone only linear transformations, *ColorMatch* or *OverlayRender* is sufficient:
+    
+    ```target.ColorMatch(reference)```
+4. For complex multi-step color correction, use *ColorMatchChain*:
+    
+    ```target.ColorMatchChain(reference, preset = "RgbYuv32")```
 
-### Logo removal
+### HDR <-> SDR Conversion
+Use *ColorMatchChain* with the *HdrConversion* or *HdrConversionHQ* preset.
+If the framing is dynamic, prepare *OverlayEngine* and specify it in the *engine* parameter.
 
-### Clip comparing
+### Logo Removal
+1. If the video has a logo, prepare a mask clip where the logo is strictly black (zero value).
+2. It is advisable to blur the edges to ensure smooth transitions during overlay in *OverlayRender*. The blurred edges should extend beyond the logo:
+    mask = ImageSource("logo.png", end = 0, pixel_type = "Y8") # Static mask from a single frame
+    mask = mask.aoExpand(3, "darken", 1.5) # Optional mask expansion with blur
+3. The mask clip can be dynamic and have the same length as the base clip.
+4. After creating the mask, use it in all filters that support it for the base or overlaid clip: *OverlayEngine*, *ColorMatch*, *OverlayRender*, etc.
 
-### Invalid or out of sync frames discovering
+### Clip Comparison
+1. To check frame-by-frame that two clips have identical framing/are fully synchronized/do not contain defective frames, use *OverlayEngine* after bringing both clips to the same resolution:
+    clip1 = clip1.BilinearResize(clip2.width, clip2.height)
+    OverlayEngine(clip1, clip2, maxDiff = 1024, sceneDiffTolerance = 10000, statFile = "diff.stat")
+2. After the test run, reduce *maxDiff* to the minimum level and check which frames exceed it in the editor (checkbox *Defective only*):
+    OverlayEngine(clip1, clip2, maxDiff = 5, statFile = "diff.stat", editor = true)
 
-### Edge correction
+## Changelog
+### 15.03.2025 v0.7
+1. All functions of the *ColorAdjust* filter have been moved to the *ColorMatch* filter. The *ColorAdjust* filter has been discontinued.
+2. *OverlayEngine*: new prediction and stabilization algorithm with presets.
+3. *OverlayRender*: new overlay algorithm using the helper *LayerMask* filter.
+4. *OverlayRender*: parameters *StabilizationDiffTolerance*, *StabilizationAreaTolerance*, *StabilizationLength* for image stabilization.
+5. *OverlayConfig*: presets.
+6. *OverlayConfig*: additional image rotation parameters.
+7. *ComplexityOverlay* and *ComplexityOverlayMany* - HDR support and overlay mask inversion parameters.
+8. Significantly improved performance in most filters.
+9. New *ColorMatchChain* and *ColorMatchStep* filters for multi-step color correction.
+10. *OverlayRender*: parameters for correcting clip cropping after applying *OverlayEngine*.
+11. *OverlayEditor*: UI improvements, accounting for the latest filter changes.
+12. The *simd.dll* library has been discontinued and is now embedded in *AutoOverlayNative.dll*.
+13. Support for RGBP and 32-bit HDR in most filters.
 
-### Scene detection
-
-## Changelist
 ### 13.05.2024 v0.6.2
-1. ColorMatch: new color matching filter with 32 bit float color support
-2. OverlayEngine, OverlayRender, OverlayMask: enhanced HDR and RGB color support
-3. OverlayRender: explicit BitDepth parameter support
-4. OverlayRender: presets
-5. OverlayRender: fix border artefacts when chroma subsampling is used
-6. OverlayRender: ColorMatch instead of ColorAdjust when bit depth is 32
-7. MathNet.Numerics updated to 5.0.0
-8. Clip disposing fix
+1. *ColorMatch*: new filter for color matching with 32-bit color support.
+2. *OverlayEngine*, *OverlayRender*, *OverlayMask*: improved HDR and RGB support.
+3. *OverlayRender*: *BitDepth* parameter to explicitly specify the resulting clip’s bit depth.
+4. *OverlayRender*: presets.
+5. *OverlayRender*: fixed artifacts at image borders with color subsampling.
+6. *OverlayRender*: uses the *ColorMatch* filter instead of *ColorAdjust* for 32-bit bit depth.
+7. *MathNet.Numerics* updated to version 5.0.0.
+8. Fixed resource release.
 
 ### 02.12.2023 v0.6.1
-1. OverlayEngine: warp and colorAdjust bugfix
+1. *OverlayEngine*: warp and colorAdjust bugfix.
 
-### 01.12.2023 v0.6.0
-1. OverlayRender: parameter mode deleted.
-2. OverlayRender: added parameters extraClips, innerBounds, outerBounds, overlayBalanceX, overlayBalanceY, fixedSource, overlayOrder, maskMode, colorInterpolation, colorExclude, backgroundClip, backBalance, fullScreen, edgeGradient.
-3. OverlayRender: parameter background replaced with backBalance, the aim of background parameter was changed.
-4. OverlayRender: multiple clips support.
-5. OverlayEngine: panScanDistance and panScanScale renamed to scanDistance and scanScale.
-6. ComplexityOverlayMany filter was added.
-
-### 17.01.2022 v0.5.2
-1. OverlayRender: fix mode=5
-2. ExtractScenes: fix parameter type
-3. OvrelayEditor: fix warp input parsing
-4. OverlayEngine: fix minArea and maxArea using
-5. AvsFilterNet: AviSynth 3.7.1 better compatibility
-
-### 29.12.2021 v0.5.1
-1. .NET 4.7, latest C# level
-2. Color interpolation disabling
-3. GreyMask is now optional
-4. Threads parameter
-5. Better color excluding algoritm
-6. RGB internal converting fix
-7. Stick level & stick distance params
-8. Overlay engine repeat cache fix
-9. Overlay editor fixes
-10. aoDebug function
-
-### 04.09.2021 v0.5.0
-1. User function package
-2. Render: fix RGB HDR color mapping
-3. OverlayMask: HDR support
-4. Render: seed parameter
-
-### 28.08.2021 v0.4.3
-1. Editor: maxDiff param editing.
-2. Editor: three-state defective frames checkbox.
-3. Engine: "unprocessed only" mode.
-4. Engine: dummy frame output fix.
-5. Core: filter disposing fix.
-6. Render: fix rotation rendering.
-
-### 29.05.2021 v0.4.2
-1. Fix editor async frame rendering.
-2. Fix mask usage with chroma subsampling.
-
-### 28.03.2021 v0.4.1
-1. OverlayEngine: fix using sourceMask and overlayMask at the same time. The pixels with mask max value (255 or 65535) are taken to calculate DIFF value.
-2. OverlayRender: fix using overlayMask without gradient and noise.
-3. Other minor fixes and refactoring.
-
-### 17.01.2021 v0.4.0
-1. Fix internal clip cache (speed improvement especially with "hard" input clips).
-2. ColorAdjust: adjacent frames analyzing for better color matching (AdjacentFramesCount and AdjacentFramesDiff params) + speed improvement.
-3. ColorAdjust: fix blank frame processsing. 
-4. OverlayRender: new overlay mask algorithm on borders when gradient and noise are used at the same time: more accurate frame intersection. Both 50-100 values are optimal to use.  
-5. OverlayRender: BorderControl and BorderMaxDeviation params for adjacent frames analyzing to stablize overlay mask on borders during the scene.
-6. OverlayRender: ColorFramesCount, ColorFramesDiff and ColorMaxDeviation params for better color matching during the scene.
-7. OverlayRender: experimanetal BitDepth param to change bit depth of output clip and input clip after transformation for better color adjustment. 
-8. ExtractScenes: new filter for scene detection by stat file analyzing.
-9. OverlayConfig: WarpPoints, WarpSteps and WarpOffset params for "warp" (similar to quadrilateral but more flexible) transformations with warp filter by wonkey_monkey. Only 8 bit clips support. 
-10. OverlayEngine: SceneFile param to use a text file with keyframes to separate scenes during adjacent frames analyzing. 
-11. Fix exception visualization. 
-12. OverlayEditor: asynchronous rendering, new scene processing dialog.
-13. OverlayEditor: new "Frame processing" section.
-14. OverlayEditor: large stat file speed up.
-15. OverlayEditor: default maximum of records in grid changed to 2000.
-16. OverlayEditor: more intuitive scene processing. Frames are grouped to scenes with max deviation parameter. 
-17. OverlayEditor: new "adjust" scene processing mode. Selected scene frames are adjusted around current frame using Distance and Scale values.
-18. OverlayEditor: "Scan" mode works different: from first to last frame of the scene taking warp from selected frame.
-19. OverlayEditor: "warp" field with list of points for warp transformation. 
-20. OverlayEngine: new stat file format version with warp points (max 16 allowed).
-
-### 29.08.2020 v0.3.1
-1. Fix first frame x264 encoding.
-2. ColorAdjust: HDR extrapolation fix, dynamicNoise parameter.
-3. OverlayRender: extrapolation parameter.
-
-### 28.08.2020 v0.3
-1. OverlayEngine: presize and resize instead of upsize and downsize.
-2. OverlayEngine: new engine mode PROCESSED.
-3. OverlayEngine: pan&scan (unstable sources) support.
-4. SIMD Library using and increased performance. 
-5. ColorAdjust: new interpolation algorithms via Math.NET Numerics.
-6. AviSynth API v8 
-7. OverlayEditor: new features. 
-8. OverlayRender: new features.
-9. ComplexityOverlay: new filter.
+### 01.12.2023 v0.6
+1. *OverlayRender*: removed the *mode* parameter.
+2. *OverlayRender*: added parameters *extraClips*, *innerBounds*, *outerBounds*, *overlayBalanceX*, *overlayBalanceY*, *fixedSource*, *overlayOrder*, *maskMode*, *colorInterpolation*, *colorExclude*, *backgroundClip*, *backBalance*, *fullScreen*, *edgeGradient*.
+3. *OverlayRender*: replaced the *background* parameter with *backBalance*, with the *background* parameter’s purpose changed.
+4. *OverlayRender*: added support for overlaying an arbitrary number of clips.
+5. *OverlayEngine*: renamed *panScanDistance* and *panScanScale* to *scanDistance* and *scanScale*.
+6. Added the *ComplexityOverlayMany* filter.

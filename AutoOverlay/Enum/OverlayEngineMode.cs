@@ -4,6 +4,7 @@
     {
         DEFAULT,
         UPDATE,
+        ENHANCE,
         ERASE,
         READONLY,
         PROCESSED,

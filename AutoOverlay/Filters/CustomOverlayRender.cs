@@ -7,7 +7,7 @@ using AvsFilterNet;
 [assembly: AvisynthFilterClass(typeof(CustomOverlayRender),
     nameof(CustomOverlayRender),
     "ccc[Function]s[Width]i[Height]i[Debug]b",
-    OverlayUtils.DEFAULT_MT_MODE)]
+    OverlayConst.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
     public class CustomOverlayRender : OverlayFilter
@@ -55,12 +55,7 @@ namespace AutoOverlay
                 hybrid = hybrid.Subtitle(info.ToString().Replace("\n", "\\n"), lsp: 0);
             var res = NewVideoFrame(StaticEnv);
             using VideoFrame frame = hybrid[n];
-            Parallel.ForEach(new[] { YUVPlanes.PLANAR_Y, YUVPlanes.PLANAR_U, YUVPlanes.PLANAR_V }, plane =>
-            {
-                for (var y = 0; y < frame.GetHeight(plane); y++)
-                    OverlayUtils.CopyMemory(res.GetWritePtr(plane) + y * res.GetPitch(plane),
-                        frame.GetReadPtr(plane) + y * frame.GetPitch(plane), res.GetRowSize(plane));
-            });
+            frame.CopyTo(res, GetVideoInfo().pixel_type.GetPlanes());
             return res;
         }
     }

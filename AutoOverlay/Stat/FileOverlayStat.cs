@@ -9,7 +9,7 @@ namespace AutoOverlay
 {
     public class FileOverlayStat : IOverlayStat
     {
-        private readonly Stream stream;
+        private readonly BufferedStream stream;
         private readonly BinaryReader reader;
 
         private readonly Size srcSize, overSize;
@@ -25,12 +25,12 @@ namespace AutoOverlay
             stream = new BufferedStream(new FileStream(statFile, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite));
             reader = new BinaryReader(stream);
             var header = (byte) stream.ReadByte();
-            if (header == 0 || header > OverlayUtils.OVERLAY_FORMAT_VERSION)
+            if (header == 0 || header > OverlayConst.OVERLAY_FORMAT_VERSION)
                 throw new AvisynthException("Unsupported stat file version");
             format = new OverlayStatFormat(header);
         }
 
-        public FileOverlayStat(string statFile, Size srcSize, Size overSize, byte version = OverlayUtils.OVERLAY_FORMAT_VERSION)
+        public FileOverlayStat(string statFile, Size srcSize, Size overSize, byte version = OverlayConst.OVERLAY_FORMAT_VERSION)
         {
             this.srcSize = srcSize;
             this.overSize = overSize;
@@ -94,6 +94,7 @@ namespace AutoOverlay
                         format.WriteFrame(writer, value);
                     }
                     writer.Flush();
+                    stream.Flush();
                 }
             }
         }

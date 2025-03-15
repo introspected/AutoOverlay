@@ -17,20 +17,27 @@ namespace AutoOverlay
 
         public dynamic DynamicEnv => DynamicEnvironment.Env;
         public ScriptEnvironment StaticEnv => DynamicEnvironment.Env ?? topLevel;
-        private DynamicEnvironment topLevel;
+        protected DynamicEnvironment topLevel;
 
         private static ConcurrentDictionary<string, OverlayFilter> Filters { get; } = new();
-        public string FilterId { get; } = Guid.NewGuid().ToString();
+        public string FilterId { get; }
 
-        private readonly LinkedList<Clip> attached = new();
+        private LinkedList<Clip> attached;
 
         protected OverlayFilter()
         {
-            Filters[FilterId] = this;
+            if (GenerateId)
+            {
+                FilterId = Guid.NewGuid().ToString();
+                Filters[FilterId] = this;
+            }
         }
+
+        protected virtual bool GenerateId { get; }
 
         public void Attach(Clip clip)
         {
+            attached ??= [];
             attached.AddLast(clip);
         }
 
@@ -43,9 +50,8 @@ namespace AutoOverlay
                 using (new DynamicEnvironment(env))
                 {
 
-                    OverlayUtils.InitArgs(this, args);
+                    FilterUtils.InitArgs(this, args);
                     Initialize(args);
-                    base.Initialize(args, env);
                 }
                 topLevel = new DynamicEnvironment(env, false);
                 AfterInitialize();
@@ -116,13 +122,13 @@ namespace AutoOverlay
 
         protected virtual VideoFrame GetFrame(int n)
         {
-            return Debug ? GetSubtitledFrame(ToString()) : NewVideoFrame(StaticEnv);
+            return Debug ? GetSubtitledFrame(ToString) : NewVideoFrame(StaticEnv);
         }
 
-        protected VideoFrame GetSubtitledFrame(string text)
+        protected VideoFrame GetSubtitledFrame(Func<string> text)
         {
             var blank = DynamicEnv.BlankClip(width: GetVideoInfo().width, height: GetVideoInfo().height);
-            var subtitled = blank.Subtitle(text.Replace("\n", "\\n"), align: 8, lsp: 0, size: 24);
+            var subtitled = blank.Subtitle(text().Replace("\n", "\\n"), align: 8, lsp: 0, size: 24);
             return subtitled[0];
         }
 
@@ -137,22 +143,23 @@ namespace AutoOverlay
             Clip clip,
             string resizeFunc, string rotateFunc,
             int width, int height, double angle = 0,
-            RectangleD crop = default, Warp warp = default)
+            RectangleD crop = default, Warp warp = null)
         {
             if (clip == null)
                 return null;
             var dynamic = clip.Dynamic();
-            if (warp != null && !warp.IsEmpty)
+            if (warp is { IsEmpty: false })
                 dynamic = dynamic.Warp(warp.ToArray(), relative: true,
                     resample: OverlayUtils.GetWarpResampleMode(resizeFunc));
+
 
             var vi = clip.GetVideoInfo();
 
             var intCrop = Rectangle.FromLTRB(
-                (int) Math.Floor(crop.Left),
-                (int) Math.Floor(crop.Top),
-                (int) Math.Floor(crop.Right),
-                (int) Math.Floor(crop.Bottom)
+                (int)Math.Floor(crop.Left),
+                (int)Math.Floor(crop.Top),
+                (int)Math.Floor(crop.Right),
+                (int)Math.Floor(crop.Bottom)
             );
             if (!intCrop.IsEmpty)
             {
@@ -179,26 +186,19 @@ namespace AutoOverlay
                     src_left: crop.Left, src_top: crop.Top,
                     src_width: -crop.Right, src_height: -crop.Bottom);
             }
-            //TODO rotate first
+
             return angle == 0 ? dynamic : dynamic.Invoke(rotateFunc, angle);
         }
 
-        protected void Log(Func<string> supplier)
+        protected void DisableLog(Func<string> supplier, bool forced = false)
         {
-#if DEBUG
-            if (Debug)
-                System.Diagnostics.Debug.WriteLine(supplier());
-#endif
         }
 
-        protected void Log(string format, params object[] args)
+        protected void Log(Func<string> supplier, bool forced = false)
         {
 #if DEBUG
-            if (!Debug) return;
-            if (args.Length == 0)
-                System.Diagnostics.Debug.WriteLine(format);
-            else
-                System.Diagnostics.Debug.WriteLine(format, args);
+            if (Debug || forced)
+                System.Diagnostics.Debug.WriteLine(supplier());
 #endif
         }
 
@@ -206,13 +206,15 @@ namespace AutoOverlay
         {
             if (disposing)
             {
-                OverlayUtils.Dispose(this);
+                FilterUtils.Dispose(this);
                 topLevel?.Dispose();
                 topLevel = null;
-                foreach (var clip in attached)
-                    clip.Dispose();
+                if (attached != null)
+                    foreach (var clip in attached)
+                        clip.Dispose();
             }
-            Filters.TryRemove(FilterId, out _);
+            if (FilterId != null)
+                Filters.TryRemove(FilterId, out _);
             base.Dispose(disposing);
         }
 
@@ -222,18 +224,10 @@ namespace AutoOverlay
                 filter.Dispose();
         }
 
-        protected void Copy(VideoFrame frame, VideoFrame res, YUVPlanes[] planes)
-        {
-            using (frame)
-            {
-                Parallel.ForEach(planes, plane => OverlayUtils.CopyPlane(frame, res, plane));
-            }
-        }
-
         protected VideoFrame Copy(VideoFrame frame)
         {
             var res = NewVideoFrame(StaticEnv);
-            Copy(frame, res, GetVideoInfo().pixel_type.GetPlanes());
+            frame.CopyTo(res, GetVideoInfo().pixel_type.GetPlanes());
             return res;
         }
 

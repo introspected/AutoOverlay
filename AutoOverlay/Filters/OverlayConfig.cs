@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.IO;
-using System.Linq;
 using AutoOverlay;
 using AutoOverlay.AviSynth;
 using AutoOverlay.Overlay;
@@ -10,9 +8,10 @@ using AvsFilterNet;
 
 [assembly: AvisynthFilterClass(typeof(OverlayConfig),
     nameof(OverlayConfig),
-    "[MinOverlayArea]f[MinSourceArea]f[AspectRatio1]f[AspectRatio2]f[Angle1]f[Angle2]f" +
+    "[Preset]s[MinOverlayArea]f[MinSourceArea]f[AspectRatio1]f[AspectRatio2]f[Angle1]f[Angle2]f" +
+    "[MinAngleStep]f[MaxAngleStep]f[AngleStepCount]f" +
     "[WarpPoints]c[WarpSteps]i[WarpOffset]i[MinSampleArea]i[RequiredSampleArea]i[MaxSampleDiff]f" +
-    "[Subpixel]i[ScaleBase]f[Branches]i[BranchMaxDiff]f[AcceptableDiff]f[Correction]i" +
+    "[Subpixel]i[ScaleBase]f[Branches]i[BranchMaxDiff]f[AcceptableDiff]f[Correction]f[CorrectionRotation]f" +
     "[MinX]i[MaxX]i[MinY]i[MaxY]i[MinArea]i[MaxArea]i[FixedAspectRatio]b[Debug]b",
     MtMode.SERIALIZED)]
 namespace AutoOverlay
@@ -20,6 +19,51 @@ namespace AutoOverlay
     [Serializable]
     public class OverlayConfig : SupportFilter
     {
+        #region Presets
+        static OverlayConfig()
+        {
+            Presets.Add<OverlayConfigPreset, OverlayConfig>(new()
+            {
+                [OverlayConfigPreset.Low] = new()
+                {
+                    [nameof(Subpixel)] = _ => 0,
+                    [nameof(Branches)] = _ => 1,
+                    [nameof(MinSampleArea)] = _ => 1000,
+                    [nameof(RequiredSampleArea)] = _ => 1000,
+                },
+                [OverlayConfigPreset.Medium] = new()
+                {
+                    // defaults
+                },
+                [OverlayConfigPreset.High] = new()
+                {
+                    [nameof(Subpixel)] = _ => 2,
+                    [nameof(Branches)] = _ => 3,
+                    [nameof(RequiredSampleArea)] = _ => 4000,
+                    [nameof(RotationCorrection)] = _ => 1,
+                },
+                [OverlayConfigPreset.Extreme] = new()
+                {
+                    [nameof(Subpixel)] = _ => 3,
+                    [nameof(Branches)] = _ => 4,
+                    [nameof(MinSampleArea)] = _ => 2000,
+                    [nameof(RequiredSampleArea)] = _ => 5000,
+                    [nameof(RotationCorrection)] = _ => 1,
+                },
+                [OverlayConfigPreset.Fixed] = new()
+                {
+                    [nameof(Subpixel)] = _ => 0,
+                    [nameof(Branches)] = _ => 1,
+                    [nameof(FixedAspectRatio)] = _ => true,
+                    [nameof(MinOverlayArea)] = _ => 100,
+                },
+            });
+        }
+        #endregion
+
+        [AvsArgument]
+        public OverlayConfigPreset Preset { get; private set; } = OverlayConfigPreset.Medium;
+
         [AvsArgument(Min = 0, Max = 100)]
         public double MinOverlayArea { get; set; }
 
@@ -38,7 +82,16 @@ namespace AutoOverlay
         [AvsArgument(Min = -360, Max = 360)]
         public double Angle2 { get; set; }
 
-        [AvsArgument(Max = 16)]
+        [AvsArgument(Min = 0)]
+        public double MinAngleStep { get; set; } = 0.05;
+
+        [AvsArgument(Min = 0.01)]
+        public double MaxAngleStep { get; set; } = 1;
+
+        [AvsArgument(Min = 2, Max = 10)]
+        public double AngleStepCount { get; set; } = 2;
+
+        [AvsArgument(Max = 16, LTRB = false)]
         public List<Rectangle> WarpPoints { get; set; } = new();
 
         [AvsArgument(Min = 1, Max = 10)]
@@ -57,13 +110,13 @@ namespace AutoOverlay
         public double MaxSampleDiff { get; set; } = 5;
 
         [AvsArgument(Min = -5, Max = 5)]
-        public int Subpixel { get; set; }
+        public int Subpixel { get; set; } = 1;
 
         [AvsArgument(Min = 1.1, Max = 5)]
         public double ScaleBase { get; set; } = 1.5;
 
         [AvsArgument(Min = 1, Max = 100)]
-        public int Branches { get; set; } = 1;
+        public int Branches { get; set; } = 2;
 
         [AvsArgument(Min = 0, Max = 100)]
         public double BranchMaxDiff { get; set; } = 0.2;
@@ -72,7 +125,10 @@ namespace AutoOverlay
         public double AcceptableDiff { get; set; } = 5;
 
         [AvsArgument(Min = 0, Max = 100)]
-        public int Correction { get; set; } = 1;
+        public double Correction { get; set; } = 1;
+
+        [AvsArgument(Min = 0, Max = 100)]
+        public double RotationCorrection { get; set; } = 0.5;
 
         [AvsArgument]
         public int MinX { get; set; } = short.MinValue;
@@ -111,10 +167,13 @@ namespace AutoOverlay
                    $"MinOverlayArea={MinOverlayArea:F2}, MinSourceArea={MinSourceArea:F2},\n" +
                    $"AspectRatio1={AspectRatio1:F2}, AspectRatio2={AspectRatio2:F2},\n" +
                    $"Angle1={Angle1:F2}, Angle2={Angle2:F2},\n" +
+                   $"MinAngleStep={MinAngleStep:F2}, MaxAngleStep={MaxAngleStep:F2},\n" +
+                   $"AngleStepCount={AngleStepCount:F2},\n" +
                    $"MinSampleArea={MinSampleArea}, RequiredSampleArea={RequiredSampleArea},\n" +
                    $"MaxSampleDifference={MaxSampleDiff}, Subpixel={Subpixel},\n" +
                    $"ScaleBase={ScaleBase:F1}, PointCount={Branches},\n" +
-                   $"AcceptableDiff={AcceptableDiff:F2}, Correction={Correction}";
+                   $"AcceptableDiff={AcceptableDiff:F2},\n" +
+                   $"Correction={Correction:F2}, RotationCorrection={RotationCorrection:F2}";
         }
 
         protected bool Equals(OverlayConfig other)
@@ -124,7 +183,9 @@ namespace AutoOverlay
                 && Angle1.Equals(other.Angle1) && Angle2.Equals(other.Angle2) && MinSampleArea == other.MinSampleArea 
                 && RequiredSampleArea == other.RequiredSampleArea && MaxSampleDiff.Equals(other.MaxSampleDiff) 
                 && Subpixel == other.Subpixel && ScaleBase.Equals(other.ScaleBase) && Branches == other.Branches 
-                && AcceptableDiff.Equals(other.AcceptableDiff) && Correction == other.Correction;
+                && AcceptableDiff.Equals(other.AcceptableDiff) && Correction.Equals(other.Correction) 
+                && RotationCorrection.Equals(other.RotationCorrection) && MinAngleStep.Equals(other.MinAngleStep) 
+                && MaxAngleStep.Equals(other.MaxAngleStep) && AngleStepCount.Equals(other.AngleStepCount);
         }
 
         public override bool Equals(object obj)
@@ -152,7 +213,11 @@ namespace AutoOverlay
                 hashCode = (hashCode * 397) ^ ScaleBase.GetHashCode();
                 hashCode = (hashCode * 397) ^ Branches;
                 hashCode = (hashCode * 397) ^ AcceptableDiff.GetHashCode();
-                hashCode = (hashCode * 397) ^ Correction;
+                hashCode = (hashCode * 397) ^ Correction.GetHashCode();
+                hashCode = (hashCode * 397) ^ RotationCorrection.GetHashCode();
+                hashCode = (hashCode * 397) ^ AngleStepCount.GetHashCode();
+                hashCode = (hashCode * 397) ^ MinAngleStep.GetHashCode();
+                hashCode = (hashCode * 397) ^ MaxAngleStep.GetHashCode();
                 return hashCode;
             }
         }
@@ -165,6 +230,9 @@ namespace AutoOverlay
             AspectRatio2 = AspectRatio2,
             Angle1 = Angle1,
             Angle2 = Angle2,
+            MinAngleStep = MinAngleStep,
+            MaxAngleStep = MaxAngleStep,
+            AngleStepCount = AngleStepCount,
             MinSampleArea = MinSampleArea,
             RequiredSampleArea = RequiredSampleArea,
             MaxSampleDiff = MaxSampleDiff,
@@ -173,6 +241,7 @@ namespace AutoOverlay
             Branches = Branches,
             AcceptableDiff = AcceptableDiff,
             Correction = Correction,
+            RotationCorrection = RotationCorrection,
             BranchMaxDiff = BranchMaxDiff,
             FixedAspectRatio = FixedAspectRatio,
             MaxArea = MaxArea,

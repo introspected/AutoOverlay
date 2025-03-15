@@ -2,20 +2,20 @@
 
 namespace AutoOverlay.Overlay
 {
-    public class MinMax
+    public record MinMax(double Min, double Max)
     {
-        public double Min { get; private set; }
-        public double Max { get; private set; }
-
-        public MinMax(int depth)
+        public MinMax(int depth) : this(0, (1 << depth) - 1)
         {
-            Min = 0;
-            Max = (1 << depth) - 1;
+
         }
 
-        public MinMax(PlaneChannel planeChannel, VideoFrame frame)
+        public MinMax(PlaneChannel planeChannel, VideoFrame frame) : this(new FramePlane(planeChannel, frame, true))
         {
-            var framePlane = new FramePlane(planeChannel, frame, true);
+
+        }
+
+        public MinMax(FramePlane framePlane) : this(0, 0)
+        {
             var minMax = NativeUtils.FindMinMax(framePlane);
             Min = minMax.Item1;
             Max = minMax.Item2;

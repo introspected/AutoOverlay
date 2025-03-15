@@ -2,7 +2,7 @@
 using AutoOverlay;
 using AvsFilterNet;
 
-[assembly: AvisynthFilterClass(typeof(ColorRangeMask), nameof(ColorRangeMask), "c[low]i[high]i[greyMask]b", OverlayUtils.DEFAULT_MT_MODE)]
+[assembly: AvisynthFilterClass(typeof(ColorRangeMask), nameof(ColorRangeMask), "c[low]i[high]i[greyMask]b", OverlayConst.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
     public class ColorRangeMask : AvisynthFilter
@@ -27,11 +27,11 @@ namespace AutoOverlay
         {
             var resFrame = NewVideoFrame(env);
             if (realPlanar && greyMask)
-                OverlayUtils.ResetChroma(resFrame);
+                AvsUtils.ResetChroma(resFrame);
             using var srcFrame = base.GetFrame(n, env);
             unsafe
             {
-                var planes = greyMask ? new[] {default(YUVPlanes)} : OverlayUtils.GetPlanes(GetVideoInfo().pixel_type);
+                var planes = greyMask ? [default] : GetVideoInfo().pixel_type.GetPlanes();
                 Parallel.ForEach(planes, plane =>
                 {
                     var srcStride = srcFrame.GetPitch(plane);
