@@ -631,7 +631,7 @@ To do this, use the *ComplexityOverlay* or *ComplexityOverlayMany* filter if the
 
 It is advisable to use *ComplexityOverlay* before applying filters that globally affect the image, such as *ColorMatch*. If filtering is needed, first create an overlay mask in *mask=true* mode, then apply the filters, and overlay the clips using the mask:
     
-    mask = ComplexityOverlay(clip1, clip2, steps = 2, smooth = 0.5)
+    mask = ComplexityOverlay(clip1, clip2, steps = 2, smooth = 0.5, mask = true)
     clip2 = clip2.ColorMatch(clip1)
     clip1.Overlay(clip2, mask = mask)
 
@@ -659,10 +659,11 @@ If the framing is dynamic, prepare *OverlayEngine* and specify it in the *engine
 
 ### Clip Comparison
 1. To check frame-by-frame that two clips have identical framing/are fully synchronized/do not contain defective frames, use *OverlayEngine* after bringing both clips to the same resolution:
+    ```
     clip1 = clip1.BilinearResize(clip2.width, clip2.height)
     OverlayEngine(clip1, clip2, maxDiff = 1024, sceneDiffTolerance = 10000, statFile = "diff.stat")
 2. After the test run, reduce *maxDiff* to the minimum level and check which frames exceed it in the editor (checkbox *Defective only*):
-    OverlayEngine(clip1, clip2, maxDiff = 5, statFile = "diff.stat", editor = true)
+    ```OverlayEngine(clip1, clip2, maxDiff = 5, statFile = "diff.stat", editor = true)```
 
 ## Changelog
 ### 15.03.2025 v0.7

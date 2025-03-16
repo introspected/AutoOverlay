@@ -614,7 +614,7 @@ Expand the black mask (mode=darken) or white mask (mode=lighten)
 
 ComplexityOverlay целесообразно использовать до применения к источникам фильтров, которые глобально влияют на изображение, например ColorMatch. Если есть потребность в фильтрации, то сначала надо создать маску наложения в режиме *mask=true*, затем применить фильтры, а потом наложить клипы один на другой по маске:
     
-    mask = ComplexityOverlay(clip1, clip2, steps = 2, smooth = 0.5)
+    mask = ComplexityOverlay(clip1, clip2, steps = 2, smooth = 0.5, mask = true)
 	clip2 = clip2.ColorMatch(clip1)
 	clip1.Overlay(clip2, mask = mask)
 
