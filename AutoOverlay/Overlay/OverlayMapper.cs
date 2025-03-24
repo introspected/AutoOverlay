@@ -204,10 +204,10 @@ namespace AutoOverlay.Overlay
                 OverlayWarp = overWarp,
                 Coef = coef.X,
                 ExtraClips = extraClipList,
-                Union = extraClipList
+                ActiveArea = extraClipList
                     .Select(p => p.Overlay)
                     .Aggregate(Rectangle.Union(targetSrc, targetOver), Rectangle.Union)
-            }.Also(data => data.ExtraClips.ForEach(p => p.Union = data.Union));
+            }.Also(data => data.ExtraClips.ForEach(p => p.ActiveArea = data.ActiveArea));
         }
     }
 }

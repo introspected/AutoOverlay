@@ -152,7 +152,7 @@ namespace AutoOverlay.Overlay
 
         public static implicit operator RectangleD(RectangleF r)
         {
-            return new RectangleD(r.X, r.Y, r.Width, r.Height);
+            return new RectangleD(r.X, r.Y, r.Width, r.Height, true);
         }
 
         public static implicit operator RectangleF(RectangleD r)

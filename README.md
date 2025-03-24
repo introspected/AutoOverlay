@@ -75,7 +75,7 @@ It is possible to combine multiple configurations into chains using standard cli
 
 - **minOverlayArea** - the minimum ratio of the used portion to the total area of the overlaid image, in percent. By default, it is calculated so that the overlaid clip can fully cover the base clip (panscan mode). For example, if the base clip resolution is 1920x1080 and the overlaid clip is 1920x800, the parameter value will be 800/1080=74%. 
 - **minSourceArea** - the minimum ratio of the used portion to the total area of the base image, in percent. By default, it is calculated so that the base clip can fully include the overlaid clip (panscan mode). For example, if the base clip resolution is 1920x1080 and the overlaid clip is 1440x800, the parameter value will be 1440/1920=75%. 
-- **aspectRatio1** and **aspectRatio2** - the range of acceptable aspect ratios for the overlaid image. By default, it is the aspect ratio of the overlaid clip. It can be specified in any order: `aspectRatio1=2.35, aspectRatio2=2.45` is the same as `aspectRatio1=2.45, aspectRatio2=2.35`. By default, it equals the aspect ratio of the overlaid clip if *FixedAspectRatio = true*; otherwise, a tolerance is added as *minDimension + (Correction + rotationShift) × 1.5) / minDimension - 1*, where *minDimension* is the smaller side of the overlaid clip, and *rotationShift* equals *RotationCorrection* if the angles are non-zero, otherwise 0. 
+- **aspectRatio1** and **aspectRatio2** - the range of acceptable aspect ratios for the overlaid image. By default, it is the aspect ratio of the overlaid clip. It can be specified in any order: `aspectRatio1=2.35, aspectRatio2=2.45` is the same as `aspectRatio1=2.45, aspectRatio2=2.35`. By default, it equals the aspect ratio of the overlaid clip if *FixedAspectRatio = true*; otherwise, a tolerance is added as *minDimension + (Correction + rotationShift) × 2) / minDimension - 1*, where *minDimension* is the smaller side of the overlaid clip, and *rotationShift* equals *RotationCorrection* if the angles are non-zero, otherwise 0. 
 - **angle1** and **angle2** (default 0) - the range of acceptable rotation angles for the overlaid image. Can be specified in any order. Negative values indicate clockwise rotation, positive values indicate counterclockwise rotation.
 - **minAngleStep** (default 0.05) - the minimum rotation step of the image, in degrees.
 - **maxAngleStep** (default 1) - the maximum rotation step of the image, in degrees.
@@ -666,6 +666,9 @@ If the framing is dynamic, prepare *OverlayEngine* and specify it in the *engine
     ```OverlayEngine(clip1, clip2, maxDiff = 5, statFile = "diff.stat", editor = true)```
 
 ## Changelog
+### 24.03.2025 v0.7.1
+1. *OverlayEngine*: fixed bugs in auto-alignment and prediction
+
 ### 15.03.2025 v0.7
 1. All functions of the *ColorAdjust* filter have been moved to the *ColorMatch* filter. The *ColorAdjust* filter has been discontinued.
 2. *OverlayEngine*: new prediction and stabilization algorithm with presets.

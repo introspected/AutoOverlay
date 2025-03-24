@@ -398,12 +398,12 @@ namespace AutoOverlay
 
             dynamic GetCanvas()
             {
-                var size = FullScreen ? ctx.TargetInfo.Size : primary.Union.Size;
+                var size = FullScreen ? ctx.TargetInfo.Size : primary.ActiveArea.Size;
                 var blank = ctx.BackgroundClip ?? AvsUtils.InitClip(ctx.Source.ConvertBits(BitDepth), ctx.TargetInfo.Width, ctx.TargetInfo.Height, ctx.DefaultColor);
 
                 dynamic Finalize(dynamic background) => size == ctx.TargetInfo.Size
                     ? background
-                    : blank.Overlay(background, primary.Union.Location);
+                    : blank.Overlay(background, primary.ActiveArea.Location);
 
                 switch (Background)
                 {

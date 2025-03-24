@@ -18,7 +18,7 @@ namespace AutoOverlay.Overlay
         public bool Source { get; }
         public List<OverlayInfo> History { get; }
         public int Index { get; private set; }
-        public Rectangle Union { get; }
+        public Rectangle ActiveArea { get; }
         public OverlayData Data { get; }
         public string ResizeFunc { get; }
 
@@ -52,7 +52,7 @@ namespace AutoOverlay.Overlay
             Source = source;
             Opacity = opacity;
             History = history;
-            Union = data.Union;
+            ActiveArea = data.ActiveArea;
             RectangleF crop;
             float angle;
             Warp warp;

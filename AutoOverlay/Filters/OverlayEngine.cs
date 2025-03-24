@@ -188,13 +188,23 @@ namespace AutoOverlay
 
         private int framesTotal;
 
-        private static List<Predicate<OverlayData>> StickCriteria { get; } = new()
-        {
-            p => p.Overlay.Left == p.Source.Left,
-            p => p.Overlay.Right == p.Source.Right,
-            p => p.Overlay.Top == p.Source.Top,
-            p => p.Overlay.Bottom == p.Source.Bottom,
-        };
+        private static readonly Predicate<OverlayData> 
+            LeftStick = p => p.Overlay.Left == p.Source.Left && p.OverlayCrop.Left.IsNearlyZero(),
+            RightStick = p => p.Overlay.Right == p.Source.Right && p.OverlayCrop.Right.IsNearlyZero(),
+            TopStick = p => p.Overlay.Top == p.Source.Top && p.OverlayCrop.Top.IsNearlyZero(),
+            BottomStick = p => p.Overlay.Bottom == p.Source.Bottom && p.OverlayCrop.Bottom.IsNearlyZero(),
+            HorizontalStick = p => LeftStick(p) && RightStick(p),
+            VerticalStick = p => TopStick(p) && BottomStick(p),
+            HorizontalSymmetry = p => p.OverlayCrop.Left.IsNearlyEquals(p.OverlayCrop.Right) 
+                                      && p.Intersection.Left - p.Union.Left == p.Union.Right - p.Intersection.Right,
+            VerticalSymmetry = p => p.OverlayCrop.Top.IsNearlyEquals(p.OverlayCrop.Bottom)
+                                    && p.Intersection.Top - p.Union.Top == p.Union.Bottom - p.Intersection.Bottom,
+            CenterStick = p => p.OverlayCrop.Equals(RectangleF.Empty) && (HorizontalStick(p) && VerticalSymmetry(p) || VerticalStick(p) && HorizontalSymmetry(p));
+
+        private static List<Predicate<OverlayData>> StickCriteria { get; } =
+        [
+            HorizontalStick, VerticalStick, CenterStick//, HorizontalSymmetry, VerticalSymmetry,
+        ];
 
         public OverlayEngine()
         {
@@ -622,7 +632,7 @@ namespace AutoOverlay
 
                             var newSequenceValid = CheckFrameSequence(history, false);
 
-                            if (sequenceNotValid && newSequenceValid)
+                            if (sequenceNotValid && newSequenceValid || !CheckSceneArea(prev, own))
                             {
                                 var prevAligned = OverlayStat[prev.FrameNumber] ?? cache.Align(prev.FrameNumber, keyframe.OverlayWarp);
                                 var prevDiff = FrameDiff(prevAligned, prev);
@@ -633,7 +643,7 @@ namespace AutoOverlay
                                     return false;
                                 }
 
-                                if (!CheckSceneArea(prevAligned, own))
+                                if (!CheckSceneArea(prevAligned, own) || !CheckSceneArea(prev, own))
                                 {
                                     log(() => $"New scene detected at {frame}");
                                     return true;
@@ -664,7 +674,7 @@ namespace AutoOverlay
                 var mean = values.Average();
                 var threshold = mean * SceneDiffTolerance;
                 Log(() => $"Trend: {trend:F3} Threshold: {threshold:F3} Abs: {abs} Sequence: [{string.Join(", ", values.Select(val => $"{val:F2}"))}]");
-                return (abs ? Math.Abs(trend) : trend) < threshold;
+                return (abs ? Math.Abs(trend) : trend) <= threshold;
             }
         }
 
@@ -1028,8 +1038,8 @@ namespace AutoOverlay
 
                                     if (!initStep)
                                     {
-                                        minWidth = Math.Max(minWidth, (int)((bestOverSize.Width - correction) * coefDiff));
-                                        maxWidth = Math.Min(maxWidth, (int)((bestOverSize.Width + correction) * coefDiff) + 1);
+                                        minWidth = Math.Max(minWidth, Round((bestOverSize.Width - correction) * coefDiff) - 1);
+                                        maxWidth = Math.Min(maxWidth, Round((bestOverSize.Width + correction) * coefDiff) + 1);
                                     }
 
                                     var minArea = Math.Min(
@@ -1058,8 +1068,8 @@ namespace AutoOverlay
 
                                             if (!initStep)
                                             {
-                                                minHeight = Math.Max(minHeight, (int)((bestOverSize.Height - correction) * coefDiff));
-                                                maxHeight = Math.Min(maxHeight, (int)((bestOverSize.Height + correction) * coefDiff) + 1);
+                                                minHeight = Math.Max(minHeight, Round((bestOverSize.Height - correction) * coefDiff) - 1);
+                                                maxHeight = Math.Min(maxHeight, Round((bestOverSize.Height + correction) * coefDiff) + 1);
                                             }
 
                                             for (var height = minHeight; height <= maxHeight; height++)
@@ -1182,13 +1192,15 @@ namespace AutoOverlay
                                 }
 
                                 var acceptedResults = subResultSet.TakeWhile((p, i) =>
-                                    i < config.Branches && p.Diff - subResultSet.Min.Diff < config.BranchMaxDiff);
+                                    i < config.Branches && p.Diff - subResultSet.Min.Diff < config.BranchMaxDiff).ToArray();
                                 var acceptedWarps = new HashSet<Warp>(acceptedResults.Select(p => p.OverlayWarp));
                                 var expiredWarps = subResultSet.Select(p => p.OverlayWarp)
                                     .Where(p => !acceptedWarps.Contains(p));
                                 foreach (var warp in expiredWarps)
                                     DynamicEnvironment.OwnerExpired(warp);
-                                subResultSet = new SortedSet<OverlayData>(acceptedResults);
+                                subResultSet = new(acceptedResults);
+                                if (acceptedResults.Any() && StickLevel > 0) 
+                                    subResultSet.Add(FindBest(acceptedResults));
                             }
 
                             foreach (var best in subResultSet)
@@ -1281,8 +1293,7 @@ namespace AutoOverlay
             dynamic src, dynamic over)
         {
             var subResults = new SortedSet<OverlayData>(overlayData);
-            var bestCrops = subResults.ToList();
-            //bestCrops.Add(FindBest(overlayData));
+            var bestCrops = subResults.ToHashSet();
 
             var (minAspectRatio, maxAspectRatio) = FindMinMaxAr(config);
 
@@ -1291,8 +1302,6 @@ namespace AutoOverlay
                 var initialStep = substep == 1 ? 1 : 0;
                 var cropCoef = Math.Pow(2, -substep);
                 var testParams = new HashSet<TestOverlay>();
-                // if (substep == 1) subResults.Clear();
-
 
                 var rect = bestCrops.First().GetOverlayInfo().OverlayRectangle;
                 if (!config.FixedAspectRatio)
@@ -1380,7 +1389,9 @@ namespace AutoOverlay
                     src, SourceMask, over, OverlayMask, 0, 0);
                 subResults.UnionWith(testResults);
 
-                bestCrops = subResults.TakeWhile((p, i) => i < config.Branches && p.Diff - subResults.Min.Diff < config.BranchMaxDiff).ToList();
+                bestCrops = subResults.TakeWhile((p, i) => i < config.Branches && p.Diff - subResults.Min.Diff < config.BranchMaxDiff).ToHashSet();
+                if (subResults.Any() && StickLevel > 0)
+                    bestCrops.Add(FindBest(subResults));
 
                 foreach (var best in bestCrops)
                     DisableLog(() => $"Substep: {substep} X,Y: ({best.Overlay.X:F2},{best.Overlay.Y:F2}) " +
@@ -1773,7 +1784,7 @@ namespace AutoOverlay
 
             var minDimension = Math.Min(OverInfo.Width, OverInfo.Height);
             var rotationShift = config.Angle1 == 0 && config.Angle2 == 0 ? 0 : config.RotationCorrection;
-            var defaultShift = config.FixedAspectRatio ? 0 : (minDimension + (config.Correction + rotationShift) * 1.5) / minDimension - 1;
+            var defaultShift = config.FixedAspectRatio ? 0 : (minDimension + (config.Correction + rotationShift) * 2) / minDimension - 1;
 
             var minDefaultRatio = OverInfo.AspectRatio - defaultShift;
             var maxDefaultRatio = OverInfo.AspectRatio + defaultShift;

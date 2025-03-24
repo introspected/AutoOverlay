@@ -99,5 +99,8 @@ namespace AutoOverlay
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsNearlyEquals(this double a, double b) => Math.Abs(a - b) < OverlayConst.EPSILON;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool IsNearlyEquals(this float a, float b) => Math.Abs(a - b) < OverlayConst.EPSILON;
     }
 }
