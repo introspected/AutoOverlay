@@ -15,7 +15,7 @@ namespace AutoOverlay
         public const int ENGINE_TOTAL_FRAMES = ENGINE_HISTORY_LENGTH * 2 + 1;
 
         public const int FRACTION = 7;
-        public static readonly double EPSILON = Math.Pow(10, -FRACTION);
+        public const double EPSILON = 0.0000001;
 
         public static readonly Size NO_SUB_SAMPLE = new(1, 1);
 

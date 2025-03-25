@@ -7,9 +7,7 @@ using System.Collections.Specialized;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
-using System.Security.Policy;
 using System.Threading.Tasks;
-using AutoOverlay.Core;
 
 namespace AutoOverlay
 {
@@ -197,12 +195,6 @@ namespace AutoOverlay
                 return avs;
             if (val is DynamicEnvironment environment)
                 val = environment.Clip;
-            if (val is Clip clip)
-            {
-                var cached = DynamicEnvironment.FindClip(clip);
-                if (cached != null)
-                    return cached;
-            }
             if (val is Enum)
                 val = val.ToString();
 

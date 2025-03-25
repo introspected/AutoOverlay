@@ -194,7 +194,7 @@ namespace AutoOverlay
         {
         }
 
-        protected void Log(Func<string> supplier, bool forced = false)
+        internal void Log(Func<string> supplier, bool forced = false)
         {
 #if DEBUG
             if (Debug || forced)
@@ -247,6 +247,17 @@ namespace AutoOverlay
         public override int GetHashCode()
         {
             return (FilterId != null ? FilterId.GetHashCode() : 0);
+        }
+
+        public override int SetCacheHints(CacheType cachehints, int frame_range)
+        {
+            switch (cachehints)
+            {
+                case CacheType.CACHE_DONT_CACHE_ME:
+                    return 0;
+                default:
+                    return base.SetCacheHints(cachehints, frame_range);
+            }
         }
     }
 }

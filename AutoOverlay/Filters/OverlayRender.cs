@@ -167,12 +167,6 @@ namespace AutoOverlay
             Upsize ??= Downsize ?? StaticEnv.FunctionCoalesce(OverlayConst.DEFAULT_RESIZE_FUNCTION + "MT", OverlayConst.DEFAULT_RESIZE_FUNCTION);
             Downsize ??= Upsize;
             OverlayMode ??= "blend";
-            var cacheSize = OverlayConst.ENGINE_HISTORY_LENGTH * 2 + 1;
-            var cacheKey = StaticEnv.GetEnv2() == null ? CacheType.CACHE_25_ALL : CacheType.CACHE_GENERIC;
-            foreach (var clip in new[] { Child, Source, Overlay, SourceMask, OverlayMask })
-            {
-                clip?.SetCacheHints(cacheKey, cacheSize);
-            }
         }
 
         private void Initialize(Clip src, Clip over)

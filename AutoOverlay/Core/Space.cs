@@ -4,27 +4,21 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows.Forms.VisualStyles;
 
-namespace AutoOverlay.Overlay
+namespace AutoOverlay
 {
-    public readonly struct Space
+    public readonly struct Space(double x, double y)
     {
-        private static readonly double EPSILON = OverlayConst.EPSILON;
+        private const double EPSILON = OverlayConst.EPSILON;
 
         public static Space NaN { get; } = new(double.NaN, double.NaN);
 
         public static Space Empty { get; } = new(0, 0);
         public static Space One { get; } = new(1, 1);
 
-        public double X { get; }
-        public double Y { get; }
+        public double X { get; } = x;
+        public double Y { get; } = y;
 
         public Space(double xy) : this(xy, xy) { }
-
-        public Space(double x, double y)
-        {
-            X = x;
-            Y = y;
-        }
 
         public static implicit operator Space(RectangleD rect) => new(rect.Width, rect.Height);
         public static implicit operator RectangleD(Space space) => RectangleD.FromLTRB(space.X, space.Y, space.X, space.Y);

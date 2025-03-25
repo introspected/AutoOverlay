@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace AutoOverlay.Core
+namespace AutoOverlay
 {
     public class LinkedHashSet<T> : ICollection<T>
     {

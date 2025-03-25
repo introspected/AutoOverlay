@@ -115,7 +115,8 @@ namespace AutoOverlay.Forms
                             oldInfo.CopyFrom(info);
                             oldInfo.Modified = true;
                         }
-
+                        if (!oldInfo.Diff.IsNearlyEquals(info.Diff))
+                            oldInfo.Modified = true;
                         oldInfo.Diff = info.Diff;
                     }
 

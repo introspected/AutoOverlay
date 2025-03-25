@@ -214,7 +214,6 @@ namespace AutoOverlay
                 SourceSize = srcInfo.GetSize(),
                 OverlayWarp = Warp.Parse(WarpPoints)
             };
-            SetCacheHints(CacheType.CACHE_GET_WINDOW, 1);
         }
 
         protected override List<OverlayInfo> GetOverlayInfo(int n)

@@ -1497,7 +1497,6 @@
             this.label28.Size = new System.Drawing.Size(47, 16);
             this.label28.TabIndex = 9;
             this.label28.Text = "Min eq";
-            this.label28.Click += new System.EventHandler(this.label28_Click);
             // 
             // label13
             // 

@@ -37,7 +37,7 @@ namespace AutoOverlay.Forms
 
         public OverlayEngine Engine { get; }
 
-        public BindingList<FrameInterval> Intervals { get; } = new BindingList<FrameInterval>();
+        public BindingList<FrameInterval> Intervals { get; } = new();
 
         public ScriptEnvironment Env { get; }
 
@@ -845,7 +845,7 @@ namespace AutoOverlay.Forms
 
         private void btnAdjust_Click(object sender, EventArgs e)
         {
-            Adjust(new[] { Interval }, $"Adjust scene {Interval.Interval}");
+            Adjust([Interval], $"Adjust scene {Interval.Interval}");
         }
 
         private void btnAdjustClip_Click(object sender, EventArgs e)
@@ -1016,10 +1016,5 @@ namespace AutoOverlay.Forms
 
 
         #endregion
-
-        private void label28_Click(object sender, EventArgs e)
-        {
-
-        }
     }
 }

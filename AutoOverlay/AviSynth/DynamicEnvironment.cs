@@ -24,7 +24,7 @@ namespace AutoOverlay.AviSynth
 
         private static readonly ThreadLocal<Stack<DynamicEnvironment>> contexts;
 
-        private readonly Dictionary<Key, Tuple<AVSValue, Clip, object>> cache;
+        private readonly Dictionary<Key, (AVSValue Value, Clip Clip, object Owner)> cache;
 
         private readonly ScriptEnvironment _env;
 
@@ -40,11 +40,6 @@ namespace AutoOverlay.AviSynth
 
         private bool detached;
 
-        public static AVSValue FindClip(Clip clip)
-        {
-            return Env?.cache?.Values.FirstOrDefault(p => p.Item2 == clip)?.Item1;
-        }
-
         public static IEnumerable<object> Owners => Env.owners;
 
         public static void SetOwner(object owner)
@@ -58,12 +53,12 @@ namespace AutoOverlay.AviSynth
         {
             if (owner == null) return;
             Env.cache
-                .Where(p => p.Value.Item3 == owner)
+                .Where(p => p.Value.Owner == owner)
                 .ToList()
                 .ForEach(pair =>
                 {
-                    pair.Value.Item1.Dispose();
-                    pair.Value.Item2?.Dispose();
+                    pair.Value.Value.Dispose();
+                    pair.Value.Clip?.Dispose();
                     Env.cache.Remove(pair.Key);
                 });
             Env.owners.Remove(owner);
@@ -120,14 +115,14 @@ namespace AutoOverlay.AviSynth
             owners.Clear();
             foreach (var val in cache.Values)
             {
-                val.Item2?.Dispose();
-                val.Item1.Dispose();
+                val.Clip?.Dispose();
+                val.Value.Dispose();
             }
             cache.Clear();
             collector?.Dispose();
         }
 
-        public Clip Clip { get; }
+        public Clip Clip { get; private set; }
 
         public DynamicEnvironment(ScriptEnvironment env, bool collected = true)
         {
@@ -176,6 +171,16 @@ namespace AutoOverlay.AviSynth
                     Clip.Dispose();
                     result = this;
                     return true;
+                case "cache":
+                    var cacheLength = args.Length == 1 ? (int)args[0] : 1;
+                    if (Clip.SetCacheHints(CacheType.CACHE_DONT_CACHE_ME, 0) == 0)
+                    {
+                        Clip = ((ScriptEnvironment)Env).Invoke("Cache", Clip.ToAvsValue()).AsClip();
+                    }
+                    Clip.SetCacheHints(CacheType.CACHE_SET_MIN_CAPACITY, 0);
+                    Clip.SetCacheHints(CacheType.CACHE_GET_MAX_CAPACITY, cacheLength);
+                    result = this;
+                    return true;
             }
             args = PrepareArgs(args).ToArray();
 
@@ -208,15 +213,23 @@ namespace AutoOverlay.AviSynth
             {
                 var avsArgList = args.Select(p => p.ToAvsValue()).ToArray();
                 using var avsArgs = new AVSValue(avsArgList);
-                var res = ((ScriptEnvironment) Env).Invoke(function, avsArgs, argNames);
+                var res = ((ScriptEnvironment)Env).Invoke(function, avsArgs, argNames);
 
-                res = ((ScriptEnvironment)Env).Invoke("InternalCache", res);
+                Clip clip;
+                if (res.IsClip())
+                {
+                    res = ((ScriptEnvironment)Env).Invoke("Cache", res);
+                    clip = res.AsClip();
+                    clip.SetCacheHints(CacheType.CACHE_SET_MIN_CAPACITY, 0);
+                    clip.SetCacheHints(CacheType.CACHE_GET_MAX_CAPACITY, 1);
+                }
+                else clip = null;
 
-                var clip = res.AsClip();
+
 #if DEBUG && TRACE
                 Debug.WriteLine($"New clip cached @{clip?.GetHashCode()} {function}({printArgs()})");
 #endif
-                Env.cache[key] = tuple = Tuple.Create(res, clip, Env.owner);
+                    Env.cache[key] = tuple = (res, clip, Env.owner);
             }
             else
             {
@@ -226,19 +239,19 @@ namespace AutoOverlay.AviSynth
             }
 
             if (binder.ReturnType == typeof(AVSValue))
-                result = tuple.Item1;
+                result = tuple.Value;
             else if (binder.ReturnType == typeof(Clip))
-                result = tuple.Item2;
+                result = tuple.Clip;
             else if (binder.ReturnType == typeof(object))
-                result = new DynamicEnvironment(tuple.Item2);
+                result = new DynamicEnvironment(tuple.Clip);
             else if (binder.ReturnType == typeof(int))
-                result = tuple.Item1.AsInt();
+                result = tuple.Value.AsInt();
             else if (binder.ReturnType == typeof(double))
-                result = tuple.Item1.AsFloat();
+                result = tuple.Value.AsFloat();
             else if (binder.ReturnType == typeof(string))
-                result = tuple.Item1.AsString();
+                result = tuple.Value.AsString();
             else if (binder.ReturnType == typeof(bool))
-                result = tuple.Item1.AsBool(false);
+                result = tuple.Value.AsBool(false);
             else throw new InvalidOperationException();
 
             return true;
@@ -331,7 +344,7 @@ namespace AutoOverlay.AviSynth
                         yield return clip.GetHashCode();
                         break;
                     case double real:
-                        yield return (long) (real * 1000000000000);
+                        yield return (long)(real * 1000000000000);
                         break;
                     case IEnumerable col:
                         foreach (var val in col)
@@ -356,7 +369,7 @@ namespace AutoOverlay.AviSynth
                 if (ReferenceEquals(null, obj)) return false;
                 if (ReferenceEquals(this, obj)) return true;
                 if (obj.GetType() != GetType()) return false;
-                return Equals((Key) obj);
+                return Equals((Key)obj);
             }
 
             public override int GetHashCode()

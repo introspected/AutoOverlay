@@ -3,8 +3,9 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using AutoOverlay.Overlay;
 
-namespace AutoOverlay.Overlay
+namespace AutoOverlay
 {
     [Serializable]
     public readonly struct RectangleD : IEquatable<RectangleD>

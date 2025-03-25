@@ -154,6 +154,7 @@
     <Compile Include="Overlay\ConstantInterpolator.cs" />
     <Compile Include="Overlay\ExtraClip.cs" />
     <Compile Include="Overlay\MinMax.cs" />
+    <Compile Include="Overlay\OverlayCache.cs" />
     <Compile Include="Overlay\OverlayConfigInstance.cs" />
     <Compile Include="Overlay\OverlayConst.cs" />
     <Compile Include="Overlay\OverlayDifference.cs" />

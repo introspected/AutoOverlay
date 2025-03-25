@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Drawing;
 
-namespace AutoOverlay.Overlay
+namespace AutoOverlay
 {
     public struct SizeD(double width, double height)
     {
-        public static SizeD Empty = new();
+        public static readonly SizeD Empty = new();
 
         public const double EPSILON = 0.000001;
 

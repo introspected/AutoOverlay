@@ -666,6 +666,10 @@ If the framing is dynamic, prepare *OverlayEngine* and specify it in the *engine
     ```OverlayEngine(clip1, clip2, maxDiff = 5, statFile = "diff.stat", editor = true)```
 
 ## Changelog
+### 25.03.2025 v0.7.2
+1. *OverlayEngine*: scan prediction fix.
+2. Overall performance increased.
+
 ### 24.03.2025 v0.7.1
 1. *OverlayEngine*: fixed bugs in auto-alignment and prediction
 

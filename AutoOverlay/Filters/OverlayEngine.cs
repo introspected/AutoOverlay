@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -178,7 +177,7 @@ namespace AutoOverlay
 
         public event EventHandler<FrameEventArgs> CurrentFrameChanged;
 
-        private IEnumerable<OverlayConfigInstance> GetConfigs() => Configs.Select(p => p.GetInstance());
+        internal IEnumerable<OverlayConfigInstance> GetConfigs() => Configs.Select(p => p.GetInstance());
 
         private Form form;
 
@@ -217,6 +216,12 @@ namespace AutoOverlay
             FrameAreaTolerance /= 100;
             SceneDiffTolerance /= 100;
             SceneAreaTolerance /= 100;
+
+            var cacheSize = SceneBuffer * 2 + 1;
+            Source = Source.Dynamic().Cache(cacheSize);
+            Overlay = Overlay.Dynamic().Cache(cacheSize);
+            SourceMask = SourceMask?.Dynamic()?.Cache(cacheSize);
+            OverlayMask = OverlayMask?.Dynamic()?.Cache(cacheSize);
 
             Presize ??= OverlayConst.DEFAULT_PRESIZE_FUNCTION;
             Resize ??= StaticEnv.FunctionCoalesce(
@@ -277,14 +282,6 @@ namespace AutoOverlay
             }
             SetVideoInfo(ref vi);
 
-            var cacheSize = SceneBuffer * 2 + 1;
-            var cacheKey = StaticEnv.GetEnv2() == null ? CacheType.CACHE_25_ALL : CacheType.CACHE_GENERIC;
-            Source.SetCacheHints(cacheKey, cacheSize);
-            Overlay.SetCacheHints(cacheKey, cacheSize);
-            sourcePrepared.SetCacheHints(cacheKey, cacheSize);
-            overlayPrepared.SetCacheHints(cacheKey, cacheSize);
-            SourceMask?.SetCacheHints(cacheKey, cacheSize);
-            OverlayMask?.SetCacheHints(cacheKey, cacheSize);
             if (Editor)
             {
                 form?.SafeInvoke(p => p.Close());
@@ -342,9 +339,9 @@ namespace AutoOverlay
             return frame;
         }
 
-        private OverlayInfo ScanImpl(OverlayInfo testInfo, int n) => PanScanImpl(
-            testInfo, n,
-            (int)Math.Round(testInfo.SourceRectangle.Width * SceneAreaTolerance),
+        internal OverlayInfo ScanImpl(OverlayInfo precursor, int n) => PanScanImpl(
+            precursor, n,
+            (int)Math.Round(precursor.SourceRectangle.Width * SceneAreaTolerance),
             SceneAreaTolerance);
 
         public OverlayInfo GetOverlayInfo(int n)
@@ -882,7 +879,7 @@ namespace AutoOverlay
             totalWatch.Start();
 #endif
             var existedAlign = external ?? OverlayStat[n];
-            var preliminaryColorAdjust = existedAlign != null;
+            var preliminaryColorAdjust = existedAlign != null && ColorAdjust >= 0;
 
             var resultSet = new SortedSet<OverlayData>();
             using (new VideoFrameCollector())
@@ -902,7 +899,7 @@ namespace AutoOverlay
                         FixedSource = true
                     };
                     var data = OverlayMapper.For(input, existedAlign, default).GetOverlayData();
-                    var adjusted = AdjustClip(srcPrepared, overPrepared, data);
+                    var adjusted = AdjustColor(srcPrepared, overPrepared, data);
                     if (ColorAdjust == 0)
                         overPrepared = adjusted;
                     else srcPrepared = adjusted;
@@ -1218,7 +1215,7 @@ namespace AutoOverlay
                             break;
                         }
 
-                        var adjustedClip = AdjustClip(srcPrepared, overPrepared, subResultSet.First());
+                        var adjustedClip = AdjustColor(srcPrepared, overPrepared, subResultSet.First());
                         if (ColorAdjust == 0)
                             overPrepared = adjustedClip;
                         else srcPrepared = adjustedClip;
@@ -1272,7 +1269,7 @@ namespace AutoOverlay
             {
                 var srcClip = sourcePrepared;
                 var overClip = overlayPrepared;
-                var adjustedClip = AdjustClip(srcClip, overClip, prototypeData);
+                var adjustedClip = AdjustColor(srcClip, overClip, prototypeData);
                 if (ColorAdjust == 0)
                     overClip = adjustedClip;
                 else if (ColorAdjust == 1)
@@ -1403,7 +1400,7 @@ namespace AutoOverlay
             return subResults;
         }
 
-        private Clip AdjustClip(Clip src, Clip over, OverlayData data)
+        private Clip AdjustColor(Clip src, Clip over, OverlayData data)
         {
             var info = data.GetOverlayInfo();
             var warp = info.OverlayWarp;
@@ -1499,14 +1496,14 @@ namespace AutoOverlay
             }
         }
 
-        private OverlayInfo PanScanImpl(OverlayInfo testInfo, int n)
+        internal OverlayInfo PanScanImpl(OverlayInfo precursor, int n)
         {
-            return PanScanImpl(testInfo, n, ScanDistance, ScanScale, false);
+            return PanScanImpl(precursor, n, ScanDistance, ScanScale, false);
         }
 
-        public OverlayInfo PanScanImpl(OverlayInfo testInfo, int n, int delta, double scale, bool ignoreAspectRatio = true, double arVariance = 0.002)
+        public OverlayInfo PanScanImpl(OverlayInfo precursor, int n, int delta, double scale, bool ignoreAspectRatio = true, double arVariance = 0.002)
         {
-            testInfo = testInfo.ScaleBySource(SrcInfo.Size);
+            precursor = precursor.ScaleBySource(SrcInfo.Size);
             var configs = GetConfigs().Select(config =>
             {
                 var ar1 = config.AspectRatio1;
@@ -1517,25 +1514,25 @@ namespace AutoOverlay
                     ar2 = config.AspectRatio2 <= double.Epsilon ? OverInfo.AspectRatio : config.AspectRatio2;
                     var minAr = ignoreAspectRatio ? 0 : Math.Min(ar1, ar2);
                     var maxAr = ignoreAspectRatio ? int.MaxValue : Math.Max(ar1, ar2);
-                    ar1 = Math.Min(Math.Max(testInfo.OverlayAspectRatio * (1 - arVariance), minAr), maxAr);
-                    ar2 = Math.Min(Math.Max(testInfo.OverlayAspectRatio * (1 + arVariance), minAr), maxAr);
+                    ar1 = Math.Min(Math.Max(precursor.OverlayAspectRatio * (1 - arVariance), minAr), maxAr);
+                    ar2 = Math.Min(Math.Max(precursor.OverlayAspectRatio * (1 + arVariance), minAr), maxAr);
                 }
                 return config with
                 {
-                    MinX = Math.Max(config.MinX, (int)(testInfo.Placement.X - delta)),
-                    MaxX = Math.Min(config.MaxX, Round(testInfo.Placement.X + delta)),
-                    MinY = Math.Max(config.MinY, (int)(testInfo.Placement.Y - delta)),
-                    MaxY = Math.Min(config.MaxY, Round(testInfo.Placement.Y + delta)),
-                    Angle1 = testInfo.Angle, //TODO fix
-                    Angle2 = testInfo.Angle, //TODO fix
+                    MinX = Math.Max(config.MinX, (int)(precursor.Placement.X - delta)),
+                    MaxX = Math.Min(config.MaxX, Round(precursor.Placement.X + delta)),
+                    MinY = Math.Max(config.MinY, (int)(precursor.Placement.Y - delta)),
+                    MaxY = Math.Min(config.MaxY, Round(precursor.Placement.Y + delta)),
+                    Angle1 = precursor.Angle, //TODO fix
+                    Angle2 = precursor.Angle, //TODO fix
                     AspectRatio1 = ar1,
                     AspectRatio2 = ar2,
-                    MinArea = Math.Max(config.MinArea, (int)(testInfo.OverlaySize.Area * (1 - scale))),
-                    MaxArea = Math.Min(config.MaxArea, (int)Math.Ceiling(testInfo.OverlaySize.Area * (1 + scale))),
+                    MinArea = Math.Max(config.MinArea, (int)(precursor.OverlaySize.Area * (1 - scale))),
+                    MaxArea = Math.Min(config.MaxArea, (int)Math.Ceiling(precursor.OverlaySize.Area * (1 + scale))),
                     WarpPoints = []
                 };
             }).ToArray();
-            return AutoAlign(n, configs, testInfo.OverlayWarp, testInfo);
+            return AutoAlign(n, configs, precursor.OverlayWarp, precursor);
         }
 
         public OverlayInfo RepeatImpl(OverlayInfo repeatInfo, int n)
@@ -1560,7 +1557,7 @@ namespace AutoOverlay
             {
                 var srcClip = sourcePrepared;
                 var overClip = overlayPrepared;
-                var adjustedClip = AdjustClip(srcClip, overClip, testInfo);
+                var adjustedClip = AdjustColor(srcClip, overClip, testInfo);
                 if (ColorAdjust == 0)
                     overClip = adjustedClip;
                 else if (ColorAdjust == 1)
@@ -1618,8 +1615,14 @@ namespace AutoOverlay
             var hq = overBaseSize.Equals(OverInfo.Size);
             var resizeFunc = hq ? Resize : Presize;
 
+#if DEBUG
+            testParams.FirstOrDefault()?.Watch?.Start();
+#endif
             using var srcFrame = srcBase.GetFrame(n, StaticEnv);
             using var srcMaskFrame = srcMaskBase?.GetFrame(n, StaticEnv);
+#if DEBUG
+            testParams.FirstOrDefault()?.Watch?.Stop();
+#endif
 
             var tasks = from test in testParams
                         let transform = new
@@ -1803,79 +1806,5 @@ namespace AutoOverlay
             OverlayStat.Dispose();
             base.Dispose(A_0);
         }
-
-        private class OverlayCache(OverlayEngine engine)
-        {
-            private readonly ConcurrentDictionary<IKey, OverlayInfo> cache = new();
-
-            public void NextFrame(int n)
-            {
-                foreach (var key in cache.Keys.Where(p => Math.Abs(p.Frame - n) > engine.SceneBuffer))
-                    cache.TryRemove(key, out _);
-            }
-
-            public bool IsAligned(int frame, Warp warp = null) => cache.ContainsKey(new AlignKey(frame, warp));
-
-            public bool IsScanned(int frame, OverlayInfo prev) => cache.ContainsKey(new ScanKey(frame, prev));
-
-            public bool IsRepeated(int frame, OverlayInfo prev) => cache.ContainsKey(new RepeatKey(frame, prev));
-
-            public OverlayInfo Align(int frame, Warp warp = null) => Update(
-                new AlignKey(frame, warp),
-                _ => engine.AutoAlign(frame, engine.GetConfigs(), warp),
-                (_, info) => (new RepeatKey(frame, info), info),
-                (_, info) => (new ScanKey(frame, info), info));
-
-            public OverlayInfo Repeat(OverlayInfo target, int frame)
-            {
-                var existed = engine.OverlayStat[frame];
-                return target.Equals(existed)
-                    ? existed
-                    : Update(
-                        new RepeatKey(frame, target),
-                        _ => engine.RepeatImpl(target, frame));
-            }
-
-            public OverlayInfo Scan(OverlayInfo target, int frame) => Update(
-                new ScanKey(frame, target),
-                _ => engine.ScanImpl(target, frame),
-                (_, info) => (new RepeatKey(frame, info), info),
-                (_, info) => (new ScanKey(target.FrameNumber, info), target));
-
-            public OverlayInfo LegacyScan(OverlayInfo target, int frame) => Update(
-                new ScanKey(frame, target),
-                _ => engine.PanScanImpl(target, frame),
-                (_, info) => (new RepeatKey(frame, info), info),
-                (_, info) => (new ScanKey(target.FrameNumber, info), target));
-
-            private OverlayInfo Update<TKey>(
-                TKey key,
-                Func<TKey, OverlayInfo> function,
-                params Func<TKey, OverlayInfo, (IKey, OverlayInfo)>[] extras) where TKey : IKey
-            {
-                var value = cache.GetOrAdd(key, _ =>
-                {
-                    engine.Log(key.ToString);
-                    return function(key);
-                });
-                foreach (var func in extras)
-                {
-                    var tuple = func(key, value);
-                    cache[tuple.Item1] = tuple.Item2;
-                }
-                return value;
-            }
-        }
-
-        interface IKey
-        {
-            int Frame { get; }
-        }
-
-        sealed record AlignKey(int Frame, Warp Warp) : IKey;
-
-        sealed record RepeatKey(int Frame, OverlayInfo Info) : IKey;
-
-        sealed record ScanKey(int Frame, OverlayInfo Info) : IKey;
     }
 }
