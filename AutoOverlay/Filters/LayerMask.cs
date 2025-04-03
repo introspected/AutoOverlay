@@ -56,7 +56,6 @@ namespace AutoOverlay.Filters
         protected override void Initialize(AVSValue args)
         {
             var vi = Child.GetVideoInfo();
-            vi.num_frames = 1;
             SetVideoInfo(ref vi);
             planeChannel = vi.pixel_type.GetPlaneChannels()[0];
             union = Layers.Aggregate(Rectangle.Union);
@@ -82,7 +81,6 @@ namespace AutoOverlay.Filters
             Action RunIf(bool predicate, Action action, Action otherwise = null) => predicate ? action : otherwise ?? (() => { });
 
             // 1. Outer bounds
-
             if (GradientEdge != EdgeGradient.NONE)
             {
                 var edges = GradientEdge == EdgeGradient.INSIDE ? union : canvas;
@@ -108,8 +106,6 @@ namespace AutoOverlay.Filters
                 );
             }
 
-            //return frame;
-
             // 2. Layers
             foreach (var layer in Layers.Take(LayerIndex).Where((_, i) => !ExcludedLayers.Contains(i)))
             {
@@ -117,11 +113,10 @@ namespace AutoOverlay.Filters
                 StaticEnv.MakeWritable(layerFrame);
 
                 var intersection = Rectangle.Intersect(currentLayer, layer);
-                intersection.Offset(-currentLayer.X, -currentLayer.Y);
+                var roi = intersection with { X = intersection.X - currentLayer.X, Y = intersection.Y - currentLayer.Y };
                 if (intersection.IsEmpty) continue;
 
-                //var interFrame = framePlane.ROI(intersection);
-                var interFrame = new FramePlane(planeChannel, layerFrame, false, intersection, false);
+                var interFrame = new FramePlane(planeChannel, layerFrame, false, roi, false);
 
                 var opacityColor = (byte)(0xFF * Opacity);
                 var nonEdges = GradientEdge == EdgeGradient.NONE;
@@ -133,100 +128,103 @@ namespace AutoOverlay.Filters
 
                 // 2. Border gradient if transparent
                 // Intersection edges
-                Parallel.Invoke([
-                    RunIf(intersection.X > 0, 
-                        () => interFrame.TakeLeft(Gradient).FillGradient(0xFF, opacityColor, opacityColor, 0xFF, Noise, Seed << 0),
-                        () => interFrame.TakeLeft(Gradient).FillGradient(0x00, opacityColor, opacityColor, 0x00, Noise, Seed << 0)),
-                    RunIf(intersection.Right < framePlane.width, 
-                        () => interFrame.TakeRight(Gradient).FillGradient(opacityColor, 0xFF, 0xFF, opacityColor, Noise, Seed << 1),
-                        () => interFrame.TakeRight(Gradient).FillGradient(opacityColor, 0x00, 0x00, opacityColor, Noise, Seed << 1)),
-                    RunIf(intersection.Y > 0, 
-                        () => interFrame.TakeTop(Gradient).FillGradient(0xFF, 0xFF, opacityColor, opacityColor, Noise, Seed << 2),
-                        () => interFrame.TakeTop(Gradient).FillGradient(0x00, 0x00, opacityColor, opacityColor, Noise, Seed << 3)),
-                    RunIf(intersection.Bottom < framePlane.height, 
-                        () => interFrame.TakeBottom(Gradient).FillGradient(opacityColor, opacityColor, 0xFF, 0xFF, Noise, Seed << 3),
-                        () => interFrame.TakeBottom(Gradient).FillGradient(opacityColor, opacityColor, 0x00, 0x00, Noise, Seed << 3))
-                ]);
-
-                void FillCorner(int index, FramePlane corner, Func<bool> condition1, Func<bool> condition2)
+                if (Noise)
                 {
+                    var coef = 1;//Math.Pow(2, 2 * Opacity - 1);
+                    Parallel.Invoke(
+                        () => interFrame.TakeLeft(Gradient).FillNoise(1, 0, 0, 1, currentLayer.Left > layer.Left ? 0x00 : 0xFF, Seed << 0, coef),
+                        () => interFrame.TakeRight(Gradient).FillNoise(0, 1, 1, 0, currentLayer.Right < layer.Right ? 0x00 : 0xFF, Seed << 1, coef));
+                    Parallel.Invoke(
+                        () => interFrame.TakeTop(Gradient).FillNoise(1, 1, 0, 0, currentLayer.Top > layer.Top ? 0 : 0xFF, Seed << 2, coef),
+                        () => interFrame.TakeBottom(Gradient).FillNoise(0, 0, 1, 1, currentLayer.Bottom < layer.Bottom ? 0 : 0xFF, Seed << 3, coef));
+
+                    if (Opacity is 0 or 1)
+                        FillCorners(0, 1, Opacity, 0.5, p => p / 2, (a, b) => a - b,
+                            (plane, tl, tr, br, bl, index) => plane.Also(p => p.Fill(0)).RotateNoise(tl, tr, br, bl, 0xFF, index, Seed << index << LayerIndex));
+
+                    //FillCorners(1, 0, 1 - Opacity, 0.5, p => 0.5 + (1 - p)/2, (a, b) => 1 - b,
+                    //    (plane, tl, tr, br, bl, index) => plane.Also(p => p.Fill(0xFF)).RotateNoise(tl, tr, br, bl, 0x00, index, Seed << index << LayerIndex));
+                }
+                else
+                {
+                    Parallel.Invoke(
+                        FillEdge(0, interFrame.TakeLeft(Gradient), currentLayer.Left > layer.Left),
+                        FillEdge(1, interFrame.TakeTop(Gradient), currentLayer.Top > layer.Top),
+                        FillEdge(2, interFrame.TakeRight(Gradient), currentLayer.Right < layer.Right),
+                        FillEdge(3, interFrame.TakeBottom(Gradient), currentLayer.Bottom < layer.Bottom));
+
+                    Action FillEdge(int index, FramePlane area, bool predicate) => RunIf(predicate,
+                        () => area.FillGradient(0x00, opacityColor, opacityColor, 0x00, index),
+                        () => area.FillGradient(0xFF, opacityColor, opacityColor, 0xFF, index));
+
+                    FillCorners(0x00, 0xFF, opacityColor, cornerColor, 
+                        p => (int)Math.Round(cornerColor * p), (a, b) => a - b, 
+                        (plane, tl, tr, br, bl, index) => plane.FillGradient(tl, tr, br, bl, index));
+                }
+
+                void FillCorners<T>(T min, T max, T opacity, T edge,
+                    Func<double, T> calc, Func<T, T, T> subtract,
+                    Action<FramePlane, T, T, T, T, int> fill) => Parallel.Invoke(
+                    () => FillCorner(0,
+                        interFrame.TakeLeft(Gradient).TakeTop(Gradient),
+                        () => currentLayer.Left > layer.Left,
+                        () => currentLayer.Top > layer.Top,
+                        min, max, opacity, edge, calc, subtract, fill),
+                    () => FillCorner(1,
+                        interFrame.TakeRight(Gradient).TakeTop(Gradient),
+                        () => currentLayer.Top > layer.Top,
+                        () => currentLayer.Right < layer.Right,
+                        min, max, opacity, edge, calc, subtract, fill),
+                    () => FillCorner(2,
+                        interFrame.TakeRight(Gradient).TakeBottom(Gradient),
+                        () => currentLayer.Right < layer.Right,
+                        () => currentLayer.Bottom < layer.Bottom,
+                        min, max, opacity, edge, calc, subtract, fill),
+                    () => FillCorner(3,
+                        interFrame.TakeLeft(Gradient).TakeBottom(Gradient),
+                        () => currentLayer.Bottom < layer.Bottom,
+                        () => currentLayer.Left > layer.Left,
+                        min, max, opacity, edge, calc, subtract, fill));
+
+                void FillCorner<T>(int index, FramePlane corner, 
+                    Func<bool> condition1, Func<bool> condition2, 
+                    T min, T max, T opacity, T edge, 
+                    Func<double, T> calc, Func<T,T,T> subtract,
+                    Action<FramePlane, T, T, T, T, int> fill)
+                {
+                    Action<FramePlane> Fill(T min, T max, T opacity, T edge) => area => fill(area, min, max, opacity, edge, index);
+
                     if (condition1() && condition2())
-                        corner.FillGradient(0xFF, 0xFF, opacityColor, 0xFF, index, cornerNoise, Seed << index);
+                        corner.Also(Fill(min, min, opacity, min));
                     else if (condition1())
                     {
                         if (!nonEdges)
                         {
-                            corner.FillGradient(cornerColor, 0x00, opacityColor, 0xFF, index, cornerNoise, Seed << index);
+                            corner.Also(Fill(edge, max, opacity, min));
                             return;
                         }
-                        corner
-                            .Crop(0, 0, Gradient / 2, Gradient / 2, index)
-                            .FillGradient(cornerColor, 0x00, cornerColor, 0xFF, index, cornerNoise, Seed << index);
-                        corner.Crop(0, Gradient / 2, Gradient / 2, 0, index)
-                            .FillGradient(0xFF, cornerColor, 0xFF - (int)Math.Round(cornerColor * (1 - Opacity)), 0xFF, index, cornerNoise, Seed << index);
-                        corner
-                            .Crop(Gradient / 2, 0, 0, Gradient / 2, index)
-                            .FillGradient(0x00, 0x00, (int)Math.Round(cornerColor * Opacity), cornerColor, index, cornerNoise, Seed << index);
-                        corner
-                            .Crop(Gradient / 2, Gradient / 2, 0, 0, index)
-                            .FillGradient(cornerColor, (int)Math.Round(cornerColor * Opacity), opacityColor, 0xFF - (int)Math.Round(cornerColor * (1 - Opacity)), index, cornerNoise, Seed << index);
+                        corner.Crop(0, 0, Gradient / 2, Gradient / 2, index).Also(Fill(edge, max, edge, min));
+                        corner.Crop(0, Gradient / 2, Gradient / 2, 0, index).Also(Fill(min, edge, calc(Opacity), min));
+                        corner.Crop(Gradient / 2, 0, 0, Gradient / 2, index).Also(Fill(max, max, subtract(max, calc(1 - Opacity)), edge));
+                        corner.Crop(Gradient / 2, Gradient / 2, 0, 0, index).Also(Fill(edge, subtract(max, calc(1 - Opacity)), opacity, calc(Opacity)));
                     }
                     else if (condition2())
                     {
                         if (!nonEdges)
                         {
-                            corner.FillGradient(cornerColor, 0xFF, opacityColor, 0x00, index, cornerNoise, Seed << index);
+                            corner.Also(Fill(edge, min, opacity, max));
                             return;
                         }
-                        corner
-                            .Crop(0, 0, Gradient / 2, Gradient / 2, index)
-                            .FillGradient(cornerColor, 0xFF, cornerColor, 0x00, index, cornerNoise, Seed << index);
-                        corner.Crop(0, Gradient / 2, Gradient / 2, 0, index)
-                            .FillGradient(0x00, cornerColor, (int)Math.Round(cornerColor * Opacity), 0x00, index, cornerNoise, Seed << index);
-                        corner
-                            .Crop(Gradient / 2, 0, 0, Gradient / 2, index)
-                            .FillGradient(0xFF, 0xFF, 0xFF - (int)Math.Round(cornerColor * (1 - Opacity)), cornerColor, index, cornerNoise, Seed << index);
-                        corner
-                            .Crop(Gradient / 2, Gradient / 2, 0, 0, index)
-                            .FillGradient(cornerColor, 0xFF - (int)Math.Round(cornerColor * (1 - Opacity)), opacityColor, (int)Math.Round(cornerColor * Opacity), index, cornerNoise, Seed << index);
+
+                        corner.Crop(0, 0, Gradient / 2, Gradient / 2, index).Also(Fill(edge, min, edge, max));
+                        corner.Crop(0, Gradient / 2, Gradient / 2, 0, index).Also(Fill(max, edge, subtract(max, calc(1 - Opacity)), max));
+                        corner.Crop(Gradient / 2, 0, 0, Gradient / 2, index).Also(Fill(min, min, calc(Opacity), edge));
+                        corner.Crop(Gradient / 2, Gradient / 2, 0, 0, index).Also(Fill(edge, calc(Opacity), opacity, subtract(max, calc(1 - Opacity))));
                     }
-                    else corner.FillGradient(0x00, 0x00, opacityColor, 0x00, index, cornerNoise, Seed << index);
+                    else corner.Also(Fill(max, max, opacity, max));
                 }
 
-                Parallel.Invoke([
-                    () => FillCorner(0, 
-                        interFrame.TakeLeft(Gradient).TakeTop(Gradient),
-                        () => intersection.X > 0,
-                        () => intersection.Y > 0),
-                    () => FillCorner(1,
-                        interFrame.TakeRight(Gradient).TakeTop(Gradient),
-                        () => intersection.Y > 0,
-                        () => intersection.Right < framePlane.width),
-                    () => FillCorner(2,
-                        interFrame.TakeRight(Gradient).TakeBottom(Gradient),
-                        () => intersection.Right < framePlane.width,
-                        () => intersection.Bottom < framePlane.height),
-                    () => FillCorner(3,
-                        interFrame.TakeLeft(Gradient).TakeBottom(Gradient),
-                        () => intersection.Bottom < framePlane.height,
-                        () => intersection.X > 0),
-                ]);
-
-
-                //if (Noise > 0)
-                //{
-                //    Parallel.Invoke([
-                //        () => interFrame.TakeLeft(Noise).FillNoise(1, 0, 0, 1, intersection.X > 0 ? 255 : 0, Seed << 0),
-                //        () => interFrame.TakeRight(Noise).FillNoise(0, 1, 1, 0, intersection.Right < framePlane.width ? 255 : 0, Seed << 1)
-                //    ]);
-                //    Parallel.Invoke([
-                //        () => interFrame.TakeTop(Noise).FillNoise(1, 1, 0, 0, intersection.Y > 0 ? 255 : 0, Seed << 2),
-                //        () => interFrame.TakeBottom(Noise).FillNoise(0, 0, 1, 1, intersection.Bottom < framePlane.height ? 255 : 0, Seed << 3)
-                //    ]);
-                //}
-
-
-                framePlane.ROI(intersection).Min(interFrame);
+                framePlane.ROI(roi).Min(interFrame);
             }
 
             return frame;

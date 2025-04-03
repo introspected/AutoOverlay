@@ -189,6 +189,11 @@ public:
 
     void FillGradient(int tl, int tr, int br, int bl, bool noise, int seed, OverlayType mode)
     {
+        if (tl == tr && tl == br && tl == bl)
+        {
+            Fill(tl, mode);
+            return;
+        }
         switch (byteDepth)
         {
         case 1:
@@ -376,17 +381,17 @@ public:
         }
     }
 
-    void FillNoise(double tl, double tr, double br, double bl, int color, int seed)
+    void FillNoise(double tl, double tr, double br, double bl, int color, int seed, double coef)
     {
         auto random = NativeRandom(seed);
         switch (byteDepth)
         {
         case 1:
-            FillNoise<unsigned char>(tl, tr, br, bl, color, random);
+            FillNoise<unsigned char>(tl, tr, br, bl, color, random, coef);
             break;
 
         case 2:
-            FillNoise<unsigned short>(tl, tr, br, bl, color, random);
+            FillNoise<unsigned short>(tl, tr, br, bl, color, random, coef);
             break;
         default:
             throw gcnew AvisynthException("Unsupported color depth");
@@ -518,9 +523,9 @@ private:
         if (byteDepth == 4)
         {
             tlColor = tl / 255.0;
-            trColor = tl / 255.0;
-            brColor = tl / 255.0;
-            blColor = tl / 255.0;
+            trColor = tr / 255.0;
+            brColor = br / 255.0;
+            blColor = bl / 255.0;
         }
     	else
         {
@@ -600,7 +605,7 @@ private:
         }
     }
 
-    template <typename TColor> void FillNoise(double tl, double tr, double br, double bl, int color, NativeRandom random)
+    template <typename TColor> void FillNoise(double tl, double tr, double br, double bl, int color, NativeRandom random, double coef)
     {
         auto ptr = static_cast<TColor*>(pointer);
         auto shift = bitDepth - 8;
@@ -617,7 +622,7 @@ private:
                 auto bottom = bl * (1 - xRatio) + br * xRatio;
                 auto weight = top * (1 - yRatio) + bottom * yRatio;
 
-                if (random.NextDouble() < weight)
+                if (random.NextDouble() < pow(weight, coef))
                 {
                     ptr[x] = filler;
                 }

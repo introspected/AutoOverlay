@@ -193,14 +193,14 @@ namespace AutoOverlay
         {
             var info = Clone();
             var nonCroppedSize = new SizeD(
-                OverlaySize.Width + crop.Left + crop.Right,
-                OverlaySize.Height + crop.Top + crop.Bottom);
-            var scale = new SizeD(nonCroppedSize.Width / OverlaySize.Width, nonCroppedSize.Height / OverlaySize.Height);
+                overlaySize.Width + crop.Left + crop.Right,
+                overlaySize.Height + crop.Top + crop.Bottom);
+            var scale = new SizeD(OverlaySize.Width/nonCroppedSize.Width, OverlaySize.Height/nonCroppedSize.Height);
             crop = crop.Scale(scale);
             info.OverlaySize = new SizeD(
-                OverlaySize.Width * scale.Width - crop.Left - crop.Right, 
-                OverlaySize.Height * scale.Height - crop.Top - crop.Bottom);
-            info.Placement = new Space(Placement.X - crop.Left, Placement.Y - crop.Top);
+                OverlaySize.Width - crop.Left - crop.Right, 
+                OverlaySize.Height - crop.Top - crop.Bottom);
+            info.Placement = new Space(Placement.X + crop.Left, Placement.Y + crop.Top);
             return info;
         }
 
@@ -237,7 +237,7 @@ namespace AutoOverlay
 
         public override string ToString()
         {
-            return $"{nameof(Diff)}: {Diff:F5}, {nameof(Placement)}: {Placement.X:F3}, {Placement.Y:F3}, {nameof(Angle)}: {Angle:F3}, " +
+            return $"Frame: {FrameNumber}, {nameof(Diff)}: {Diff:F5}, {nameof(Placement)}: {Placement.X:F3}:{Placement.Y:F3}, {nameof(Angle)}: {Angle:F3}, " +
                    $"{nameof(SourceSize)}: {SourceSize.Width:F2}x{SourceSize.Height:F2}, " +
                    $"{nameof(OverlaySize)}: {OverlaySize.Width:F2}x{OverlaySize.Height:F2}, {nameof(Warp)}: {OverlayWarp}, ";
         }

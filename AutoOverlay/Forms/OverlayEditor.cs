@@ -492,7 +492,7 @@ namespace AutoOverlay.Forms
                     ? cbMatrix.SelectedIndex > 0 ? cbMatrix.SelectedItem.ToString() : string.Empty
                     : null,
                 gradient = (int) nudGradientSize.Value,
-                noise = cbNoise.Checked,
+                noise = (int) nudNoise.Value,
                 overlayMode = cbOverlayMode.SelectedItem.ToString(),
                 opacity = tbOpacity.Value / 100.0,
                 colorAdjust = chbColorAdjust.Checked ? tbColorAdjust.Value / 100.0 : -1,
@@ -518,7 +518,7 @@ namespace AutoOverlay.Forms
             public bool rgb;
             public string matrix;
             public int gradient;
-            public bool noise;
+            public int noise;
             public string overlayMode;
             public double opacity;
             public double colorAdjust;

@@ -76,7 +76,9 @@ namespace AutoOverlay
 
         public RectangleD Scale(double coefWidth, double coefHeight)
         {
-            return new RectangleD(X * coefWidth, Y * coefHeight, Width * coefWidth, Height * coefHeight, ltrb);
+            return ltrb
+                ? FromLTRB(Left * coefWidth, Top * coefHeight, Right * coefWidth, Bottom * coefHeight)
+                : new(X * coefWidth, Y * coefHeight, Width * coefWidth, Height * coefHeight);
         }
 
         public static RectangleD Union(RectangleD a, RectangleD b)

@@ -11,7 +11,7 @@ using AvsFilterNet;
     nameof(StaticOverlayRender),
     "cc[X]f[Y]f[Angle]f[OverlayWidth]f[OverlayHeight]f[WarpPoints]s[Diff]f[SourceMask]c[OverlayMask]c[Preset]s" +
     "[InnerBounds]c[OuterBounds]c[OverlayBalanceX]f[OverlayBalanceY]f[FixedSource]b" +
-    "[OverlayMode]s[Width]i[Height]i[PixelType]s[Gradient]i[Noise]b" +
+    "[OverlayMode]s[Width]i[Height]i[PixelType]s[Gradient]i[Noise]i" +
     "[BorderOffset]c[SrcColorBorderOffset]c[OverColorBorderOffset]c" +
     "[MaskMode]b[Opacity]f[ColorAdjust]f[ColorBuckets]i[ColorDither]f[ColorExclude]f[ColorFramesCount]i[ColorFramesDiff]f[ColorBufferedExtrapolation]b" +
     "[AdjustChannels]s[GradientColor]f[Matrix]s[SourceMatrix]s[OverlayMatrix]s[Upsize]s[Downsize]s[Rotate]s[Preview]b[Debug]b[Invert]b" +
@@ -95,7 +95,7 @@ namespace AutoOverlay
         public override int Gradient { get; protected set; }
 
         [AvsArgument(Min = 0)]
-        public override bool Noise { get; protected set; }
+        public override int Noise { get; protected set; }
 
         [AvsArgument(Min = 0)]
         public override Rectangle BorderOffset { get; protected set; } = Rectangle.Empty;

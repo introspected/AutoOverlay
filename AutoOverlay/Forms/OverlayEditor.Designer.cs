@@ -29,8 +29,8 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle6 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle5 = new System.Windows.Forms.DataGridViewCellStyle();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(OverlayEditor));
             this.panel1 = new System.Windows.Forms.Panel();
             this.trackBar = new System.Windows.Forms.TrackBar();
@@ -85,7 +85,6 @@
             this.nudDeviation = new System.Windows.Forms.NumericUpDown();
             this.label27 = new System.Windows.Forms.Label();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
-            this.cbNoise = new System.Windows.Forms.CheckBox();
             this.label25 = new System.Windows.Forms.Label();
             this.chbColorAdjust = new System.Windows.Forms.CheckBox();
             this.chbRGB = new System.Windows.Forms.CheckBox();
@@ -138,6 +137,8 @@
             this.btnDelete = new System.Windows.Forms.ToolStripButton();
             this.pictureBox = new System.Windows.Forms.PictureBox();
             this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
+            this.label4 = new System.Windows.Forms.Label();
+            this.nudNoise = new System.Windows.Forms.NumericUpDown();
             this.panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trackBar)).BeginInit();
             this.panel3.SuspendLayout();
@@ -174,6 +175,7 @@
             ((System.ComponentModel.ISupportInitialize)(this.nudOverlayWidth)).BeginInit();
             this.toolStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudNoise)).BeginInit();
             this.SuspendLayout();
             // 
             // panel1
@@ -437,14 +439,14 @@
             this.diffDataGridViewTextBoxColumn,
             this.Fixed});
             this.grid.DataSource = this.frameIntervalBindingSource;
-            dataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle2.BackColor = System.Drawing.SystemColors.Window;
-            dataGridViewCellStyle2.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F);
-            dataGridViewCellStyle2.ForeColor = System.Drawing.SystemColors.ControlText;
-            dataGridViewCellStyle2.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle2.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle2.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-            this.grid.DefaultCellStyle = dataGridViewCellStyle2;
+            dataGridViewCellStyle6.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle6.BackColor = System.Drawing.SystemColors.Window;
+            dataGridViewCellStyle6.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F);
+            dataGridViewCellStyle6.ForeColor = System.Drawing.SystemColors.ControlText;
+            dataGridViewCellStyle6.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle6.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle6.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
+            this.grid.DefaultCellStyle = dataGridViewCellStyle6;
             this.grid.Dock = System.Windows.Forms.DockStyle.Fill;
             this.grid.Location = new System.Drawing.Point(0, 0);
             this.grid.Margin = new System.Windows.Forms.Padding(4);
@@ -500,8 +502,8 @@
             // diffDataGridViewTextBoxColumn
             // 
             this.diffDataGridViewTextBoxColumn.DataPropertyName = "Diff";
-            dataGridViewCellStyle1.Format = "F1";
-            this.diffDataGridViewTextBoxColumn.DefaultCellStyle = dataGridViewCellStyle1;
+            dataGridViewCellStyle5.Format = "F1";
+            this.diffDataGridViewTextBoxColumn.DefaultCellStyle = dataGridViewCellStyle5;
             this.diffDataGridViewTextBoxColumn.HeaderText = "Diff";
             this.diffDataGridViewTextBoxColumn.MinimumWidth = 6;
             this.diffDataGridViewTextBoxColumn.Name = "diffDataGridViewTextBoxColumn";
@@ -889,7 +891,6 @@
             // 
             // groupBox2
             // 
-            this.groupBox2.Controls.Add(this.cbNoise);
             this.groupBox2.Controls.Add(this.label25);
             this.groupBox2.Controls.Add(this.chbColorAdjust);
             this.groupBox2.Controls.Add(this.chbRGB);
@@ -903,10 +904,12 @@
             this.groupBox2.Controls.Add(this.label23);
             this.groupBox2.Controls.Add(this.label24);
             this.groupBox2.Controls.Add(this.label6);
+            this.groupBox2.Controls.Add(this.nudNoise);
             this.groupBox2.Controls.Add(this.nudGradientSize);
             this.groupBox2.Controls.Add(this.label1);
             this.groupBox2.Controls.Add(this.label2);
             this.groupBox2.Controls.Add(this.nudOutputWidth);
+            this.groupBox2.Controls.Add(this.label4);
             this.groupBox2.Controls.Add(this.label5);
             this.groupBox2.Controls.Add(this.nudOutputHeight);
             this.groupBox2.Controls.Add(this.label26);
@@ -920,16 +923,6 @@
             this.groupBox2.TabIndex = 17;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Display settings";
-            // 
-            // cbNoise
-            // 
-            this.cbNoise.AutoSize = true;
-            this.cbNoise.Location = new System.Drawing.Point(487, 95);
-            this.cbNoise.Name = "cbNoise";
-            this.cbNoise.Size = new System.Drawing.Size(65, 20);
-            this.cbNoise.TabIndex = 10;
-            this.cbNoise.Text = "Noise";
-            this.cbNoise.UseVisualStyleBackColor = true;
             // 
             // label25
             // 
@@ -1104,15 +1097,15 @@
             0,
             0,
             0});
-            this.nudGradientSize.Location = new System.Drawing.Point(357, 90);
+            this.nudGradientSize.Location = new System.Drawing.Point(357, 91);
             this.nudGradientSize.Margin = new System.Windows.Forms.Padding(4);
             this.nudGradientSize.Maximum = new decimal(new int[] {
-            500,
+            999,
             0,
             0,
             0});
             this.nudGradientSize.Name = "nudGradientSize";
-            this.nudGradientSize.Size = new System.Drawing.Size(122, 22);
+            this.nudGradientSize.Size = new System.Drawing.Size(56, 22);
             this.nudGradientSize.TabIndex = 5;
             this.nudGradientSize.ValueChanged += new System.EventHandler(this.Render);
             // 
@@ -1163,7 +1156,7 @@
             // label5
             // 
             this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(266, 96);
+            this.label5.Location = new System.Drawing.Point(266, 93);
             this.label5.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label5.Name = "label5";
             this.label5.Size = new System.Drawing.Size(58, 16);
@@ -1651,6 +1644,35 @@
             this.pictureBox.TabIndex = 2;
             this.pictureBox.TabStop = false;
             // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.Location = new System.Drawing.Point(421, 94);
+            this.label4.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(43, 16);
+            this.label4.TabIndex = 3;
+            this.label4.Text = "Noise";
+            // 
+            // nudNoise
+            // 
+            this.nudNoise.Increment = new decimal(new int[] {
+            10,
+            0,
+            0,
+            0});
+            this.nudNoise.Location = new System.Drawing.Point(473, 91);
+            this.nudNoise.Margin = new System.Windows.Forms.Padding(4);
+            this.nudNoise.Maximum = new decimal(new int[] {
+            999,
+            0,
+            0,
+            0});
+            this.nudNoise.Name = "nudNoise";
+            this.nudNoise.Size = new System.Drawing.Size(56, 22);
+            this.nudNoise.TabIndex = 5;
+            this.nudNoise.ValueChanged += new System.EventHandler(this.Render);
+            // 
             // OverlayEditor
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
@@ -1710,6 +1732,7 @@
             this.toolStrip1.ResumeLayout(false);
             this.toolStrip1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudNoise)).EndInit();
             this.ResumeLayout(false);
 
         }
@@ -1821,6 +1844,7 @@
         private System.Windows.Forms.Button btnEnhanceClip;
         private System.Windows.Forms.Button btnEnhanceScene;
         private System.Windows.Forms.Button btnEnhanceFrame;
-        private System.Windows.Forms.CheckBox cbNoise;
+        private System.Windows.Forms.NumericUpDown nudNoise;
+        private System.Windows.Forms.Label label4;
     }
 }

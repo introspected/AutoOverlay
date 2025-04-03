@@ -95,9 +95,17 @@ namespace AutoOverlay
             return ColorSpaceMap[(int)colorSpace];
         }
 
-        public static bool WithoutSubSample(this ColorSpaces colorSpace)
+        public static bool IsWithoutSubSample(this ColorSpaces colorSpace)
         {
             return colorSpace.GetSubSample() == OverlayConst.NO_SUB_SAMPLE;
+        }
+
+        public static ColorSpaces WithoutSubSample(this ColorSpaces colorSpace)
+        {
+            if (!colorSpace.HasFlag(ColorSpaces.CS_YUV))
+                return colorSpace;
+            return ((colorSpace & ~ColorSpaces.CS_Sub_Width_Mask) & ~ColorSpaces.CS_Sub_Height_Mask) |
+                   ColorSpaces.CS_Sub_Width_1 | ColorSpaces.CS_Sub_Height_1;
         }
 
         public static int GetBitDepth(this ColorSpaces colorSpace)
@@ -346,13 +354,13 @@ namespace AutoOverlay
             ? clip
             : clip.Dynamic().Invoke("Extract" + plane.GetLetter());
 
-        public static dynamic InitClip(dynamic clip, Size size, int color) => InitClip(clip, size.Width, size.Height, color);
+        public static dynamic InitClip(dynamic clip, Size size, int color, string pixelType = null) => InitClip(clip, size.Width, size.Height, color, pixelType);
 
-        public static dynamic InitClip(dynamic clip, int width, int height, int color)
+        public static dynamic InitClip(dynamic clip, int width, int height, int color, string pixelType = null)
         {
             return ((Clip)clip).GetVideoInfo().IsRGB()
-                ? clip.BlankClip(width: width, height: height, color: color)
-                : clip.BlankClip(width: width, height: height, color_yuv: color);
+                ? clip.BlankClip(width: width, height: height, color: color, pixel_type: pixelType)
+                : clip.BlankClip(width: width, height: height, color_yuv: color, pixel_type: pixelType);
         }
 
         public static dynamic GetBlankClip(Clip clip, bool white) => GetSolidClip(clip, white ? 0xFF : 0x00);

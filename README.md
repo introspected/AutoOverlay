@@ -120,7 +120,7 @@ The filter takes two clips as input: the base clip and the overlaid clip, and pe
 | ------------------- | ------- | -------- | -------- |
 | SceneBuffer         | 10      | 15       | 20       |
 | ShakeBuffer         | 1       | 2        | 3        |
-| FrameDiffTolerance  | 5       | 4        | 3        |
+| FrameDiffTolerance  | 10      | 7        | 5        |
 | SceneDiffTolerance  | 75      | 50       | 25       |
 | MaxDiff             | 20      | 15       | 10       |
 
@@ -666,6 +666,17 @@ If the framing is dynamic, prepare *OverlayEngine* and specify it in the *engine
     ```OverlayEngine(clip1, clip2, maxDiff = 5, statFile = "diff.stat", editor = true)```
 
 ## Changelog
+### 04.04.2025 v0.7.3
+1. *OverlayEngine*: increased default values for the *frameDiffTolerance* parameter.  
+2. *OverlayEngine*: improved scene stabilization.  
+3. *OverlayRender*: fixed color correction stabilization when using the *colorFramesCount* parameter.  
+4. *OverlayRender*: the *noise* parameter has been made integer-based again and is now applied within the frame instead of *gradient* when specified, while *gradient* in this case is applied only to the edges.  
+5. *OverlayRender*: fixed gradient overlay on frame edges.  
+6. *OverlayRender*: improved support for certain color spaces.  
+7. *OverlayRender*: fixed functionality of the *overlayCrop* parameter.  
+8. *OverlayRender*: fixed handling of masks.  
+9. *ColorMatch**: improved performance when using the *frameBuffer* parameter.
+
 ### 25.03.2025 v0.7.2
 1. *OverlayEngine*: scan prediction fix.
 2. Overall performance increased.

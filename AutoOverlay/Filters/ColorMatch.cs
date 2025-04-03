@@ -115,7 +115,7 @@ namespace AutoOverlay
 
             var targetFrame = Frame == -1 ? n : Frame;
             var lookAround = targetFrame.Enumerate();
-            if (CacheId != null)
+            if (CacheId == null)
                 lookAround = new[] { -1, 1 }
                     .SelectMany(sign => Enumerable.Range(1, FrameBuffer).Select(p => targetFrame + sign * p))
                     .Where(p => p > 0 && p < frameCount)
@@ -173,7 +173,9 @@ namespace AutoOverlay
             {
                 Parallel.ForEach(planeChannelTuples, tuple => MatchColor(tuple, default, output));
             }
-            histogramCache.Shrink(targetFrame - OverlayConst.ENGINE_HISTORY_LENGTH * 3, targetFrame + OverlayConst.ENGINE_HISTORY_LENGTH * 3, false);
+
+            if (CacheId == null)
+                histogramCache.Shrink(targetFrame - OverlayConst.ENGINE_HISTORY_LENGTH * 2, targetFrame + OverlayConst.ENGINE_HISTORY_LENGTH * 2, false);
             return output;
         }
 

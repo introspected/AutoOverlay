@@ -10,7 +10,7 @@ using AvsFilterNet;
     "ccc[SourceMask]c[OverlayMask]c[SourceCrop]c[OverlayCrop]c[ExtraClips]c[Preset]s" +
     "[InnerBounds]c[OuterBounds]c[OverlayBalanceX]f[OverlayBalanceY]f[FixedSource]b[OverlayOrder]i" +
     "[StabilizationDiffTolerance]f[StabilizationAreaTolerance]f[StabilizationLength]i" +
-    "[OverlayMode]s[Width]i[Height]i[PixelType]s[Gradient]i[Noise]b" +
+    "[OverlayMode]s[Width]i[Height]i[PixelType]s[Gradient]i[Noise]i" +
     "[BorderControl]i[BorderMaxDeviation]f[BorderOffset]c[SrcColorBorderOffset]c[OverColorBorderOffset]c" +
     "[MaskMode]b[Opacity]f[ColorAdjust]f[ColorBuckets]i[ColorDither]f[ColorExclude]f[ColorFramesCount]i[ColorFramesDiff]f" +
     "[ColorMaxDeviation]f[ColorBufferedExtrapolation]b[GradientColor]f[ColorMatchTarget]c[AdjustChannels]s[Matrix]s[SourceMatrix]s[OverlayMatrix]s" +
@@ -88,7 +88,7 @@ namespace AutoOverlay
         public override int Gradient { get; protected set; }
 
         [AvsArgument(Min = 0)]
-        public override bool Noise { get; protected set; }
+        public override int Noise { get; protected set; }
 
         [AvsArgument(Min = 0, Max = OverlayConst.ENGINE_HISTORY_LENGTH, Unused = true)]
         public override int BorderControl { get; protected set; } = 0;

@@ -36,7 +36,7 @@ namespace AutoOverlay
                 {
                     [nameof(SceneBuffer)] = _ => 10,
                     [nameof(ShakeBuffer)] = _ => 1,
-                    [nameof(FrameDiffTolerance)] = _ => 5,
+                    [nameof(FrameDiffTolerance)] = _ => 10,
                     [nameof(SceneDiffTolerance)] = _ => 75,
                     [nameof(MaxDiff)] = _ => 20,
                 },
@@ -48,7 +48,7 @@ namespace AutoOverlay
                 {
                     [nameof(SceneBuffer)] = _ => 20,
                     [nameof(ShakeBuffer)] = _ => 3,
-                    [nameof(FrameDiffTolerance)] = _ => 3,
+                    [nameof(FrameDiffTolerance)] = _ => 5,
                     [nameof(SceneDiffTolerance)] = _ => 25,
                     [nameof(MaxDiff)] = _ => 10,
                 },
@@ -91,7 +91,7 @@ namespace AutoOverlay
         public bool Correction { get; private set; } = true;
 
         [AvsArgument]
-        public double FrameDiffTolerance { get; private set; } = 4; // %
+        public double FrameDiffTolerance { get; private set; } = 7; // %
 
         [AvsArgument]
         public double FrameAreaTolerance { get; private set; } = 0.2; // %
@@ -403,7 +403,9 @@ namespace AutoOverlay
 
         public bool PanScanMode => ScanDistance > 0;
 
-        private double FrameDiff(OverlayInfo main, OverlayInfo other) => (other.Diff + FrameDiffBias) / (main.Diff + FrameDiffBias) - 1;
+        private double FrameDiff(OverlayInfo main, OverlayInfo other) => FrameDiff(main.Diff, other.Diff);
+
+        private double FrameDiff(double main, double other) => (other + FrameDiffBias) / (main + FrameDiffBias) - 1;
 
         private bool CheckFrameArea(OverlayInfo first, OverlayInfo second) => first.NearlyEquals(second, FrameAreaTolerance);
 
@@ -443,6 +445,7 @@ namespace AutoOverlay
             {
                 log(() => $"Stabilization from {stabKeyFrame} frame");
                 var stabBuffer = GetShakeBuffer(stabKeyFrame);
+                var stabDiff = stabBuffer.Average(p => p.Diff);
                 // Try to stabilize buffer frames
                 var stableSequence = stabBuffer
                     .Distinct()
@@ -463,13 +466,18 @@ namespace AutoOverlay
                     {
                         p.Sequence,
                         Passed = p.Sequence.All(f => f.FrameDiff <= FrameDiffTolerance),
-                        AverageDiff = p.Sequence.Average(f => f.Repeated.Diff)
+                        //Passed = FrameDiff(stabDiff, p.Sequence.Average(f => f.Repeated.Diff)) <= FrameDiffTolerance,
+                        AverageDiff = p.Sequence.Average(f => f.Repeated.Diff),
                     })
                     .Peek(p => log(() => $"""
-                                      Align: {p.Sequence.First().Repeated}
-                                      Diff: [{string.Join(", ", p.Sequence.Select(f => f.FrameDiff.ToString("F5")))}]
-                                      Average: {p.AverageDiff:F5}
-                                      Passed: {p.Passed}
+                                      Align: {p.Sequence.First().Repeated}\n
+                                      Own Diff: [{string.Join(", ", p.Sequence.Select(f => f.Original.Diff.ToString("F5")))}]\n
+                                      Repeated Diff: [{string.Join(", ", p.Sequence.Select(f => f.Repeated.Diff.ToString("F5")))}]\n
+                                      Delta: [{string.Join(", ", p.Sequence.Select(f => f.FrameDiff.ToString("F5")))}]\n
+                                      Avg Own Diff: {stabDiff:F5}
+                                      Avg Repeated Diff: {p.AverageDiff:F5}
+                                      Avg Delta: {FrameDiff(stabDiff, p.AverageDiff):F5}
+                                      Passed: {p.Passed}\n
                                       """))
                     .Where(p => p.Passed)
                     .OrderBy(p => p.AverageDiff)
@@ -634,16 +642,16 @@ namespace AutoOverlay
                                 var prevAligned = OverlayStat[prev.FrameNumber] ?? cache.Align(prev.FrameNumber, keyframe.OverlayWarp);
                                 var prevDiff = FrameDiff(prevAligned, prev);
 
+                                if (!CheckSceneArea(prevAligned, own))
+                                {
+                                    log(() => $"New scene detected at {frame}");
+                                    return true;
+                                }
+
                                 if (prevDiff > FrameDiffTolerance || !CheckFrameArea(prevAligned, prev))
                                 {
                                     log(() => $"Scan detected at {frame}");
                                     return false;
-                                }
-
-                                if (!CheckSceneArea(prevAligned, own) || !CheckSceneArea(prev, own))
-                                {
-                                    log(() => $"New scene detected at {frame}");
-                                    return true;
                                 }
                             }
 

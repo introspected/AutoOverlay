@@ -77,9 +77,11 @@ namespace AutoOverlay.Histogram
             var neighbours = new[] { -1, 1 }.SelectMany(sign => Enumerable.Range(1, buffer)
                     .Select(p => frame + sign * p)
                     .TakeWhile(p => cache.ContainsKey(p))
-                    .Select(p => cache[p])
-                    .TakeWhile(frameCache => frameCache is { Active: true } 
-                                             && main.Keys.All(plane => Math.Abs(main[plane].Diff - frameCache[plane].Diff) < diff)))
+                    .Select(p => new{ Frame = p, Cache = cache[p] })
+                    .TakeWhile(p => p.Cache is { Active: true } 
+                                    && main.Keys.All(plane => Math.Abs(main[plane].Diff - p.Cache[plane].Diff) < diff)))
+                //.Peek(p => Debug.WriteLine("Cache frame around " + frame + ": " + p.Frame))
+                .Select(p => p.Cache)
                 .ToList();
             return main.Keys.ToDictionary(p => p, key => new PlaneHistograms
             {
