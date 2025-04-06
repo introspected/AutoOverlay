@@ -36,7 +36,7 @@ namespace AutoOverlay
                         {
                             Sample = "RGBPS",
                             Reference = "RGBPS",
-                            Space = fromHdr ? "rgb:709:709:f" : "rgb:st2084:2020:f"
+                            Space = fromHdr ? "rgb:st2084:709:f" : "rgb:st2084:2020:f"
                         }
                     ];
                     if (twoSteps)
