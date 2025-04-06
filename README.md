@@ -200,7 +200,7 @@ Modified and unsaved episodes are highlighted in yellow in the grid. The *Save* 
                   clip innerBounds, clip outerBounds, float overlayBalanceX, float overlayBalanceY, 
                   bool fixedSource, int overlayOrder, 
                   float stabilizationDiffTolerance, float stabilizationAreaTolerance, int stabilizationLength, 
-                  string overlayMode, int width, int height, string pixelType, int gradient, bool noise, 
+                  string overlayMode, int width, int height, string pixelType, int gradient, int noise, 
                   int borderControl, float borderMaxDeviation, clip borderOffset, 
                   clip srcColorBorderOffset, rectangle overColorBorderOffset, bool maskMode, float opacity, 
                   float colorAdjust, int colorBuckets, float colorDither, float colorExclude, 
@@ -248,7 +248,7 @@ The filter renders the result of combining two or more clips with specific setti
 - **width** and **height** - the width and height of the output image. Defaults to the base clip’s dimensions.
 - **pixelType** - the color space of the resulting clip, must match the color space type of the overlaid clips (YUV or RGB). Defaults to the base clip’s color space.
 - **gradient** (default 0) - the length of a transparent gradient in pixels at the edges of the overlaid area. Makes the transition between images smoother.
-- **noise** (default false) - adds noise to the intersection boundaries to make transitions less noticeable. Works in conjunction with the *gradient* parameter.
+- **noise** (default 0) - adds noise to the intersection boundaries to make transitions less noticeable. If greater than 0 then *gradient* applies only at the edges.
 - **borderControl** (default 0) - the number of neighboring frames on both sides analyzed to determine which sides of the overlay mask should be included for the current frame, considering the *borderOffset* parameter.
 - **borderMaxDeviation** (default 0.5) - the maximum deviation of the total area between the current and neighboring frames for use in a frame sequence when creating the overlay mask.
 - **borderOffset** (default empty) - a Rect-type clip specifying "empty" image borders (left, top, right, bottom) that will be ignored when calculating the gradient mask.
@@ -422,7 +422,7 @@ A filter for visualizing the combination of two clips.
     StaticOverlayRender(clip source, clip overlay, float x, float y, float angle, float overlayWidth, float overlayHeight, 
                         string warpPoints, float diff, clip sourceMask, clip overlayMask, string preset, 
                         clip innerBounds, clip outerBounds, float overlayBalanceX, float overlayBalanceY, bool fixedSource, 
-                        string overlayMode, int width, int height, string pixelType, int gradient, bool noise, 
+                        string overlayMode, int width, int height, string pixelType, int gradient, int noise, 
                         clip borderOffset, clip srcColorBorderOffset, clip overColorBorderOffset, bool maskMode, float opacity, 
                         float colorAdjust, int colorBuckets, float colorDither, float colorExclude, int colorFramesCount, 
                         float colorFramesDiff, bool colorBufferedExtrapolation, string adjustChannels, float gradientColor, 
@@ -666,6 +666,11 @@ If the framing is dynamic, prepare *OverlayEngine* and specify it in the *engine
     ```OverlayEngine(clip1, clip2, maxDiff = 5, statFile = "diff.stat", editor = true)```
 
 ## Changelog
+### 06.04.2025 v0.7.4
+1. *ColorMatchChain*: improved color extrapolation.
+2. *OverlayEngine*: fixed prediction when *sceneFile* is present.
+3. *OverlayEngine*: fixed the functionality of the *colorAdjust* parameter in certain cases.
+
 ### 04.04.2025 v0.7.3
 1. *OverlayEngine*: increased default values for the *frameDiffTolerance* parameter.  
 2. *OverlayEngine*: improved scene stabilization.  

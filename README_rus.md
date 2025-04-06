@@ -183,7 +183,7 @@ Separate - обособление кадра. Join prev - присоединит
                   clip innerBounds, clip outerBounds, float overlayBalanceX, float overlayBalanceY, 
                   bool fixedSource, int overlayOrder, 
                   float stabilizationDiffTolerance, float stabilizationAreaTolerance, int stabilizationLength, 
-                  string overlayMode, int width, int height, string pixelType, int gradient, bool noise, 
+                  string overlayMode, int width, int height, string pixelType, int gradient, int noise, 
                   int borderControl, float borderMaxDeviation, clip borderOffset, 
                   clip srcColorBorderOffset, rectangle overColorBorderOffset, bool maskMode, float opacity, 
                   float colorAdjust, int colorBuckets, float colorDither, float colorExclude, 
@@ -231,7 +231,7 @@ Separate - обособление кадра. Join prev - присоединит
 - **width** и **height** - ширина и высота выходного изображения. По умолчанию соответствует основному клипу.
 - **pixelType** - цветовое пространство результирующего клипа, должен соответствовать типу цветового пространства накладываемых клипов (YUV или RGB). По умолчанию используется цветовое пространство основного клипа. 
 - **gradient** (default 0) - длина прозрачного градиента в пикселях по краям накладываемой области. Делает переход между изображениями более плавным.
-- **noise** (default false) - добавление шума на границы пересечений, чтобы сделать переходы менее заметными. Работает в паре с параметром *gradient*.
+- **noise** (default 0) - добавление шума на границы пересечений, чтобы сделать переходы менее заметными. Если больше 0, то *gradient* применяется только по краям.
 - **borderControl** (default 0) – количество соседних кадров в обе стороны для анализа какие стороны маски наложения должны быть включены для текущего кадра с учетом параметра *borderOffset*.
 - **borderMaxDeviation** (default 0.5) – максимальное отклонение общей площади текущего и соседнего кадра для использования в последовательности кадров при создании маски наложения.
 - **borderOffset** (default empty) - клип типа *Rect* для задания "пустых" границ изображения (left, top, right, bottom), которые будут проигнорированы при расчете градиентной маски.
@@ -405,7 +405,7 @@ YuvRgb10 - двушаговая конвертация клипов в прои�
     StaticOverlayRender(clip source, clip overlay, float x, float y, float angle, float overlayWidth, float overlayHeight, 
                         string warpPoints, float diff, clip sourceMask, clip overlayMask, string preset, 
                         clip innerBounds, clip outerBounds, float overlayBalanceX, float overlayBalanceY, bool fixedSource, 
-                        string overlayMode, int width, int height, string pixelType, int gradient, bool noise, 
+                        string overlayMode, int width, int height, string pixelType, int gradient, int noise, 
                         clip borderOffset, clip srcColorBorderOffset, clip overColorBorderOffset, bool maskMode, float opacity, 
                         float colorAdjust, int colorBuckets, float colorDither, float colorExclude, int colorFramesCount, 
                         float colorFramesDiff, bool colorBufferedExtrapolation, string adjustChannels, float gradientColor, 
@@ -651,6 +651,11 @@ ComplexityOverlay целесообразно использовать до пр�
     ```OverlayEngine(clip1, clip2, maxDiff = 5, statFile = "diff.stat", editor = true)```
 
 ## История изменений
+### 06.04.2025 v0.7.4
+1. *ColorMatchChain*: улучшена экстраполяция цвета.
+2. *OverlayEngine*: исправлено предсказание при наличии *sceneFile*.
+3. *OverlayEngine*: исправлена работа параметра *colorAdjust* в некоторых случаях.
+
 ### 04.04.2025 v0.7.3
 1. *OverlayEngine*: увеличены значения по умолчанию параметра *frameDiffTolerance*.
 2. *OverlayEngine*: улучшение стабилизации сцен.

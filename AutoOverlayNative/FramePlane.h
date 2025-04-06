@@ -381,17 +381,17 @@ public:
         }
     }
 
-    void FillNoise(double tl, double tr, double br, double bl, int color, int seed, double coef)
+    void FillNoise(double tl, double tr, double br, double bl, int color, int seed)
     {
         auto random = NativeRandom(seed);
         switch (byteDepth)
         {
         case 1:
-            FillNoise<unsigned char>(tl, tr, br, bl, color, random, coef);
+            FillNoise<unsigned char>(tl, tr, br, bl, color, random);
             break;
 
         case 2:
-            FillNoise<unsigned short>(tl, tr, br, bl, color, random, coef);
+            FillNoise<unsigned short>(tl, tr, br, bl, color, random);
             break;
         default:
             throw gcnew AvisynthException("Unsupported color depth");
@@ -605,7 +605,7 @@ private:
         }
     }
 
-    template <typename TColor> void FillNoise(double tl, double tr, double br, double bl, int color, NativeRandom random, double coef)
+    template <typename TColor> void FillNoise(double tl, double tr, double br, double bl, int color, NativeRandom random)
     {
         auto ptr = static_cast<TColor*>(pointer);
         auto shift = bitDepth - 8;
@@ -622,7 +622,7 @@ private:
                 auto bottom = bl * (1 - xRatio) + br * xRatio;
                 auto weight = top * (1 - yRatio) + bottom * yRatio;
 
-                if (random.NextDouble() < pow(weight, coef))
+                if (random.NextDouble() < weight)
                 {
                     ptr[x] = filler;
                 }

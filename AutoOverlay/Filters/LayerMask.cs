@@ -130,17 +130,23 @@ namespace AutoOverlay.Filters
                 // Intersection edges
                 if (Noise)
                 {
-                    var coef = 1;//Math.Pow(2, 2 * Opacity - 1);
-                    Parallel.Invoke(
-                        () => interFrame.TakeLeft(Gradient).FillNoise(1, 0, 0, 1, currentLayer.Left > layer.Left ? 0x00 : 0xFF, Seed << 0, coef),
-                        () => interFrame.TakeRight(Gradient).FillNoise(0, 1, 1, 0, currentLayer.Right < layer.Right ? 0x00 : 0xFF, Seed << 1, coef));
-                    Parallel.Invoke(
-                        () => interFrame.TakeTop(Gradient).FillNoise(1, 1, 0, 0, currentLayer.Top > layer.Top ? 0 : 0xFF, Seed << 2, coef),
-                        () => interFrame.TakeBottom(Gradient).FillNoise(0, 0, 1, 1, currentLayer.Bottom < layer.Bottom ? 0 : 0xFF, Seed << 3, coef));
+                    Action left = () => interFrame.TakeLeft(Gradient).FillNoise(1, 0, 0, 1, currentLayer.Left > layer.Left ? 0x00 : 0xFF, Seed << 0),
+                        top = () => interFrame.TakeTop(Gradient).FillNoise(1, 1, 0, 0, currentLayer.Top > layer.Top ? 0 : 0xFF, Seed << 2),
+                        right = () => interFrame.TakeRight(Gradient).FillNoise(0, 1, 1, 0, currentLayer.Right < layer.Right ? 0x00 : 0xFF, Seed << 1),
+                        bottom = () => interFrame.TakeBottom(Gradient).FillNoise(0, 0, 1, 1, currentLayer.Bottom < layer.Bottom ? 0 : 0xFF, Seed << 3);
 
                     if (Opacity is 0 or 1)
+                    {
+                        Parallel.Invoke(left, top, right, bottom);
                         FillCorners(0, 1, Opacity, 0.5, p => p / 2, (a, b) => a - b,
-                            (plane, tl, tr, br, bl, index) => plane.Also(p => p.Fill(0)).RotateNoise(tl, tr, br, bl, 0xFF, index, Seed << index << LayerIndex));
+                            (plane, tl, tr, br, bl, index) => plane.Also(p => p.Fill(0))
+                                .RotateNoise(tl, tr, br, bl, 0xFF, index, Seed << index << LayerIndex));
+                    }
+                    else
+                    {
+                        Parallel.Invoke(left, right);
+                        Parallel.Invoke(top, bottom);
+                    }
 
                     //FillCorners(1, 0, 1 - Opacity, 0.5, p => 0.5 + (1 - p)/2, (a, b) => 1 - b,
                     //    (plane, tl, tr, br, bl, index) => plane.Also(p => p.Fill(0xFF)).RotateNoise(tl, tr, br, bl, 0x00, index, Seed << index << LayerIndex));

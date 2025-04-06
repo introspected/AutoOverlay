@@ -437,7 +437,8 @@ namespace AutoOverlay
                     Stat = OverlayStat[p],
                     Prev = p == 0 || p == framesTotal ? null : OverlayStat[p + direction]
                 })
-                .LastOrDefault(p => p.Stat != null && (p.Prev == null || CheckSceneArea(p.Stat, p.Prev)) && !KeyFrames.Contains(p.Frame + direction))
+                .TakeWhile(p => p.Stat != null && (p.Prev == null || CheckSceneArea(p.Stat, p.Prev)) && !KeyFrames.Contains(p.Frame + (direction == 1 ? 1 : 0)))
+                .LastOrDefault()
                 ?.Frame ?? n;
             
             Stabilize:
@@ -611,8 +612,8 @@ namespace AutoOverlay
                     var keyframe = target;
                     foreach (var frame in scene)
                     {
-                        var prevKeyFrame = frame - direction;
-                        if (prevKeyFrame != n && KeyFrames.Contains(frame - direction))
+                        var prevKeyFrame = direction == 1 ? frame : (frame - 1);
+                        if (prevKeyFrame != n && KeyFrames.Contains(prevKeyFrame))
                         {
                             log(() => $"Key frame achieved: {prevKeyFrame}");
                             return true;
@@ -630,15 +631,21 @@ namespace AutoOverlay
 
                         if (maxDiffExceed || sequenceNotValid || cache.IsAligned(frame, prev.OverlayWarp))
                         {
+                            if (maxDiffExceed || sequenceNotValid)
+                                log(() => $"{frame}: Max Diff Exceed: {maxDiffExceed}, Sequence Not Valid: {sequenceNotValid}");
+
                             var own = OverlayStat[frame] ?? cache.Align(frame, prev.OverlayWarp);
 
                             history.RemoveLast();
                             history.AddLast(own);
 
-                            var newSequenceValid = CheckFrameSequence(history, false);
+                            var newSequenceBetter = sequenceNotValid && CheckFrameSequence(history, false);
+                            var probablyNewScene = !CheckSceneArea(prev, own);
 
-                            if (sequenceNotValid && newSequenceValid || !CheckSceneArea(prev, own))
+                            if (newSequenceBetter || probablyNewScene)
                             {
+                                log(() => $"{frame}: New Sequence Better: {newSequenceBetter}, Probably New Scene: {probablyNewScene}");
+
                                 var prevAligned = OverlayStat[prev.FrameNumber] ?? cache.Align(prev.FrameNumber, keyframe.OverlayWarp);
                                 var prevDiff = FrameDiff(prevAligned, prev);
 
@@ -1423,6 +1430,8 @@ namespace AutoOverlay
                     sourceMask: SourceMask,
                     overlayMask: OverlayMask,
                     opacity: 0,
+                    gradient: 0,
+                    preset: "fitsource",
                     upsize: Presize.StartsWith("Simd") ? Presize.Substring(4) : Presize,
                     colorAdjust: ColorAdjust,
                     invert: ColorAdjust == 0);

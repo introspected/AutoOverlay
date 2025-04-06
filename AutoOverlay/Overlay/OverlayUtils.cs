@@ -138,10 +138,10 @@ namespace AutoOverlay
             return framePlane;
         }
 
-        public static FramePlane RotateNoise(this FramePlane framePlane, double tl, double tr, double br, double bl, int color, int rotate, int seed = 0, double coef = 1)
+        public static FramePlane RotateNoise(this FramePlane framePlane, double tl, double tr, double br, double bl, int color, int rotate, int seed = 0)
         {
             var gradient = new[] { tl, tr, br, bl }.Shift(rotate);
-            framePlane.FillNoise(gradient[0], gradient[1], gradient[2], gradient[3], color, seed, coef);
+            framePlane.FillNoise(gradient[0], gradient[1], gradient[2], gradient[3], color, seed);
             return framePlane;
         }
 

@@ -10,7 +10,8 @@ namespace AutoOverlay.Overlay
 
         public void NextFrame(int n)
         {
-            foreach (var key in cache.Keys.Where(p => Math.Abs(p.Frame - n) > engine.SceneBuffer))
+            var limit = engine.SceneBuffer + 1;
+            foreach (var key in cache.Keys.Where(p => Math.Abs(p.Frame - n) > limit))
                 cache.TryRemove(key, out _);
         }
 

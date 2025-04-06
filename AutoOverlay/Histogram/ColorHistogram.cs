@@ -15,10 +15,10 @@ namespace AutoOverlay.Histogram
         public MinMax Range { get; set; }
         private readonly double offset;
         private readonly double step;
-        private readonly double lowestColor;
-        private readonly double highestColor;
-        private readonly double minColor;
-        private readonly double maxColor;
+        private readonly double depthMinColor;
+        private readonly double depthMaxColor;
+        private readonly double rangeMinColor;
+        private readonly double rangeMaxColor;
         private readonly double? constant;
         private readonly int depth;
 
@@ -121,7 +121,7 @@ namespace AutoOverlay.Histogram
                 Total[i] = sum += Values[i];
             }
 
-            (lowestColor, minColor, highestColor, maxColor) = GetMinMaxColor(planeChannel.EffectivePlane, limitedRange);
+            (depthMinColor, rangeMinColor, depthMaxColor, rangeMaxColor) = GetMinMaxColor(planeChannel.EffectivePlane, limitedRange);
         }
 
         private ColorHistogram(int length, PlaneChannel planeChannel, bool limitedRange, double offset, MinMax range,  double step, double? constant, double[] values, int pixelCount)
@@ -146,25 +146,29 @@ namespace AutoOverlay.Histogram
                 Total[i] = sum += Values[i];
             }
 
-            (lowestColor, minColor, highestColor, maxColor) = GetMinMaxColor(planeChannel.EffectivePlane, limitedRange);
+            (depthMinColor, rangeMinColor, depthMaxColor, rangeMaxColor) = GetMinMaxColor(planeChannel.EffectivePlane, limitedRange);
         }
 
-        private (double depthMin, double depthMax, double planeMin, double planeMax) GetMinMaxColor(YUVPlanes plane, bool limitedRange)
+        private (double depthMin, double rangeMin, double depthMax, double rangeMax) GetMinMaxColor(YUVPlanes plane, bool limitedRange)
         {
             if (depth == 32)
             {
-                var min = plane.IsChroma() ? -0.5 : 0;
-                var max = plane.IsChroma() ? 0.5 : 1;
-                return (min, float.MinValue, max, float.MaxValue);
+                double min = Math.Min(-3, Range.Min), max = Math.Max(3, Range.Max);
+                if (limitedRange)
+                {
+                    min = plane.IsChroma() ? -0.5 : 0;
+                    max = plane.IsChroma() ? 0.5 : 1;
+                }
+                return (float.MinValue, min, float.MaxValue, max);
             }
             var depthMin = 0;
             var depthMax = (1 << depth) - 1;
             if (limitedRange && !plane.IsRgb())
             {
-                var planeMin = 16 << (depth - 8);
+                var rangeMin = 16 << (depth - 8);
                 var limit = plane.IsLuma() ? 235 : 240;
-                var planeMax = limit << (depth - 8);
-                return (depthMin, planeMin, depthMax, planeMax);
+                var rangeMax = limit << (depth - 8);
+                return (depthMin, rangeMin, depthMax, rangeMax);
             }
             return (depthMin, depthMin, depthMax, depthMax);
         }
@@ -184,10 +188,10 @@ namespace AutoOverlay.Histogram
                 constant = Range.Min;
                 return;
             }
-            lowestColor = main.lowestColor;
-            highestColor = main.highestColor;
-            minColor = main.minColor;
-            maxColor = main.maxColor;
+            depthMinColor = main.depthMinColor;
+            depthMaxColor = main.depthMaxColor;
+            rangeMinColor = main.rangeMinColor;
+            rangeMaxColor = main.rangeMaxColor;
             depth = main.depth;
 
             var histCount = histograms.Length;
@@ -332,11 +336,10 @@ namespace AutoOverlay.Histogram
 
             if (!isConstant)
             {
-                // TODO don't overwrite
-                map[lowestColor] = reference.lowestColor;
-                map[highestColor] = reference.highestColor;
-                map[minColor] = reference.minColor;
-                map[maxColor] = reference.maxColor;
+                map[depthMinColor] = reference.depthMinColor;
+                map[depthMaxColor] = reference.depthMaxColor;
+                map[rangeMinColor] = reference.rangeMinColor;
+                map[rangeMaxColor] = reference.rangeMaxColor;
             }
             return isConstant
                 ? new ConstantInterpolator(map.Values.First())
