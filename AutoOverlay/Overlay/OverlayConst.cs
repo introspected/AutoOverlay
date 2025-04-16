@@ -7,7 +7,7 @@ namespace AutoOverlay
     public class OverlayConst
     {
         public const string DEFAULT_PRESIZE_FUNCTION = "BilinearResize";
-        public const string DEFAULT_RESIZE_FUNCTION = "Spline16Resize";
+        public const string DEFAULT_RESIZE_FUNCTION = "Spline36Resize";
         public const string DEFAULT_ROTATE_FUNCTION = "BilinearRotate";
         public const MtMode DEFAULT_MT_MODE = MtMode.SERIALIZED;
         public const int OVERLAY_FORMAT_VERSION = 6;

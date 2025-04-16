@@ -50,8 +50,8 @@ namespace AutoOverlay
         {
             if (noRotate)
                 return base.GetFrame(n, env);
-            var res = NewVideoFrame(env);
             using var frame = Child.GetFrame(n, env);
+            var res = NewVideoFrame(env, frame);
             Parallel.ForEach(planes, planeChannel =>
             {
                 var plane = planeChannel.Plane;

@@ -226,7 +226,7 @@ namespace AutoOverlay
 
         protected VideoFrame Copy(VideoFrame frame)
         {
-            var res = NewVideoFrame(StaticEnv);
+            var res = NewVideoFrame(StaticEnv, frame);
             frame.CopyTo(res, GetVideoInfo().pixel_type.GetPlanes());
             return res;
         }

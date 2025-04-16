@@ -145,7 +145,7 @@ The filter takes two clips as input: the base clip and the overlaid clip, and pe
 - **stickDistance** (default 1) - the maximum allowable distance between the edges of the overlaid image for the best overlay parameters and those that would cause the overlaid image to stick to the base clip's boundaries.
 - **configs** (default OverlayConfig with default values) - a list of configurations as a clip. Example: `configs=OverlayConfig(subpixel=1, acceptableDiff=10) + OverlayConfig(angle1=-1, angle2=1)`. If, during auto-alignment, the first configuration yields a *diff* value less than 10 after its run, the next configuration with "heavier" parameters (rotation) will be skipped.
 - **presize** (default *BilinearResize*) - the image resizing function for the initial scaling steps.
-- **resize** (default *BicubicResize* or *BicubicResizeMT* if available) - the image resizing function for the final scaling steps.
+- **resize** (default *Spline36Resize* or *Spline36ResizeMT* if available) - the image resizing function for the final scaling steps.
 - **rotate** (default *BilinearRotate*) - the image rotation function. Currently, the default implementation is from the AForge.NET library.
 - **editor** (default false) - if *true*, the visual editor will launch when the script is loaded.
 - **mode** (default "default") - the mode of working with statistics:  
@@ -196,9 +196,9 @@ Modified and unsaved episodes are highlighted in yellow in the grid. The *Save* 
 
 ### OverlayRender
     OverlayRender(clip engine, clip source, clip overlay, clip sourceMask, clip overlayMask, 
-                  clip sourceCrop, clip overlayCrop, clip extraClips, string preset, 
-                  clip innerBounds, clip outerBounds, float overlayBalanceX, float overlayBalanceY, 
-                  bool fixedSource, int overlayOrder, 
+                  clip sourceCrop, clip overlayCrop, string sourceChromaLocation, string overlayChromaLocation, 
+                  clip extraClips, string preset, clip innerBounds, clip outerBounds, 
+                  float overlayBalanceX, float overlayBalanceY, bool fixedSource, int overlayOrder, 
                   float stabilizationDiffTolerance, float stabilizationAreaTolerance, int stabilizationLength, 
                   string overlayMode, int width, int height, string pixelType, int gradient, int noise, 
                   int borderControl, float borderMaxDeviation, clip borderOffset, 
@@ -207,8 +207,8 @@ Modified and unsaved episodes are highlighted in yellow in the grid. The *Save* 
                   int colorFramesCount, float colorFramesDiff, float colorMaxDeviation, 
                   bool colorBufferedExtrapolation, float gradientColor, clip colorMatchTarget, 
                   string adjustChannels, string matrix, string sourceMatrix, string overlayMatrix,
-                  string upsize, string downsize, string rotate, bool preview, bool debug, 
-                  bool invert, string background, clip backgroundClip, int blankColor, 
+                  string upsize, string downsize, string chromaResize, string rotate, bool preview, 
+                  bool debug, bool invert, string background, clip backgroundClip, int blankColor, 
                   float backBalance, int backBlur, bool fullScreen, string edgeGradient, int bitDepth)
                   
 The filter renders the result of combining two or more clips with specific settings.
@@ -219,6 +219,7 @@ The filter renders the result of combining two or more clips with specific setti
 - **overlay** (required) - the second clip overlaid onto the first. 
 - **sourceMask** and **overlayMask** (default empty) - masks for the base and overlaid clips. Unlike in OverlayEngine, the meaning of these masks is the same as in the standard *Overlay* filter. Masks adjust the overlay intensity of the clips relative to each other. Masks must have the same bit depth as the relative clip.
 - **sourceCrop** and **overlayCrop** (default 0) - Rect-type clips that allow accounting for cropping differences between the statistics (OverlayEngine) and the *source* and *overlay* clips. Positive values indicate cropping, negative values indicate the opposite.
+- **sourceChromaLocation** and **overlayChromaLocation** - offset of UV channels relative to the luma channel. Possible values: left, center, top_left, top, bottom, bottom_left. Defaults to the frame property *_ChromaLocation*, or left if not specified. The value of *sourceChromaLocation* is used for the output clip.
 - **extraClips** (default empty) - a clip composed of concatenated OverlayClip-type clips describing additional clips for overlay.
 - **preset** (default not set) - presets are used for batch pre-setting of other parameters (if not explicitly specified).
 
@@ -269,7 +270,8 @@ The filter renders the result of combining two or more clips with specific setti
 - **adjustChannels** (default empty) - the channels in which to adjust color. Examples: "yuv", "y", "rgb", "rg".
 - **matrix** (default empty) - if specified, the YUV image is converted to RGB using the specified matrix during processing.
 - **sourceMatrix** and **overlayMatrix** (default empty) - options to override the matrix for the base or overlaid clip, used in conjunction with the *matrix* parameter.
-- **downsize** and **upsize** (default *Spline16Resize* or *Spline16ResizeMT* if available) - functions for downsizing and upsizing images. If only one parameter is specified, the other takes the same value.
+- **downsize** and **upsize** (default *Spline36Resize* or *Spline36ResizeMT* if available) - functions for downsizing and upsizing images. If only one parameter is specified, the other takes the same value.
+- **chromaResize** - UV channel resampling function in the same format as *downsize* and *upsize*, defaults to the value of *downsize*.
 - **rotate** (default *BilinearRotate*) - the function for rotating the overlaid image.
 - **preview** - output preview.
 - **debug** - output overlay parameters and preview.
@@ -317,7 +319,8 @@ Automatic color correction by matching color histograms. The input clip, *sample
                     clip engine, clip sourceCrop, clip overlayCrop, bool invert, int iterations, 
                     string space, string format, string resize, int length, float dither, 
                     float gradient, int frameBuffer, float frameDiff, float frameMaxDeviation, 
-                    bool bufferedExtrapolation, float exclude, int frame, bool matrixConversionHQ)
+                    bool bufferedExtrapolation, float exclude, int frame, bool matrixConversionHQ,
+                    string inputChromaLocation, string outputChromaLocation)
 					
 Multi-step automatic color correction with support for statistics from *OverlayEngine*. Allows flexible color correction of clips before combining them via *OverlayRender*.  
 For example, for YUV clips, first convert their color space to RGB HDR, correct the color, then convert to YUV HDR and correct the color again.  
@@ -344,7 +347,7 @@ The transformation chain is defined using concatenated *ColorMatchStep* filters 
 - **iterations** (default 1) - the number of chain transformation repetitions. Higher values may yield better results but reduce performance.
 - **space** - the resulting clip’s color space, e.g., *2020ncl:st2084:2020:f* or *PC.2020*. Defaults to the last color space in the transformation chain.
 - **format** - the resulting clip’s format, e.g., *YUV420P10*. Defaults to the last format in the transformation chain.
-- **resize** (default BilinearResize) - the filter for resizing images when using the *engine* parameter; high quality is not required.
+- **resize** (default BilinearResize) - the filter for resizing images when using the *engine* parameter; high quality is not required. If specified, it is also used for UV channel resampling, otherwise spline16 is used.
 - **length** (default 2000) - see *ColorMatch.length*.
 - **dither** (default 0.95) - see *ColorMatch.dither*.
 - **gradient** (default 0) - see *ColorMatch.gradient*.
@@ -355,6 +358,7 @@ The transformation chain is defined using concatenated *ColorMatchStep* filters 
 - **exclude** (default 0) - see *ColorMatch.exclude*.
 - **frame** - see *ColorMatch.frame*.
 - **matrixConversionHQ** (default false) - high-quality color matrix conversion in YUV space with conversion to 32-bit.
+- **inputChromaLocation** and **outputChromaLocation** - offset of UV channels relative to the luma channel for input and output clips. Possible values: left, center, top_left, top, bottom, bottom_left. Defaults to the frame property *_ChromaLocation*, or left if not specified.
 
 ### ColorMatchStep
     ColorMatchStep(string sample, string reference, string space, float intensity, clip merge, 
@@ -420,15 +424,17 @@ A filter for visualizing the combination of two clips.
 
 ### StaticOverlayRender
     StaticOverlayRender(clip source, clip overlay, float x, float y, float angle, float overlayWidth, float overlayHeight, 
-                        string warpPoints, float diff, clip sourceMask, clip overlayMask, string preset, 
-                        clip innerBounds, clip outerBounds, float overlayBalanceX, float overlayBalanceY, bool fixedSource, 
-                        string overlayMode, int width, int height, string pixelType, int gradient, int noise, 
-                        clip borderOffset, clip srcColorBorderOffset, clip overColorBorderOffset, bool maskMode, float opacity, 
+                        string warpPoints, float diff, clip sourceMask, clip overlayMask, clip sourceCrop, clip overlayCrop,
+                        string sourceChromaLocation, string overlayChromaLocation, clip extraClips, string preset, 
+                        clip innerBounds, clip outerBounds, space overlayBalance, bool fixedSource, string overlayMode, 
+                        int width, int height, string pixelType, int gradient, int noise, clip borderOffset,
+                        clip srcColorBorderOffset, clip overColorBorderOffset, bool maskMode, float opacity, 
                         float colorAdjust, int colorBuckets, float colorDither, float colorExclude, int colorFramesCount, 
                         float colorFramesDiff, bool colorBufferedExtrapolation, string adjustChannels, float gradientColor, 
-                        string matrix, string sourceMatrix, string overlayMatrix, string upsize, string downsize, string rotate, 
-                        bool preview, bool debug, bool invert, string background, clip backgroundClip, int blankColor, 
-                        float backBalance, int backBlur, bool fullScreen, string edgeGradient, int bitDepth)
+                        string matrix, string sourceMatrix, string overlayMatrix, string upsize, string downsize, 
+                        string chromaResize, string rotate, bool preview, bool debug, bool invert, string background, 
+                        clip backgroundClip, int blankColor, float backBalance, int backBlur, bool fullScreen, 
+                        string edgeGradient, int bitDepth)
 
 Similar to *OverlayRender*, but without *OverlayEngine*; the clip overlay parameters are specified manually.
 
@@ -666,6 +672,15 @@ If the framing is dynamic, prepare *OverlayEngine* and specify it in the *engine
     ```OverlayEngine(clip1, clip2, maxDiff = 5, statFile = "diff.stat", editor = true)```
 
 ## Changelog
+### 16.04.2025 v0.7.5
+1. *OverlayEngine*: improved auto-alignment in subpixel mode.
+2. *OverlayRender*: added *chromaResize* parameter for explicit selection of UV channel resampling algorithm, defaults to the value of the *downsize* parameter.
+3. *OverlayRender*: added *sourceChromaLocation*, *overlayChromaLocation*, and *OverlayClip*.*chromaLocation* parameters for explicit specification of UV channel offset relative to the luma channel. Valid values: left, center, top_left, top, bottom_left, bottom. Defaults to the frame property *_ChromaLocation*, or left if not specified.
+4. *ColorMatchChain*: added *inputChromaLocation* and *outputChromaLocation* parameters for explicit specification of UV channel offset relative to the luma channel. Defaults to the frame property *_ChromaLocation*, or left if not specified.
+5. *ColorMatchChain*: UV channel resampling now uses the same algorithm specified in the *resize* parameter, or spline16 by default.
+6. Filters now propagate input clip frame properties whenever possible.
+7. Updated version of the AvsFilterNet library.
+
 ### 06.04.2025 v0.7.4
 1. *ColorMatchChain*: improved color extrapolation.
 2. *OverlayEngine*: fixed prediction when *sceneFile* is present.

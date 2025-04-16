@@ -108,7 +108,7 @@ namespace AutoOverlay
                 output = input;
             else
             {
-                output = NewVideoFrame(StaticEnv);
+                output = NewVideoFrame(StaticEnv, input);
                 if (Channels != null)
                     input.CopyTo(output, planes);
             }

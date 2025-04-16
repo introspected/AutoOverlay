@@ -63,6 +63,22 @@ namespace AutoOverlay
             "Average",
         };
 
+        private static readonly HashSet<string> ChromaResample = new()
+        {
+            "point", "bilinear", "bicubic", "lanczos", "lanczos4", "blackman",
+            "spline16", "spline36", "spline64", "gauss"
+        };
+
+        private static readonly Dictionary<ChromaLocation, Space> ChromaLocationOffsets = new()
+        {
+            [ChromaLocation.Left] = new Space(0, 0.5),
+            [ChromaLocation.Center] = new Space(0.5, 0.5),
+            [ChromaLocation.Top_Left] = new Space(0, 0),
+            [ChromaLocation.Top] = new Space(0.5, 0),
+            [ChromaLocation.Bottom_Left] = new Space(0, 1),
+            [ChromaLocation.Bottom] = new Space(0.5, 1)
+        };
+
         public static PlaneChannel[] Interleaved(int channelCount, int depth, params YUVPlanes[] effectivePlanes) => Enumerable.Range(0, channelCount)
             .Select(i => new PlaneChannel(default, effectivePlanes[i], i, channelCount, depth)).ToArray();
 
@@ -102,7 +118,7 @@ namespace AutoOverlay
 
         public static ColorSpaces WithoutSubSample(this ColorSpaces colorSpace)
         {
-            if (!colorSpace.HasFlag(ColorSpaces.CS_YUV))
+            if (!colorSpace.IsRealPlanar())
                 return colorSpace;
             return ((colorSpace & ~ColorSpaces.CS_Sub_Width_Mask) & ~ColorSpaces.CS_Sub_Height_Mask) |
                    ColorSpaces.CS_Sub_Width_1 | ColorSpaces.CS_Sub_Height_1;
@@ -197,6 +213,8 @@ namespace AutoOverlay
 
         public static AVSValue ToAvsValue(this object val)
         {
+            val = val.Unbox();
+
             if (val == null)
                 return new AVSValue();
             if (val is AVSValue avs)
@@ -341,6 +359,9 @@ namespace AutoOverlay
             ColorSpaces.CS_BGR32 => "ConvertToRGB32",
             ColorSpaces.CS_BGR48 => "ConvertToRGB48",
             ColorSpaces.CS_BGR64 => "ConvertToRGB64",
+            ColorSpaces.CS_YV12 => "ConvertToYV12",
+            ColorSpaces.CS_YV16 => "ConvertToYV16",
+            ColorSpaces.CS_YV24 => "ConvertToYV24",
             _ when colorSpace.HasFlag(ColorSpaces.CS_GENERIC_RGBP) => "ConvertToPlanarRGB",
             _ when colorSpace.HasFlag(ColorSpaces.CS_GENERIC_RGBAP) => "ConvertToPlanarRGBA",
             _ when colorSpace.HasFlag(ColorSpaces.CS_GENERIC_YUV444) => "ConvertToYUV444",
@@ -417,5 +438,33 @@ namespace AutoOverlay
         public static bool IsHdr(this ColorSpaces pixelType) => (int)(pixelType & ColorSpaces.CS_Sample_Bits_Mask) > 1;
 
         public static bool IsRgb(this ColorSpaces pixelType) => pixelType.HasFlag(ColorSpaces.CS_BGR);
+
+        public static string GetChromaResample(this string resizeFunc)
+        {
+            if (resizeFunc == null)
+                return null;
+            resizeFunc = resizeFunc.ToLower();
+            var index = resizeFunc.IndexOf("resize", StringComparison.Ordinal);
+            if (index < 0)
+                return null;
+            resizeFunc = resizeFunc.Substring(0, index);
+            if (ChromaResample.Contains(resizeFunc))
+                return resizeFunc;
+            return null;
+        }
+
+        public static Space GetOffset(this ChromaLocation src) => ChromaLocationOffsets[src];
+
+        public static Space GetShift(this ChromaLocation src, ChromaLocation target) => target.GetOffset().Subtract(src.GetOffset());
+
+        public static string GetAvsName(this ChromaLocation chromaLocation) => chromaLocation switch
+        {
+            ChromaLocation.Left => "MPEG2",
+            ChromaLocation.Center => "MPEG1",
+            ChromaLocation.Top_Left => "top_left",
+            ChromaLocation.Top => "top_left",
+            ChromaLocation.Bottom_Left => "bottom_left",
+            ChromaLocation.Bottom => "bottom"
+        };
     }
 }

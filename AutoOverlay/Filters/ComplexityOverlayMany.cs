@@ -62,15 +62,15 @@ namespace AutoOverlay
         protected override VideoFrame GetFrame(int n)
         {
             var allPlanes = GetVideoInfo().pixel_type.GetPlanes();
-            var output = NewVideoFrame(StaticEnv);
+            using var src = Source.GetFrame(n, StaticEnv);
+            var output = StaticEnv.MakeWritable(src) ? src : NewVideoFrame(StaticEnv, src);
+            if (GetVideoInfo().IsRGB() && planeChannels.Length < 3 || Source.IsRealPlanar() && planeChannels.Length < 3)
+            {
+                src.CopyTo(output, allPlanes);
+            }
             var frames = new VideoFrame[Overlays.Length];
             try
             {
-                using var src = Source.GetFrame(n, StaticEnv);
-                if (GetVideoInfo().IsRGB() && planeChannels.Length < 3 || Source.IsRealPlanar() && planeChannels.Length < 3)
-                {
-                    src.CopyTo(output, allPlanes);
-                }
                 for (var i = 0; i < Overlays.Length; i++)
                 {
                     frames[i] = Overlays[i].GetFrame(n, StaticEnv);

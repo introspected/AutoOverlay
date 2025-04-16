@@ -48,7 +48,7 @@ namespace AutoOverlay
 
         public override bool Equals(object obj)
         {
-            if (!(obj is SizeD d)) return false;
+            if (obj is not SizeD d) return false;
             return Math.Abs(Width - d.Width) < EPSILON && Math.Abs(Height - d.Height) < EPSILON;
         }
 

@@ -1,13 +1,12 @@
 ﻿using System.Collections.Generic;
 using AutoOverlay;
 using AutoOverlay.AviSynth;
-using AutoOverlay.Overlay;
 using AvsFilterNet;
 
 [assembly: AvisynthFilterClass(
     typeof(OverlayClip),
     nameof(OverlayClip),
-    "cc[mask]c[Crop]c[Opacity]f[Matrix]s[Minor]b[Color]i[Debug]b",
+    "cc[mask]c[Crop]c[Opacity]f[ChromaLocation]s[Matrix]s[Minor]b[Color]i[Debug]b",
     OverlayConst.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
@@ -24,6 +23,9 @@ namespace AutoOverlay
 
         [AvsArgument(Min = 0, Max = 1)]
         public double Opacity { get; private set; } = 1;
+
+        [AvsArgument]
+        public ChromaLocation? ChromaLocation { get; private set; }
 
         [AvsArgument]
         public string Matrix { get; private set; }

@@ -36,6 +36,8 @@ namespace AutoOverlay.AviSynth
 
         public static DynamicEnvironment Env => contexts.Value.Any() ? contexts.Value.Peek() : null;
 
+        public static ScriptEnvironment StaticEnv => Env;
+
         private readonly AVSValueCollector collector;
 
         private bool detached;
@@ -222,14 +224,12 @@ namespace AutoOverlay.AviSynth
                     clip = res.AsClip();
                     clip.SetCacheHints(CacheType.CACHE_SET_MIN_CAPACITY, 0);
                     clip.SetCacheHints(CacheType.CACHE_GET_MAX_CAPACITY, 1);
+                    Env.cache[key] = tuple = (res, clip, Env.owner);
                 }
-                else clip = null;
-
-
+                else tuple = (res, null, Env.owner);
 #if DEBUG && TRACE
                 Debug.WriteLine($"New clip cached @{clip?.GetHashCode()} {function}({printArgs()})");
 #endif
-                    Env.cache[key] = tuple = (res, clip, Env.owner);
             }
             else
             {
@@ -238,21 +238,8 @@ namespace AutoOverlay.AviSynth
 #endif
             }
 
-            if (binder.ReturnType == typeof(AVSValue))
-                result = tuple.Value;
-            else if (binder.ReturnType == typeof(Clip))
-                result = tuple.Clip;
-            else if (binder.ReturnType == typeof(object))
-                result = new DynamicEnvironment(tuple.Clip);
-            else if (binder.ReturnType == typeof(int))
-                result = tuple.Value.AsInt();
-            else if (binder.ReturnType == typeof(double))
-                result = tuple.Value.AsFloat();
-            else if (binder.ReturnType == typeof(string))
-                result = tuple.Value.AsString();
-            else if (binder.ReturnType == typeof(bool))
-                result = tuple.Value.AsBool(false);
-            else throw new InvalidOperationException();
+            var value = tuple.Value;
+            result = value.IsClip() ? new DynamicEnvironment(tuple.Clip) : value.AsObject();
 
             return true;
         }

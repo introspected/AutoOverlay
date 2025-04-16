@@ -29,9 +29,9 @@
         private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle6 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle5 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle2 = new System.Windows.Forms.DataGridViewCellStyle();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(OverlayEditor));
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle1 = new System.Windows.Forms.DataGridViewCellStyle();
             this.panel1 = new System.Windows.Forms.Panel();
             this.trackBar = new System.Windows.Forms.TrackBar();
             this.panel3 = new System.Windows.Forms.Panel();
@@ -49,13 +49,8 @@
             this.label20 = new System.Windows.Forms.Label();
             this.panelManage = new System.Windows.Forms.Panel();
             this.grid = new System.Windows.Forms.DataGridView();
-            this.intervalDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.xDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Resolution = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.Angle = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.diffDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Fixed = new System.Windows.Forms.DataGridViewCheckBoxColumn();
-            this.frameIntervalBindingSource = new System.Windows.Forms.BindingSource(this.components);
             this.panel2 = new System.Windows.Forms.Panel();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
             this.groupBox4 = new System.Windows.Forms.GroupBox();
@@ -98,10 +93,12 @@
             this.label23 = new System.Windows.Forms.Label();
             this.label24 = new System.Windows.Forms.Label();
             this.label6 = new System.Windows.Forms.Label();
+            this.nudNoise = new System.Windows.Forms.NumericUpDown();
             this.nudGradientSize = new System.Windows.Forms.NumericUpDown();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.nudOutputWidth = new System.Windows.Forms.NumericUpDown();
+            this.label4 = new System.Windows.Forms.Label();
             this.label5 = new System.Windows.Forms.Label();
             this.nudOutputHeight = new System.Windows.Forms.NumericUpDown();
             this.label26 = new System.Windows.Forms.Label();
@@ -137,8 +134,11 @@
             this.btnDelete = new System.Windows.Forms.ToolStripButton();
             this.pictureBox = new System.Windows.Forms.PictureBox();
             this.openFileDialog1 = new System.Windows.Forms.OpenFileDialog();
-            this.label4 = new System.Windows.Forms.Label();
-            this.nudNoise = new System.Windows.Forms.NumericUpDown();
+            this.intervalDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.xDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.Angle = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.diffDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.frameIntervalBindingSource = new System.Windows.Forms.BindingSource(this.components);
             this.panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trackBar)).BeginInit();
             this.panel3.SuspendLayout();
@@ -149,7 +149,6 @@
             ((System.ComponentModel.ISupportInitialize)(this.nudCurrentFrame)).BeginInit();
             this.panelManage.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.grid)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.frameIntervalBindingSource)).BeginInit();
             this.panel2.SuspendLayout();
             this.groupBox3.SuspendLayout();
             this.groupBox4.SuspendLayout();
@@ -163,6 +162,7 @@
             this.groupBox2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.tbColorAdjust)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.tbOpacity)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudNoise)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudGradientSize)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudOutputWidth)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudOutputHeight)).BeginInit();
@@ -175,7 +175,7 @@
             ((System.ComponentModel.ISupportInitialize)(this.nudOverlayWidth)).BeginInit();
             this.toolStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudNoise)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.frameIntervalBindingSource)).BeginInit();
             this.SuspendLayout();
             // 
             // panel1
@@ -198,7 +198,7 @@
             this.trackBar.Margin = new System.Windows.Forms.Padding(4);
             this.trackBar.Maximum = 999999;
             this.trackBar.Name = "trackBar";
-            this.trackBar.Size = new System.Drawing.Size(630, 30);
+            this.trackBar.Size = new System.Drawing.Size(630, 56);
             this.trackBar.TabIndex = 0;
             this.trackBar.TickStyle = System.Windows.Forms.TickStyle.None;
             this.trackBar.Scroll += new System.EventHandler(this.trackBar_Scroll);
@@ -439,14 +439,14 @@
             this.diffDataGridViewTextBoxColumn,
             this.Fixed});
             this.grid.DataSource = this.frameIntervalBindingSource;
-            dataGridViewCellStyle6.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
-            dataGridViewCellStyle6.BackColor = System.Drawing.SystemColors.Window;
-            dataGridViewCellStyle6.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F);
-            dataGridViewCellStyle6.ForeColor = System.Drawing.SystemColors.ControlText;
-            dataGridViewCellStyle6.SelectionBackColor = System.Drawing.SystemColors.Highlight;
-            dataGridViewCellStyle6.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
-            dataGridViewCellStyle6.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
-            this.grid.DefaultCellStyle = dataGridViewCellStyle6;
+            dataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
+            dataGridViewCellStyle2.BackColor = System.Drawing.SystemColors.Window;
+            dataGridViewCellStyle2.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F);
+            dataGridViewCellStyle2.ForeColor = System.Drawing.SystemColors.ControlText;
+            dataGridViewCellStyle2.SelectionBackColor = System.Drawing.SystemColors.Highlight;
+            dataGridViewCellStyle2.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
+            dataGridViewCellStyle2.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
+            this.grid.DefaultCellStyle = dataGridViewCellStyle2;
             this.grid.Dock = System.Windows.Forms.DockStyle.Fill;
             this.grid.Location = new System.Drawing.Point(0, 0);
             this.grid.Margin = new System.Windows.Forms.Padding(4);
@@ -463,24 +463,6 @@
             this.grid.KeyDown += new System.Windows.Forms.KeyEventHandler(this.SuppressKeyPress);
             this.grid.KeyUp += new System.Windows.Forms.KeyEventHandler(this.SuppressKeyPress);
             // 
-            // intervalDataGridViewTextBoxColumn
-            // 
-            this.intervalDataGridViewTextBoxColumn.DataPropertyName = "Interval";
-            this.intervalDataGridViewTextBoxColumn.HeaderText = "Interval";
-            this.intervalDataGridViewTextBoxColumn.MinimumWidth = 6;
-            this.intervalDataGridViewTextBoxColumn.Name = "intervalDataGridViewTextBoxColumn";
-            this.intervalDataGridViewTextBoxColumn.ReadOnly = true;
-            this.intervalDataGridViewTextBoxColumn.Width = 79;
-            // 
-            // xDataGridViewTextBoxColumn
-            // 
-            this.xDataGridViewTextBoxColumn.DataPropertyName = "Placement";
-            this.xDataGridViewTextBoxColumn.HeaderText = "Location";
-            this.xDataGridViewTextBoxColumn.MinimumWidth = 6;
-            this.xDataGridViewTextBoxColumn.Name = "xDataGridViewTextBoxColumn";
-            this.xDataGridViewTextBoxColumn.ReadOnly = true;
-            this.xDataGridViewTextBoxColumn.Width = 87;
-            // 
             // Resolution
             // 
             this.Resolution.DataPropertyName = "Size";
@@ -490,26 +472,6 @@
             this.Resolution.ReadOnly = true;
             this.Resolution.Width = 62;
             // 
-            // Angle
-            // 
-            this.Angle.DataPropertyName = "Angle";
-            this.Angle.HeaderText = "Angle";
-            this.Angle.MinimumWidth = 6;
-            this.Angle.Name = "Angle";
-            this.Angle.ReadOnly = true;
-            this.Angle.Width = 71;
-            // 
-            // diffDataGridViewTextBoxColumn
-            // 
-            this.diffDataGridViewTextBoxColumn.DataPropertyName = "Diff";
-            dataGridViewCellStyle5.Format = "F1";
-            this.diffDataGridViewTextBoxColumn.DefaultCellStyle = dataGridViewCellStyle5;
-            this.diffDataGridViewTextBoxColumn.HeaderText = "Diff";
-            this.diffDataGridViewTextBoxColumn.MinimumWidth = 6;
-            this.diffDataGridViewTextBoxColumn.Name = "diffDataGridViewTextBoxColumn";
-            this.diffDataGridViewTextBoxColumn.ReadOnly = true;
-            this.diffDataGridViewTextBoxColumn.Width = 55;
-            // 
             // Fixed
             // 
             this.Fixed.DataPropertyName = "Fixed";
@@ -518,10 +480,6 @@
             this.Fixed.Name = "Fixed";
             this.Fixed.ReadOnly = true;
             this.Fixed.Width = 46;
-            // 
-            // frameIntervalBindingSource
-            // 
-            this.frameIntervalBindingSource.DataSource = typeof(AutoOverlay.FrameInterval);
             // 
             // panel2
             // 
@@ -1090,6 +1048,25 @@
             this.label6.TabIndex = 3;
             this.label6.Text = "Opacity";
             // 
+            // nudNoise
+            // 
+            this.nudNoise.Increment = new decimal(new int[] {
+            10,
+            0,
+            0,
+            0});
+            this.nudNoise.Location = new System.Drawing.Point(473, 91);
+            this.nudNoise.Margin = new System.Windows.Forms.Padding(4);
+            this.nudNoise.Maximum = new decimal(new int[] {
+            999,
+            0,
+            0,
+            0});
+            this.nudNoise.Name = "nudNoise";
+            this.nudNoise.Size = new System.Drawing.Size(56, 22);
+            this.nudNoise.TabIndex = 5;
+            this.nudNoise.ValueChanged += new System.EventHandler(this.Render);
+            // 
             // nudGradientSize
             // 
             this.nudGradientSize.Increment = new decimal(new int[] {
@@ -1152,6 +1129,16 @@
             0,
             0});
             this.nudOutputWidth.ValueChanged += new System.EventHandler(this.Render);
+            // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.Location = new System.Drawing.Point(421, 94);
+            this.label4.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(43, 16);
+            this.label4.TabIndex = 3;
+            this.label4.Text = "Noise";
             // 
             // label5
             // 
@@ -1525,9 +1512,9 @@
             this.btnSeparate,
             this.btnResetInterval,
             this.btnDelete});
-            this.toolStrip1.Location = new System.Drawing.Point(0, 518);
+            this.toolStrip1.Location = new System.Drawing.Point(0, 514);
             this.toolStrip1.Name = "toolStrip1";
-            this.toolStrip1.Size = new System.Drawing.Size(584, 27);
+            this.toolStrip1.Size = new System.Drawing.Size(584, 31);
             this.toolStrip1.TabIndex = 14;
             this.toolStrip1.Text = "toolStrip1";
             // 
@@ -1538,7 +1525,7 @@
             this.btnSave.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.btnSave.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnSave.Name = "btnSave";
-            this.btnSave.Size = new System.Drawing.Size(45, 24);
+            this.btnSave.Size = new System.Drawing.Size(45, 28);
             this.btnSave.Text = "Save";
             this.btnSave.Click += new System.EventHandler(this.SaveStat);
             // 
@@ -1549,7 +1536,7 @@
             this.btnReset.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.btnReset.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnReset.Name = "btnReset";
-            this.btnReset.Size = new System.Drawing.Size(52, 24);
+            this.btnReset.Size = new System.Drawing.Size(52, 28);
             this.btnReset.Text = "Reset";
             this.btnReset.Click += new System.EventHandler(this.Reset);
             // 
@@ -1560,7 +1547,7 @@
             this.btnResetCurrent.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
             this.btnResetCurrent.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnResetCurrent.Name = "btnResetCurrent";
-            this.btnResetCurrent.Size = new System.Drawing.Size(61, 24);
+            this.btnResetCurrent.Size = new System.Drawing.Size(61, 28);
             this.btnResetCurrent.Text = "Reload";
             this.btnResetCurrent.Click += new System.EventHandler(this.ResetCurrent);
             // 
@@ -1571,7 +1558,7 @@
             this.btnJoinTo.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
             this.btnJoinTo.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnJoinTo.Name = "btnJoinTo";
-            this.btnJoinTo.Size = new System.Drawing.Size(57, 24);
+            this.btnJoinTo.Size = new System.Drawing.Size(57, 28);
             this.btnJoinTo.Text = "Join to";
             this.btnJoinTo.Click += new System.EventHandler(this.btnJoinTo_Click);
             // 
@@ -1582,7 +1569,7 @@
             this.btnJoinNext.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
             this.btnJoinNext.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnJoinNext.Name = "btnJoinNext";
-            this.btnJoinNext.Size = new System.Drawing.Size(59, 24);
+            this.btnJoinNext.Size = new System.Drawing.Size(59, 28);
             this.btnJoinNext.Text = "Join ->";
             this.btnJoinNext.Click += new System.EventHandler(this.btnJoinNext_Click);
             // 
@@ -1593,7 +1580,7 @@
             this.btnJoinPrev.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
             this.btnJoinPrev.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnJoinPrev.Name = "btnJoinPrev";
-            this.btnJoinPrev.Size = new System.Drawing.Size(59, 24);
+            this.btnJoinPrev.Size = new System.Drawing.Size(59, 28);
             this.btnJoinPrev.Text = "<- Join";
             this.btnJoinPrev.Click += new System.EventHandler(this.btnJoinPrev_Click);
             // 
@@ -1604,7 +1591,7 @@
             this.btnSeparate.DisplayStyle = System.Windows.Forms.ToolStripItemDisplayStyle.Text;
             this.btnSeparate.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnSeparate.Name = "btnSeparate";
-            this.btnSeparate.Size = new System.Drawing.Size(72, 24);
+            this.btnSeparate.Size = new System.Drawing.Size(72, 28);
             this.btnSeparate.Text = "Separate";
             this.btnSeparate.Click += new System.EventHandler(this.btnSeparate_Click);
             // 
@@ -1616,7 +1603,7 @@
             this.btnResetInterval.Image = ((System.Drawing.Image)(resources.GetObject("btnResetInterval.Image")));
             this.btnResetInterval.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnResetInterval.Name = "btnResetInterval";
-            this.btnResetInterval.Size = new System.Drawing.Size(84, 24);
+            this.btnResetInterval.Size = new System.Drawing.Size(84, 28);
             this.btnResetInterval.Text = "Reload All";
             this.btnResetInterval.Click += new System.EventHandler(this.ResetInterval);
             // 
@@ -1629,7 +1616,7 @@
             this.btnDelete.Image = ((System.Drawing.Image)(resources.GetObject("btnDelete.Image")));
             this.btnDelete.ImageTransparentColor = System.Drawing.Color.Magenta;
             this.btnDelete.Name = "btnDelete";
-            this.btnDelete.Size = new System.Drawing.Size(57, 24);
+            this.btnDelete.Size = new System.Drawing.Size(57, 28);
             this.btnDelete.Text = "Delete";
             this.btnDelete.Click += new System.EventHandler(this.btnDelete_Click);
             // 
@@ -1644,34 +1631,47 @@
             this.pictureBox.TabIndex = 2;
             this.pictureBox.TabStop = false;
             // 
-            // label4
+            // intervalDataGridViewTextBoxColumn
             // 
-            this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(421, 94);
-            this.label4.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label4.Name = "label4";
-            this.label4.Size = new System.Drawing.Size(43, 16);
-            this.label4.TabIndex = 3;
-            this.label4.Text = "Noise";
+            this.intervalDataGridViewTextBoxColumn.DataPropertyName = "Interval";
+            this.intervalDataGridViewTextBoxColumn.HeaderText = "Interval";
+            this.intervalDataGridViewTextBoxColumn.MinimumWidth = 6;
+            this.intervalDataGridViewTextBoxColumn.Name = "intervalDataGridViewTextBoxColumn";
+            this.intervalDataGridViewTextBoxColumn.ReadOnly = true;
+            this.intervalDataGridViewTextBoxColumn.Width = 79;
             // 
-            // nudNoise
+            // xDataGridViewTextBoxColumn
             // 
-            this.nudNoise.Increment = new decimal(new int[] {
-            10,
-            0,
-            0,
-            0});
-            this.nudNoise.Location = new System.Drawing.Point(473, 91);
-            this.nudNoise.Margin = new System.Windows.Forms.Padding(4);
-            this.nudNoise.Maximum = new decimal(new int[] {
-            999,
-            0,
-            0,
-            0});
-            this.nudNoise.Name = "nudNoise";
-            this.nudNoise.Size = new System.Drawing.Size(56, 22);
-            this.nudNoise.TabIndex = 5;
-            this.nudNoise.ValueChanged += new System.EventHandler(this.Render);
+            this.xDataGridViewTextBoxColumn.DataPropertyName = "Placement";
+            this.xDataGridViewTextBoxColumn.HeaderText = "Location";
+            this.xDataGridViewTextBoxColumn.MinimumWidth = 6;
+            this.xDataGridViewTextBoxColumn.Name = "xDataGridViewTextBoxColumn";
+            this.xDataGridViewTextBoxColumn.ReadOnly = true;
+            this.xDataGridViewTextBoxColumn.Width = 87;
+            // 
+            // Angle
+            // 
+            this.Angle.DataPropertyName = "Angle";
+            this.Angle.HeaderText = "Angle";
+            this.Angle.MinimumWidth = 6;
+            this.Angle.Name = "Angle";
+            this.Angle.ReadOnly = true;
+            this.Angle.Width = 71;
+            // 
+            // diffDataGridViewTextBoxColumn
+            // 
+            this.diffDataGridViewTextBoxColumn.DataPropertyName = "Diff";
+            dataGridViewCellStyle1.Format = "F1";
+            this.diffDataGridViewTextBoxColumn.DefaultCellStyle = dataGridViewCellStyle1;
+            this.diffDataGridViewTextBoxColumn.HeaderText = "Diff";
+            this.diffDataGridViewTextBoxColumn.MinimumWidth = 6;
+            this.diffDataGridViewTextBoxColumn.Name = "diffDataGridViewTextBoxColumn";
+            this.diffDataGridViewTextBoxColumn.ReadOnly = true;
+            this.diffDataGridViewTextBoxColumn.Width = 55;
+            // 
+            // frameIntervalBindingSource
+            // 
+            this.frameIntervalBindingSource.DataSource = typeof(AutoOverlay.FrameInterval);
             // 
             // OverlayEditor
             // 
@@ -1682,6 +1682,7 @@
             this.Controls.Add(this.panelManage);
             this.Controls.Add(this.panel1);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            this.KeyPreview = true;
             this.Margin = new System.Windows.Forms.Padding(4);
             this.MinimumSize = new System.Drawing.Size(1327, 826);
             this.Name = "OverlayEditor";
@@ -1689,6 +1690,7 @@
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.OverlayEditor_FormClosing);
             this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.OverlayEditorForm_FormClosed);
             this.Load += new System.EventHandler(this.OverlayEditorForm_Load);
+            this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.OverlayEditor_KeyDown);
             this.panel1.ResumeLayout(false);
             this.panel1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trackBar)).EndInit();
@@ -1701,7 +1703,6 @@
             ((System.ComponentModel.ISupportInitialize)(this.nudCurrentFrame)).EndInit();
             this.panelManage.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.grid)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.frameIntervalBindingSource)).EndInit();
             this.panel2.ResumeLayout(false);
             this.panel2.PerformLayout();
             this.groupBox3.ResumeLayout(false);
@@ -1718,6 +1719,7 @@
             this.groupBox2.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.tbColorAdjust)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.tbOpacity)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.nudNoise)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudGradientSize)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudOutputWidth)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudOutputHeight)).EndInit();
@@ -1732,7 +1734,7 @@
             this.toolStrip1.ResumeLayout(false);
             this.toolStrip1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.nudNoise)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.frameIntervalBindingSource)).EndInit();
             this.ResumeLayout(false);
 
         }

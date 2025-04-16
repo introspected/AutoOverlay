@@ -11,7 +11,7 @@ namespace AutoOverlay.AviSynth
 {
     public static class FilterUtils
     {
-        public sealed record PropertyMetadata(PropertyInfo Property, AvsArgumentAttribute Attribute, MethodInfo Getter, MethodInfo Setter, string[] Values, HashSet<string> LowValues);
+        public sealed record PropertyMetadata(string Name, Type Type, AvsArgumentAttribute Attribute, MethodInfo Getter, MethodInfo Setter, string[] Values, HashSet<string> LowValues);
 
         public sealed record FilterMetadata(PropertyMetadata[] Properties, string Name, int ParamCount, MethodInfo[] Clips);
 
@@ -31,7 +31,7 @@ namespace AutoOverlay.AviSynth
             var annotatedPropertiesWithArguments = metadata.Properties.Select(p =>
             {
                 AVSValue argument;
-                if (p.Property.PropertyType == typeof(Space))
+                if (p.Type == typeof(Space))
                 {
                     argument = new AVSValue(args[argIndex++], args[argIndex++]);
                     if (!argument[0].Defined() && !argument[1].Defined())
@@ -41,15 +41,13 @@ namespace AutoOverlay.AviSynth
                 {
                     argument = args[argIndex++];
                 }
-
-                var property = p.Property;
+                
                 return new
                 {
                     Argument = argument,
-                    Property = p.Property,
-                    Name = property.Name,
-                    QualifiedName = $"{metadata.Name}.{property.Name}",
-                    Type = property.PropertyType,
+                    Name = p.Name,
+                    QualifiedName = $"{metadata.Name}.{p.Name}",
+                    Type = p.Type,
                     Defined = argument.Defined(),
                     Attribute = p.Attribute,
                     Setter = p.Setter,
@@ -81,7 +79,7 @@ namespace AutoOverlay.AviSynth
                     throw new AvisynthException($"Parameter {tuple.QualifiedName} not implemented yet");
                 }
 
-                var defValue = tuple.Property.GetValue(filter);
+                var defValue = tuple.Getter.Invoke(filter, null);
 
                 RectangleD ReadRect(Clip clip, int i)
                 {
@@ -201,8 +199,7 @@ namespace AutoOverlay.AviSynth
             }
 
             var presets = from tuple in annotatedPropertiesWithArguments
-                          let property = tuple.Property
-                          where property.PropertyType.IsEnum
+                          where tuple.Type.IsEnum
                           let value = (Enum)tuple.Getter.Invoke(filter, null)
                           where value != null
                           let preset = Presets.Find(value, filter)
@@ -243,13 +240,16 @@ namespace AutoOverlay.AviSynth
                         return null;
                     string[] values;
                     HashSet<string> lowValues;
-                    if (property.PropertyType.IsEnum)
+                    var propertyType = property.PropertyType;
+                    if (propertyType.IsGenericType && propertyType.GetGenericTypeDefinition() == typeof(Nullable<>))
+                        propertyType = Nullable.GetUnderlyingType(propertyType);
+                    if (propertyType.IsEnum)
                     {
-                        values = Enum.GetNames(property.PropertyType);
+                        values = Enum.GetNames(propertyType);
                         lowValues = [];
-                        foreach (var name in Enum.GetNames(property.PropertyType))
+                        foreach (var name in Enum.GetNames(propertyType))
                             lowValues.Add(name.ToLower());
-                        foreach (var value in Enum.GetValues(property.PropertyType).Cast<object>().Select(Convert.ToInt32))
+                        foreach (var value in Enum.GetValues(propertyType).Cast<object>().Select(Convert.ToInt32))
                             lowValues.Add(value.ToString());
                     }
                     else
@@ -259,11 +259,11 @@ namespace AutoOverlay.AviSynth
                     }
                     var setter = property.GetSetMethod(true);
                     var getter = property.GetGetMethod(true);
-                    return new PropertyMetadata(property, attribute, getter, setter, values, lowValues);
+                    return new PropertyMetadata(property.Name, propertyType, attribute, getter, setter, values, lowValues);
                 })
                 .Where(p => p != null).ToArray();
 
-            var paramCount = properties.Sum(p => p.Property.PropertyType == typeof(Space) ? 2 : 1);
+            var paramCount = properties.Sum(p => p.Type == typeof(Space) ? 2 : 1);
 
             var filterName = type.Assembly
                 .GetCustomAttributes(typeof(AvisynthFilterClassAttribute), true)
@@ -271,9 +271,9 @@ namespace AutoOverlay.AviSynth
                 .FirstOrDefault(p => p.FilterType == type)
                 ?.FilterName ?? type.Name;
 
-            var clips = properties.Select(p => p.Property)
-                .Where(p => p.PropertyType == typeof(Clip) || p.PropertyType == typeof(Clip[]))
-                .Select(p => p.GetGetMethod(true))
+            var clips = properties
+                .Where(p => p.Type == typeof(Clip) || p.Type == typeof(Clip[]))
+                .Select(p => p.Getter)
                 .ToArray();
 
             return new FilterMetadata(properties, filterName, paramCount, clips);

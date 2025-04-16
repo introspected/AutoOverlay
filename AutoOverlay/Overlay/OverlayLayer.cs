@@ -20,13 +20,31 @@ namespace AutoOverlay.Overlay
         public int Index { get; private set; }
         public Rectangle ActiveArea { get; }
         public OverlayData Data { get; }
-        public string ResizeFunc { get; }
 
         public bool Rotation => !Source && Data.OverlayAngle != 0;
 
         public static List<OverlayLayer> GetLayers(int frameNumber, OverlayContext ctx, List<OverlayInfo> history, List<OverlayInfo>[] extra)
         {
-            var data = OverlayMapper.For(frameNumber, ctx.Input, history, ctx.Render.Stabilization, extra).GetOverlayData();
+            List<OverlayInfo> CorrectChromaLocation(List<OverlayInfo> stats, Func<ChromaLocation?> layer)
+            {
+                if (!ctx.Plane.IsChroma())
+                    return stats;
+                var src = ctx.Render.SrcChromaLocation() ?? ctx.Render.OverChromaLocation();
+                if (!src.HasValue)
+                    return stats;
+                var over = layer();
+                if (!over.HasValue)
+                    return stats;
+                var shift = over.Value.GetShift(src.Value);
+                if (shift.IsNearZero())
+                    return stats;
+                return stats.Select(p => p.Clone().Also(p => p.Placement = p.Placement.Add(shift))).ToList();
+            }
+
+            var mainHistory = CorrectChromaLocation(history, ctx.Render.OverChromaLocation);
+            var mainExtra = extra.Select((p, i) => CorrectChromaLocation(p, ctx.Render.ExtraChromaLocation[i])).ToArray();
+
+            var data = OverlayMapper.For(frameNumber, ctx.Input, mainHistory, ctx.Render.Stabilization, mainExtra).GetOverlayData();
             OverlayData lumaData = null;
             if (ctx.Plane.IsChroma())
             {
@@ -34,12 +52,12 @@ namespace AutoOverlay.Overlay
             }
             var layers = new List<OverlayLayer>(2 + ctx.ExtraClips.Count)
             {
-                new(data, true, ctx.Source, ctx.SourceMask, 1, ctx.Render, ctx, lumaData, history, ctx.SubSample)
+                new(data, true, ctx.Source, ctx.SourceMask, 1, ctx.Render, ctx, lumaData, mainHistory, ctx.SubSample)
             };
             var extraLayers = ctx.ExtraClips
-                .Select((tuple, i) => new OverlayLayer(data.ExtraClips[i], false, tuple.Clip, tuple.Mask, tuple.Opacity, ctx.Render, ctx, lumaData?.ExtraClips[i], extra[i], ctx.SubSample));
+                .Select((tuple, i) => new OverlayLayer(data.ExtraClips[i], false, tuple.Clip, tuple.Mask, tuple.Opacity, ctx.Render, ctx, lumaData?.ExtraClips[i], mainExtra[i], ctx.SubSample));
             layers.AddRange(extraLayers);
-            layers.Insert(ctx.Render.OverlayOrder + 1, new(data, false, ctx.Overlay, ctx.OverlayMask, ctx.Render.Opacity, ctx.Render, ctx, lumaData, history, ctx.SubSample));
+            layers.Insert(ctx.Render.OverlayOrder + 1, new(data, false, ctx.Overlay, ctx.OverlayMask, ctx.Render.Opacity, ctx.Render, ctx, lumaData, mainHistory, ctx.SubSample));
             for (var i = 0; i < layers.Count; i++)
                 layers[i].Index = i;
             return layers;
@@ -53,7 +71,7 @@ namespace AutoOverlay.Overlay
             Opacity = opacity;
             History = history;
             ActiveArea = data.ActiveArea;
-            RectangleF crop;
+            RectangleD crop;
             float angle;
             Warp warp;
             Rectangle unrotated;
@@ -86,9 +104,11 @@ namespace AutoOverlay.Overlay
                 Y = Math.Max(0, -rotated.Y)
             };
 
-            ResizeFunc = Rectangle.Width > size.Width ? render.Upsize : render.Downsize;
+            var resizeFunc = Rectangle.Width > size.Width ? render.Upsize : render.Downsize;
+            if (ctx.Plane.IsChroma() && render.ChromaResize != null)
+                resizeFunc = render.ChromaResize;
 
-            dynamic Prepare(Clip clp, Warp warp) => render.ResizeRotate(clp, ResizeFunc, render.Rotate, unrotated.Width, unrotated.Height, angle, crop, warp)?.ROI(roi);
+            dynamic Prepare(Clip clp, Warp warp) => render.ResizeRotate(clp, resizeFunc, render.Rotate, unrotated.Width, unrotated.Height, angle, crop, warp)?.ROI(roi);
 
             Clip = Prepare(clip, warp);
             Mask = render.MaskMode ? null : Prepare(mask, warp);
@@ -113,11 +133,16 @@ namespace AutoOverlay.Overlay
             else
             {
                 var luma = Source ? lumaData.Source : lumaData.Overlay;
+                var chroma = Rectangle.FromLTRB(
+                    Rectangle.Left * subSample.Width, 
+                    Rectangle.Top * subSample.Height,
+                    Rectangle.Right * subSample.Width,
+                    Rectangle.Bottom * subSample.Height);
                 ExtraBorders = Rectangle.FromLTRB(
-                    Math.Sign(luma.X % subSample.Width),
-                    Math.Sign(luma.Y % subSample.Height),
-                    Math.Sign(luma.Right % subSample.Width),
-                    Math.Sign(luma.Bottom % subSample.Height));
+                    Math.Max(0, Math.Sign(chroma.Left - luma.Left)),
+                    Math.Max(0, Math.Sign(chroma.Top - luma.Top)),
+                    Math.Max(0, Math.Sign(luma.Right - chroma.Right)),
+                    Math.Max(0, Math.Sign(luma.Bottom - chroma.Bottom)));
             }
         }
     }

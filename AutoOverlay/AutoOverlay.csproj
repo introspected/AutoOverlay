@@ -59,7 +59,7 @@
     <ErrorReport>prompt</ErrorReport>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
-    <OutputPath>bin\x86\Release\</OutputPath>
+    <OutputPath>..\bin\x86\Release\</OutputPath>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Optimize>true</Optimize>
     <DebugType>pdbonly</DebugType>
@@ -78,7 +78,7 @@
     <ErrorReport>prompt</ErrorReport>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
-    <OutputPath>bin\x64\Release\</OutputPath>
+    <OutputPath>..\bin\x64\Release\</OutputPath>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Optimize>true</Optimize>
     <DebugType>pdbonly</DebugType>
@@ -101,12 +101,14 @@
   <ItemGroup>
     <Compile Include="AviSynth\AvsUtils.cs" />
     <Compile Include="AviSynth\AvsArgumentAttribute.cs" />
+    <Compile Include="AviSynth\ClipProperty.cs" />
     <Compile Include="AviSynth\FilterUtils.cs" />
     <Compile Include="Core\DotNetUtils.cs" />
     <Compile Include="AviSynth\IsExternalInit.cs" />
     <Compile Include="AviSynth\Presets.cs" />
     <Compile Include="Core\LinkedHashSet.cs" />
     <Compile Include="Enum\BackgroundMode.cs" />
+    <Compile Include="Enum\ChromaLocation.cs" />
     <Compile Include="Enum\ColorMatchPreset.cs" />
     <Compile Include="Enum\Corner.cs" />
     <Compile Include="Enum\EdgeGradient.cs" />
@@ -143,7 +145,6 @@
     <Compile Include="Filters\ForceColorSpace.cs" />
     <Compile Include="Filters\Rect.cs" />
     <Compile Include="AviSynth\FrameEventArgs.cs" />
-    <Compile Include="Forms\KeyboardHook.cs" />
     <Compile Include="Filters\OverlayCompare.cs" />
     <Compile Include="Enum\OverlayEngineMode.cs" />
     <Compile Include="Filters\OverlayFilter.cs" />

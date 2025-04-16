@@ -128,7 +128,7 @@ AviSynth+ поддерживает автоподключение плагино
 - **stickDistance** (default 1) - максимально допустимое расстояние между краями накладываемого изображения для наилучших параметров наложения и тех, что приведут к приклеиванию накладываемого изображения к границам основного.
 - **configs** (по умолчанию OverlayConfig со значениями по умолчанию) – список конфигураций в виде клипа. Пример: `configs=OverlayConfig(subpixel=1, acceptableDiff=10) + OverlayConfig(angle1=-1, angle2=1)`. Если в ходе автовыравнивания после прогона первой конфигурации будет получено значение diff менее 10, то следующая конфигурация с более "тяжелыми" параметрами (вращение) будет пропущена. 
 - **presize** (default *BilinearResize*) – функция изменения размера изображения для начальных шагов масштабирования.
-- **resize** (default *BicubicResize* или *BicubicResizeMT* при наличии) – функция изменения размера изображения для финальных шагов масштабирования.
+- **resize** (default *Spline36Resize* или *Spline36ResizeMT* при наличии) – функция изменения размера изображения для финальных шагов масштабирования.
 - **rotate** (default *BilinearRotate*) – функция вращения изображения. В настоящее время по умолчанию используется реализация из библиотеки AForge.NET.
 - **editor** (default false). Если true, во время загрузки скрипта запустится визуальный редактор. 
 - **mode** (default "default") – режим работы со статистикой:  
@@ -179,9 +179,9 @@ Separate - обособление кадра. Join prev - присоединит
 
 ### OverlayRender
     OverlayRender(clip engine, clip source, clip overlay, clip sourceMask, clip overlayMask, 
-                  clip sourceCrop, clip overlayCrop, clip extraClips, string preset, 
-                  clip innerBounds, clip outerBounds, float overlayBalanceX, float overlayBalanceY, 
-                  bool fixedSource, int overlayOrder, 
+                  clip sourceCrop, clip overlayCrop, string sourceChromaLocation, string overlayChromaLocation, 
+                  clip extraClips, string preset, clip innerBounds, clip outerBounds, 
+                  float overlayBalanceX, float overlayBalanceY, bool fixedSource, int overlayOrder, 
                   float stabilizationDiffTolerance, float stabilizationAreaTolerance, int stabilizationLength, 
                   string overlayMode, int width, int height, string pixelType, int gradient, int noise, 
                   int borderControl, float borderMaxDeviation, clip borderOffset, 
@@ -190,8 +190,8 @@ Separate - обособление кадра. Join prev - присоединит
                   int colorFramesCount, float colorFramesDiff, float colorMaxDeviation, 
                   bool colorBufferedExtrapolation, float gradientColor, clip colorMatchTarget, 
                   string adjustChannels, string matrix, string sourceMatrix, string overlayMatrix,
-                  string upsize, string downsize, string rotate, bool preview, bool debug, 
-                  bool invert, string background, clip backgroundClip, int blankColor, 
+                  string upsize, string downsize, string chromaResize, string rotate, bool preview, 
+                  bool debug, bool invert, string background, clip backgroundClip, int blankColor, 
                   float backBalance, int backBlur, bool fullScreen, string edgeGradient, int bitDepth)
                   
 Фильтр осуществляет рендеринг результата совмещения двух или более клипов с определенными настройками.
@@ -202,6 +202,7 @@ Separate - обособление кадра. Join prev - присоединит
 - **overlay** (required) - второй клип, накладываемый на первый.
 - **sourceMask** and **overlayMask** (default empty) - маски основного и накладываемого клипа. В отличие от OverlayEngine смысл этих масок такой же, как в обычном фильтре *Overlay*. Маски регулируют интенсивность наложения клипов относительно друга друга. Маски должны иметь ту же разрядность, что и соответствующий ей клип.
 - **sourceCrop** and **overlayCrop** (default 0) - клипы типа Rect, позволяющие учесть разность в обрезке клипов между статистикой (OverlayEngine) и клипами source and overlay. Положительные значения - обрезка, отрицательные - наоборот. 
+- **sourceChromaLocation** and **overlayChromaLocation** - смещение UV каналов относительно канала яркости. Возможные значения: left, center, top_left, top, bottom, bottom_left. По умолчанию используется значение свойства кадра *_ChromaLocation*, иначе left. Для выходного клипа используется значение *sourceChromaLocation*.
 - **extraClips** (default empty) - клип из склеенных клипов типа OverlayClip, описывающих дополнительные клипы для наложения.
 - **preset** (default not set) - пресеты используются для пакетной предустановки других параметров (если они не заданы явно)
 
@@ -252,7 +253,8 @@ Separate - обособление кадра. Join prev - присоединит
 - **adjustChannels** (default empty) - в каких каналах регулировать цвет. Примеры: "yuv", "y", "rgb", "rg".
 - **matrix** (default empty). Если параметр задан, YUV изображение конвертируется в RGB по указанной матрице на время обработки.
 - **sourceMatrix** and **overlayMatrix** (default empty) - возможность переопределить матрицу для основного или накладываемого клипа, используются в связке с параметром *matrix*
-- **downsize** и **upsize** (default *Spline16Resize* или *Spline16ResizeMT* при наличии) - функции для уменьшения и увеличения размера изображений. Если задан только один параметр, то второй заполняется тем же значением. 
+- **downsize** и **upsize** (default *Spline36Resize* или *Spline36ResizeMT* при наличии) - функции для уменьшения и увеличения размера изображений. Если задан только один параметр, то второй заполняется тем же значением. 
+- **chromaResize** - функция ресемплинга UV каналов в том же формате, что и downsize и upsize, по умолчанию используется значение *downsize*.
 - **rotate** (default *BilinearRotate*) - функция вращения накладываемого изображения.
 - **preview** - вывод превью.
 - **debug** - вывод параметров наложения и превью.
@@ -300,7 +302,8 @@ Separate - обособление кадра. Join prev - присоединит
                     clip engine, clip sourceCrop, clip overlayCrop, bool invert, int iterations, 
                     string space, string format, string resize, int length, float dither, 
                     float gradient, int frameBuffer, float frameDiff, float frameMaxDeviation, 
-                    bool bufferedExtrapolation, float exclude, int frame, bool matrixConversionHQ)
+                    bool bufferedExtrapolation, float exclude, int frame, bool matrixConversionHQ,
+                    string inputChromaLocation, string outputChromaLocation)
 					
 Многошаговая автоматическая коррекция цвета с поддержкой статистики из OverlayEngine. Позволяет гибко скорректировать цвет клипов до их совмещения через OverlayRender.
 Например, для YUV клипов сначала преобразовать их цветовое пространство RGB HDR, скорректировать цвет, затем преобразовать в YUV HDR и снова скорректировать цвет.
@@ -327,7 +330,7 @@ YuvRgb10 - двушаговая конвертация клипов в прои�
 - **iterations** (default 1) - количество повторений цепочки преобразваний. Большее количество может давать лучший результат, но снижает производительность.
 - **space** - цветовое пространство результирующего клипа, например: *2020ncl:st2084:2020:f* или *PC.2020*. По умолчанию используется последнее цветовое пространство из цепочки преобразований.
 - **format** - формат результирующего клипа, например: *YUV420P10*. По умолчанию используется последний формат из цепочки преобразований.
-- **resize** (default BilinearResize) - фильтр для изменения размера изображений при использовании параметра engine, высокое качество не требуется.
+- **resize** (default BilinearResize) - фильтр для изменения размера изображений при использовании параметра engine, высокое качество не требуется. Если задан, также используется для ресемплинга uv каналов, иначе spline16.
 - **length** (default 2000) - см. ColorMatch.length
 - **dither** (default 0.95) - см. ColorMatch.dither
 - **gradient** (default 0) - см. ColorMatch.gradient
@@ -338,6 +341,7 @@ YuvRgb10 - двушаговая конвертация клипов в прои�
 - **exclude** (default 0) - см. ColorMatch.exclude
 - **frame** - см. ColorMatch.frame
 - **matrixConversionHQ** (default false) - повышенное качество изменения цветовой матрицы в YUV пространстве с конвертацией в 32 bit
+- **inputChromaLocation** and **outputChromaLocation** - смещение UV каналов относительно канала яркости входного и выходного клипов. Возможные значения: left, center, top_left, top, bottom, bottom_left. По умолчанию используется значение свойства кадра *_ChromaLocation*, иначе left.
 
 ### ColorMatchStep
     ColorMatchStep(string sample, string reference, string space, float intensity, clip merge, 
@@ -403,15 +407,17 @@ YuvRgb10 - двушаговая конвертация клипов в прои�
 
 ### StaticOverlayRender
     StaticOverlayRender(clip source, clip overlay, float x, float y, float angle, float overlayWidth, float overlayHeight, 
-                        string warpPoints, float diff, clip sourceMask, clip overlayMask, string preset, 
-                        clip innerBounds, clip outerBounds, float overlayBalanceX, float overlayBalanceY, bool fixedSource, 
-                        string overlayMode, int width, int height, string pixelType, int gradient, int noise, 
-                        clip borderOffset, clip srcColorBorderOffset, clip overColorBorderOffset, bool maskMode, float opacity, 
+                        string warpPoints, float diff, clip sourceMask, clip overlayMask, clip sourceCrop, clip overlayCrop,
+                        string sourceChromaLocation, string overlayChromaLocation, clip extraClips, string preset, 
+                        clip innerBounds, clip outerBounds, space overlayBalance, bool fixedSource, string overlayMode, 
+                        int width, int height, string pixelType, int gradient, int noise, clip borderOffset,
+                        clip srcColorBorderOffset, clip overColorBorderOffset, bool maskMode, float opacity, 
                         float colorAdjust, int colorBuckets, float colorDither, float colorExclude, int colorFramesCount, 
                         float colorFramesDiff, bool colorBufferedExtrapolation, string adjustChannels, float gradientColor, 
-                        string matrix, string sourceMatrix, string overlayMatrix, string upsize, string downsize, string rotate, 
-                        bool preview, bool debug, bool invert, string background, clip backgroundClip, int blankColor, 
-                        float backBalance, int backBlur, bool fullScreen, string edgeGradient, int bitDepth)
+                        string matrix, string sourceMatrix, string overlayMatrix, string upsize, string downsize, 
+                        string chromaResize, string rotate, bool preview, bool debug, bool invert, string background, 
+                        clip backgroundClip, int blankColor, float backBalance, int backBlur, bool fullScreen, 
+                        string edgeGradient, int bitDepth)
 
 Аналогичен OverlayRender, но без OverlayEngine, параметры совмещения клипов задаются вручную.
 
@@ -651,6 +657,15 @@ ComplexityOverlay целесообразно использовать до пр�
     ```OverlayEngine(clip1, clip2, maxDiff = 5, statFile = "diff.stat", editor = true)```
 
 ## История изменений
+### 16.04.2025 v0.7.5
+1. *OverlayEngine*: улучшено автовыравнивание в субпиксельном режиме.
+2. *OverlayRender*: параметр *chromaResize* для явного выбора алгоритма ресемплинга UV каналов, по умолчанию равен значению параметра *downsize*.
+3. *OverlayRender*: параметры *sourceChromaLocation*, *overlayChromaLocation* и *OverlayClip*.*chromaLocation* для явного указания смещения UV каналов относительно канала яркости. Допустимые значения: left, center, top_left, top, bottom_left, bottom. По умолчанию используется свойство кадра *_ChromaLocation*, либо left.
+4. *ColorMatchChain*: параметры *inputChromaLocation* и *outputChromaLocation* для явного указания смещения UV каналов относительно канала яркости. По умолчанию используется свойство кадра *_ChromaLocation*, либо left.
+5. *ColorMatchChain*: для ресемплинга UV каналов используется тот же алгоритм, что указан в параметре *resize*, либо spline16 по умолчанию.
+6. Фильтры теперь по возможности пробрасывают свойства кадра входного клипа.
+7. Обновлена версия библиотеки AvsFilterNet.
+
 ### 06.04.2025 v0.7.4
 1. *ColorMatchChain*: улучшена экстраполяция цвета.
 2. *OverlayEngine*: исправлено предсказание при наличии *sceneFile*.

@@ -77,6 +77,8 @@ namespace AutoOverlay
         public abstract Clip OverlayMask { get; protected set; }
         public abstract RectangleD SourceCrop { get; protected set; }
         public abstract RectangleD OverlayCrop { get; protected set; }
+        public abstract ChromaLocation? SourceChromaLocation { get; protected set; }
+        public abstract ChromaLocation? OverlayChromaLocation { get; protected set; }
         public abstract OverlayClip[] ExtraClips { get; protected set; }
 
         public abstract OverlayRenderPreset Preset { get; protected set; }
@@ -107,6 +109,7 @@ namespace AutoOverlay
         public abstract double Opacity { get; protected set; }
         public abstract string Upsize { get; protected set; }
         public abstract string Downsize { get; protected set; }
+        public abstract string ChromaResize { get; protected set; }
         public abstract string Rotate { get; protected set; }
 
         public abstract double ColorAdjust { get; protected set; }
@@ -139,6 +142,11 @@ namespace AutoOverlay
         public OverlayStabilization Stabilization { get; protected set; }
 
         private YUVPlanes[] planes;
+        private string chromaResample;
+
+        public Func<ChromaLocation?> SrcChromaLocation { get; private set; }
+        public Func<ChromaLocation?> OverChromaLocation { get; private set; }
+        public Func<ChromaLocation?>[] ExtraChromaLocation { get; private set; }
 
         protected readonly List<OverlayContext> contexts = [];
 
@@ -174,18 +182,20 @@ namespace AutoOverlay
             {
                 if (ColorAdjust >= 0)
                     ColorAdjust = 1 - ColorAdjust;
-                Initialize(Overlay, Source);
+                Initialize(Overlay, Source, OverlayChromaLocation, SourceChromaLocation);
             }
             else
             {
-                Initialize(Source, Overlay);
+                Initialize(Source, Overlay, SourceChromaLocation, OverlayChromaLocation);
             }
             Upsize ??= Downsize ?? StaticEnv.FunctionCoalesce(OverlayConst.DEFAULT_RESIZE_FUNCTION + "MT", OverlayConst.DEFAULT_RESIZE_FUNCTION);
-            Downsize ??= Upsize;
+            ChromaResize ??= Downsize ??= Upsize;
+
+            chromaResample = ChromaResize.GetChromaResample();
             OverlayMode ??= "blend";
         }
 
-        private void Initialize(Clip src, Clip over)
+        private void Initialize(Clip src, Clip over, ChromaLocation? srcChromaLocation, ChromaLocation? overChromaLocation)
         {
             var srcInfo = src.GetVideoInfo();
             var overInfo = over.GetVideoInfo();
@@ -220,6 +230,18 @@ namespace AutoOverlay
                 vi.num_frames = ColorMatchTarget.GetVideoInfo().num_frames;
             }
             SetVideoInfo(ref vi);
+
+            SrcChromaLocation = GetChromaLocation(src, srcChromaLocation);
+            OverChromaLocation = GetChromaLocation(over, overChromaLocation);
+            ExtraChromaLocation = ExtraClips.Select(p => GetChromaLocation(p.Clip, p.ChromaLocation)).ToArray();
+
+            Func<ChromaLocation?> GetChromaLocation(Clip clip, ChromaLocation? predefined)
+            {
+                if (predefined.HasValue)
+                    return () => predefined.Value;
+                var property = new ClipProperty<int?>(clip, "_ChromaLocation");
+                return () => property.Value.HasValue ? (ChromaLocation)property.Value : null;
+            }
         }
 
         protected override void AfterInitialize()
@@ -246,7 +268,7 @@ namespace AutoOverlay
                 foreach (var overlayClip in ExtraClips)
                     overlayClip.Clip = ConvertToRgb(overlayClip.Clip, overlayClip.Matrix ?? Matrix);
 
-                Clip ConvertToRgb(Clip clp, string matrix) => clp.Dynamic().ConvertToPlanarRGB(matrix: matrix);
+                Clip ConvertToRgb(Clip clp, string matrix) => clp.Dynamic().ConvertToPlanarRGB(matrix: matrix, chromaresample: chromaResample);
             }
 
             var withoutSubSample = ColorSpace.IsWithoutSubSample() &&
@@ -265,6 +287,7 @@ namespace AutoOverlay
 
         protected override VideoFrame GetFrame(int n)
         {
+            StaticEnv.SetVar("current_frame", n.ToAvsValue());
             var ctx = contexts.First();
             var history = GetOverlayInfo(n).Select(p =>
                     p.ScaleBySource(ctx.SourceInfo.Size, SourceCrop)
@@ -287,7 +310,11 @@ namespace AutoOverlay
             }
             if (Debug || Preview)
                 RenderPreview(ref hybrid, contexts.First(), history, extra);
-            
+
+            var chromaLocation = SrcChromaLocation() ?? OverChromaLocation();
+            if (chromaLocation.HasValue)
+                hybrid = hybrid.propSet("_ChromaLocation", (int)chromaLocation.Value);
+
             return hybrid[info.FrameNumber];
         }
 
@@ -303,12 +330,12 @@ namespace AutoOverlay
             if (!vi.IsRGB() && !string.IsNullOrEmpty(Matrix))
             {
                 var convertFunction = vi.pixel_type.GetConvertFunction();
-                return hybrid.Invoke(convertFunction, matrix: Matrix);
+                return hybrid.Invoke(convertFunction, matrix: Matrix, chromaresample: chromaResample);
             }
             if (vi.pixel_type != ((Clip)hybrid).GetVideoInfo().pixel_type)
             {
                 var convertFunction = vi.pixel_type.GetConvertFunction();
-                return hybrid.Invoke(convertFunction);
+                return hybrid.Invoke(convertFunction, chromaresample: chromaResample);
             }
 
             return hybrid;

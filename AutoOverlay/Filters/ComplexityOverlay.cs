@@ -98,9 +98,9 @@ namespace AutoOverlay
         {
             if (child != null)
                 return child[n];
-            var output = NewVideoFrame(StaticEnv);
             using var src = Source.GetFrame(n, StaticEnv);
             using var over = Overlay.GetFrame(n, StaticEnv);
+            var output = StaticEnv.MakeWritable(src) ? src : NewVideoFrame(StaticEnv, src);
             if (GetVideoInfo().IsRGB() && planeChannels.Length < 3 || Source.IsRealPlanar() && planeChannels.Length < 3)
             {
                 src.CopyTo(output, planes);

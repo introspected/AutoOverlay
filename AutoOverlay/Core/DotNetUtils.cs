@@ -76,8 +76,8 @@ namespace AutoOverlay
         {
             if (control.InvokeRequired)
                 if (async)
-                    control.BeginInvoke(action, new object[] { control });
-                else control.Invoke(action, new object[] { control });
+                    control.BeginInvoke(action, [control]);
+                else control.Invoke(action, [control]);
             else
                 action(control);
         }
@@ -85,9 +85,20 @@ namespace AutoOverlay
         public static V SafeInvoke<T, V>(this T control, Func<T, V> func) where T : ISynchronizeInvoke
         {
             if (control.InvokeRequired)
-                return (V)control.Invoke(func, new object[] { control });
+                return (V)control.Invoke(func, [control]);
             else
                 return func(control);
+        }
+
+        public static object Unbox(this object value)
+        {
+            var type = value?.GetType();
+            if (type is { IsGenericType: true } && type.GetGenericTypeDefinition() == typeof(Nullable<>))
+            {
+                dynamic nullable = value;
+                return nullable.HasValue ? nullable.Value : null;
+            }
+            return value;
         }
 
 
@@ -98,9 +109,23 @@ namespace AutoOverlay
         public static bool IsNearlyZero(this float number) => Math.Abs(number) < OverlayConst.EPSILON;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool IsNearlyEquals(this double a, double b) => Math.Abs(a - b) < OverlayConst.EPSILON;
+        public static bool IsNearlyEquals(this double a, double b, double tolerance = OverlayConst.EPSILON) => Math.Abs(a - b) < tolerance;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsNearlyEquals(this float a, float b) => Math.Abs(a - b) < OverlayConst.EPSILON;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Floor(this double value, double tolerance = 0.000001)
+        {
+            var ceiling = (int) Math.Ceiling(value);
+            return ceiling - value < tolerance ? ceiling : ceiling - 1;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int Ceiling(this double value, double tolerance = 0.000001)
+        {
+            var floor = (int)Math.Floor(value);
+            return value - floor < tolerance ? floor : floor + 1;
+        }
     }
 }

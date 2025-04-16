@@ -2,20 +2,19 @@
 using System.Drawing;
 using AutoOverlay;
 using AutoOverlay.AviSynth;
-using AutoOverlay.Overlay;
 using AvsFilterNet;
 
 [assembly: AvisynthFilterClass(typeof(DynamicOverlayRender),
     nameof(OverlayRender),
-    "ccc[SourceMask]c[OverlayMask]c[SourceCrop]c[OverlayCrop]c[ExtraClips]c[Preset]s" +
-    "[InnerBounds]c[OuterBounds]c[OverlayBalanceX]f[OverlayBalanceY]f[FixedSource]b[OverlayOrder]i" +
+    "ccc[SourceMask]c[OverlayMask]c[SourceCrop]c[OverlayCrop]c[SourceChromaLocation]s[OverlayChromaLocation]s" +
+    "[ExtraClips]c[Preset]s[InnerBounds]c[OuterBounds]c[OverlayBalanceX]f[OverlayBalanceY]f[FixedSource]b[OverlayOrder]i" +
     "[StabilizationDiffTolerance]f[StabilizationAreaTolerance]f[StabilizationLength]i" +
     "[OverlayMode]s[Width]i[Height]i[PixelType]s[Gradient]i[Noise]i" +
     "[BorderControl]i[BorderMaxDeviation]f[BorderOffset]c[SrcColorBorderOffset]c[OverColorBorderOffset]c" +
     "[MaskMode]b[Opacity]f[ColorAdjust]f[ColorBuckets]i[ColorDither]f[ColorExclude]f[ColorFramesCount]i[ColorFramesDiff]f" +
-    "[ColorMaxDeviation]f[ColorBufferedExtrapolation]b[GradientColor]f[ColorMatchTarget]c[AdjustChannels]s[Matrix]s[SourceMatrix]s[OverlayMatrix]s" +
-    "[Upsize]s[Downsize]s[Rotate]s[Preview]b[Debug]b[Invert]b[Background]s[BackgroundClip]c[BlankColor]i" +
-    "[BackBalance]f[BackBlur]i[FullScreen]b[EdgeGradient]s[BitDepth]i",
+    "[ColorMaxDeviation]f[ColorBufferedExtrapolation]b[GradientColor]f[ColorMatchTarget]c[AdjustChannels]s[Matrix]s" +
+    "[SourceMatrix]s[OverlayMatrix]s[Upsize]s[Downsize]s[ChromaResize]s[Rotate]s[Preview]b[Debug]b[Invert]b" +
+    "[Background]s[BackgroundClip]c[BlankColor]i[BackBalance]f[BackBlur]i[FullScreen]b[EdgeGradient]s[BitDepth]i",
     OverlayConst.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
@@ -41,6 +40,12 @@ namespace AutoOverlay
 
         [AvsArgument]
         public override RectangleD OverlayCrop { get; protected set; }
+
+        [AvsArgument]
+        public override ChromaLocation? SourceChromaLocation { get; protected set; }
+
+        [AvsArgument]
+        public override ChromaLocation? OverlayChromaLocation { get; protected set; }
 
         [AvsArgument]
         public override OverlayClip[] ExtraClips { get; protected set; }
@@ -158,6 +163,9 @@ namespace AutoOverlay
 
         [AvsArgument]
         public override string Downsize { get; protected set; }
+
+        [AvsArgument]
+        public override string ChromaResize { get; protected set; }
 
         [AvsArgument]
         public override string Rotate { get; protected set; } = "BilinearRotate";

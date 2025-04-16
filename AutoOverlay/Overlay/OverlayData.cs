@@ -23,7 +23,7 @@ namespace AutoOverlay.Overlay
         public Warp OverlayWarp { get; set; } = Warp.Empty;
         public Rectangle Overlay { get; set; }
         public SizeD OverlayBaseSize { get; set; }
-        public RectangleF OverlayCrop { get; set; }
+        public RectangleD OverlayCrop { get; set; }
 
         public float OverlayAngle { get; set; }
 
@@ -39,7 +39,7 @@ namespace AutoOverlay.Overlay
 
         public OverlayInfo GetOverlayInfo()
         {
-            SizeD CalcScale(Size newSize, SizeD oldSize, RectangleF crop) => new(
+            SizeD CalcScale(Size newSize, SizeD oldSize, RectangleD crop) => new(
                 newSize.Width / (oldSize.Width - crop.Left - crop.Right),
                 newSize.Height / (oldSize.Height - crop.Top - crop.Bottom));
 

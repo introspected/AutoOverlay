@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
@@ -17,8 +16,6 @@ namespace AutoOverlay.Forms
     public partial class OverlayEditor : Form
     {
         #region Fields and properties
-        private readonly KeyboardHook keyboardHook = new(true);
-
         private bool captured;
 
         private int _currentFrame = -1;
@@ -106,6 +103,7 @@ namespace AutoOverlay.Forms
             var changed = intervalInfo.ProbablyChanged || !info.Equals(intervalInfo);
             if (changed)
             {
+                interval.ClearCache();
                 if (interval.Fixed)
                     foreach (var frame in interval)
                     {
@@ -143,7 +141,9 @@ namespace AutoOverlay.Forms
             nudOutputWidth.Value = engine.SrcInfo.Width;
             nudOutputHeight.Value = engine.SrcInfo.Height;
             nudDeviation.Value = new decimal(engine.SceneAreaTolerance * 100.0);
+            nudX.Increment = nudY.Increment = nudOverlayWidth.Increment = nudOverlayHeight.Increment = (decimal)Math.Pow(2, -Engine.GetConfigs().First().Subpixel);
             nudMaxFrame.Value = nudMinFrame.Maximum = nudMaxFrame.Maximum = engine.GetVideoInfo().num_frames - 1;
+            Engine.CurrentFrameChanged += OnCurrentFrameChanged;
         }
 
         public void UpdateControls(OverlayInfo info)
@@ -197,7 +197,7 @@ namespace AutoOverlay.Forms
             }
         }
 
-        private void keyboardHook_KeyDown(object sender, KeyEventArgs e)
+        private void OverlayEditor_KeyDown(object sender, KeyEventArgs e)
         {
             if (ActiveForm != this) return;
             e.Handled = true;
@@ -289,9 +289,6 @@ namespace AutoOverlay.Forms
             LoadStat(true);
             grid.DataSource = Intervals;
             grid.BindingContext[Intervals].CurrentChanged += UpdateInterval;
-            Engine.CurrentFrameChanged += OnCurrentFrameChanged;
-            keyboardHook.KeyDown += keyboardHook_KeyDown;
-            Closing += (_, _) => keyboardHook.Dispose();
         }
 
         private void OverlayEditorForm_FormClosed(object sender, FormClosedEventArgs e)
@@ -453,11 +450,13 @@ namespace AutoOverlay.Forms
                 nudOverlayHeight.Value = (decimal)((double)nudOverlayWidth.Value / CurrentFrameInfo.OverlayAspectRatio);
                 nudOverlayHeight.ValueChanged += Render;
             }
-            else if (sender == nudOverlayHeight && chbOverlaySizeSync.Checked)
+            else
             {
-                nudOverlayWidth.ValueChanged -= Render;
-                nudOverlayWidth.Value = (decimal)((double)nudOverlayHeight.Value * CurrentFrameInfo.OverlayAspectRatio);
-                nudOverlayWidth.ValueChanged += Render;
+                chbOverlaySizeSync.CheckedChanged -= Render;
+                chbOverlaySizeSync.Checked =
+                    (int)Math.Round((double)nudOverlayWidth.Value / CurrentFrameInfo.OverlayAspectRatio) ==
+                    (int)nudOverlayHeight.Value;
+                chbOverlaySizeSync.CheckedChanged += Render;
             }
 
             RenderImpl();
@@ -999,6 +998,8 @@ namespace AutoOverlay.Forms
                 V res;
                 lock (context)
                 {
+                    if (!operationId.Equals(this.SafeInvoke(p => p.activeOperationId)))
+                        return;
                     res = evaluator.Invoke();
                 }
                 if (callback != null)

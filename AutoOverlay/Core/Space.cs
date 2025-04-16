@@ -69,7 +69,7 @@ namespace AutoOverlay
 
         public Space Inverse() => new(1 / X, 1 / Y);
         public Space Remaining() => new(1 - X, 1 - Y);
-        public bool IsNearZero() => X < EPSILON && Y < EPSILON;
+        public bool IsNearZero() => Math.Abs(X) < EPSILON && Math.Abs(Y) < EPSILON;
         public Space AbsDiff(Space other) => new(Math.Abs(X - other.X), Math.Abs(Y - other.Y));
 
         public double SelectX(bool inverse = false) => inverse ? Y : X;

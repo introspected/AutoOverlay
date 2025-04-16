@@ -4,13 +4,12 @@ using AutoOverlay.AviSynth;
 using AvsFilterNet;
 using System.Linq;
 using System;
-using AutoOverlay.Overlay;
 
 [assembly: AvisynthFilterClass(
     typeof(ColorMatchChain), nameof(ColorMatchChain),
     "cc[SampleSpace]s[ReferenceSpace]s[Chain]c[Preset]s[Sample]c[SampleMask]c[ReferenceMask]c[GreyMask]b[Engine]c[SourceCrop]c[OverlayCrop]c" +
     "[Invert]b[Iterations]i[Space]s[Format]s[Resize]s[Length]i[Dither]f[Gradient]f[FrameBuffer]i[FrameDiff]f[FrameMaxDeviation]f" +
-    "[BufferedExtrapolation]b[Exclude]f[Frame]i[MatrixConversionHQ]b",
+    "[BufferedExtrapolation]b[Exclude]f[Frame]i[MatrixConversionHQ]b[InputChromaLocation]s[OutputChromaLocation]s",
     OverlayConst.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
@@ -157,8 +156,8 @@ namespace AutoOverlay
         [AvsArgument]
         public string Format { get; private set; }
 
-        [AvsArgument(NotNull = true)]
-        public string Resize { get; private set; } = OverlayConst.DEFAULT_PRESIZE_FUNCTION;
+        [AvsArgument]
+        public string Resize { get; private set; }
 
         [AvsArgument(Min = 10, Max = 1000000)]
         public int Length { get; set; } = OverlayConst.COLOR_BUCKETS_COUNT;
@@ -190,6 +189,14 @@ namespace AutoOverlay
         [AvsArgument(Min = 0, Max = 1)]
         public bool MatrixConversionHQ { get; set; }
 
+        [AvsArgument]
+        public ChromaLocation? InputChromaLocation { get; set; }
+
+        [AvsArgument]
+        public ChromaLocation? OutputChromaLocation { get; set; }
+
+        private string chromaResample;
+
         private dynamic chain;
 
         protected override void AfterInitialize()
@@ -197,10 +204,15 @@ namespace AutoOverlay
             if (!Chain.Any())
                 throw new AvisynthException("Chain is empty");
 
+            chromaResample = Resize.GetChromaResample() ?? "spline16";
+            Resize ??= OverlayConst.DEFAULT_PRESIZE_FUNCTION;
+
             var srcSpace = SampleSpace;
             
             var sample = Sample?.Dynamic();
             chain = Child.Dynamic();
+            var chromaIn = InputChromaLocation;
+            var chromaOut = OutputChromaLocation;
 
             dynamic MatchOne(ColorMatchStep step, dynamic chain, dynamic sample, int num)
             {
@@ -217,8 +229,8 @@ namespace AutoOverlay
                 var frameDiff = step.FrameDiff < 0 ? FrameDiff : step.FrameDiff;
                 var exclude = step.Exclude < 0 ? Exclude : step.Exclude;
 
-                var converted = Convert(chain, srcSpace, step.Space, step.Sample);
-                sample = sample == null ? converted : Convert(sample, srcSpace, step.Space, step.Sample);
+                var converted = Convert(chain, srcSpace, step.Space, step.Sample, chromaIn, chromaOut);
+                sample = sample == null ? converted : Convert(sample, srcSpace, step.Space, step.Sample, chromaIn, chromaOut);
                 var reference = Convert(Reference.Dynamic(), ReferenceSpace, step.Space, step.Reference);
 
                 var sampleMask = ConvertMask(SampleMask?.Dynamic(), step.Sample);
@@ -264,7 +276,7 @@ namespace AutoOverlay
                 {
                     if (step.Merge.Merge != null)
                         throw new AvisynthException("Merge max level exceed");
-                    var merge = Convert(MatchOne(step.Merge, chain, sample, num), step.Merge.Space ?? srcSpace, step.Space, step.Reference);
+                    var merge = Convert(MatchOne(step.Merge, chain, sample, num), step.Merge.Space ?? srcSpace, step.Space, step.Reference, chromaIn, chromaOut);
                     adjusted = Merge(adjusted, merge, step);
                 }
                 if (step.Weight < 1)
@@ -281,6 +293,7 @@ namespace AutoOverlay
                     sample = MatchTwo(step.Step, sample, sample, step.Num);
                 if (step.Step.Space != null)
                     srcSpace = step.Step.Space;
+                chromaIn = chromaOut;
             }
 
             if (Format == null)
@@ -297,7 +310,7 @@ namespace AutoOverlay
             }
 
             Space ??= ReferenceSpace;
-            chain = Convert(chain, srcSpace, Space, Format);
+            chain = Convert(chain, srcSpace, Space, Format, chromaOut, chromaOut);
 
             var vi = ((Clip)chain).GetVideoInfo();
             SetVideoInfo(ref vi);
@@ -308,20 +321,36 @@ namespace AutoOverlay
             return chain[n];
         }
 
-        private dynamic Convert(dynamic clip, string from, string to, string format)
+        private dynamic Convert(dynamic clip, string from, string to, string format, ChromaLocation? chromaIn = null, ChromaLocation? chromaOut = null)
         {
             to ??= from;
             var fromType = ((Clip)clip).GetVideoInfo().pixel_type.VPlaneFirst();
             var toType = format.ParseColorSpace();
             var toRgb = toType.HasFlag(ColorSpaces.CS_BGR);
+            var toY = toType.HasFlag(ColorSpaces.CS_GENERIC_Y);
             var same = fromType.HasFlag(ColorSpaces.CS_BGR) == toRgb;
             var convertFunction = toType.GetConvertFunction();
+
+            var chromaInPlacement = chromaIn?.GetAvsName();
+            var chromaOutPlacement = toRgb ? null : chromaOut?.GetAvsName();
+
+            dynamic InvokeConvert(dynamic clip, string matrix = null) => toY
+                ? clip.Invoke(convertFunction)
+                : chromaOutPlacement == null
+                    ? clip.Invoke(convertFunction, chromaresample: chromaResample,
+                        chromaInPlacement: chromaInPlacement, matrix: matrix)
+                    : clip.Invoke(convertFunction, chromaresample: chromaResample,
+                        chromaInPlacement: chromaInPlacement, chromaOutPlacement: chromaOutPlacement, matrix: matrix);
 
             if (from == to)
             {
                 if (fromType == toType)
-                    return clip;
-                return clip.ConvertBits(toType.GetBitDepth()).Invoke(convertFunction);
+                {
+                    if (chromaIn == chromaOut)
+                        return clip;
+                    return InvokeConvert(clip);
+                }
+                return InvokeConvert(clip.ConvertBits(toType.GetBitDepth()));
             }
 
             var toAvsMatrix = AvsUtils.Matrices.Contains(to);
@@ -334,10 +363,10 @@ namespace AutoOverlay
                 if (!same)
                 {
                     if (fromDepth == toDepth)
-                        return clip.Invoke(convertFunction, matrix: to);
-                    return changeDepthFirst
-                        ? clip.ConvertBits(toType.GetBitDepth()).Invoke(convertFunction, matrix: to)
-                        : clip.Invoke(convertFunction, matrix: to).ConvertBits(toType.GetBitDepth());
+                        return InvokeConvert(clip, to);
+                    if (changeDepthFirst)
+                        return InvokeConvert(clip.ConvertBits(toType.GetBitDepth()), to);
+                    return InvokeConvert(clip, to).ConvertBits(toType.GetBitDepth());
                 }
 
                 if (toRgb)
@@ -346,9 +375,8 @@ namespace AutoOverlay
                 if (MatrixConversionHQ && fromDepth != 32)
                     clip = clip.ConvertBits(32);
 
-                clip = clip
-                    .ConvertToPlanarRgb(matrix: from)
-                    .Invoke(convertFunction, matrix: to);
+                clip = clip.ConvertToPlanarRgb(matrix: from, chromaInPlacement: chromaInPlacement, chromaResample: chromaResample);
+                clip = InvokeConvert(clip, to);
 
                 if (MatrixConversionHQ && toDepth != 32)
                     clip = clip.ConvertBits(toDepth);
@@ -360,7 +388,15 @@ namespace AutoOverlay
             else if (toType.HasFlag(ColorSpaces.CS_BGR | ColorSpaces.CS_INTERLEAVED | ColorSpaces.CS_RGB_TYPE))
                 clip = clip.ConvertToPlanarRGB();
 
-            return clip.z_ConvertFormat(pixel_type: format, colorspace_op: $"{from}=>{to}", dither_type: "ordered");
+            string chromaloc = null;
+            if (toRgb && chromaIn.HasValue)
+                chromaloc = $"{chromaIn}=>{chromaIn}";
+            if (!toRgb && chromaOut.HasValue)
+                chromaloc = $"{chromaIn?.ToString() ?? "auto"}=>{chromaOut.ToString()}";
+
+            return clip.z_ConvertFormat(pixel_type: format, use_props: 1,
+                colorspace_op: $"{from}=>{to}", chromaloc_op: chromaloc, 
+                dither_type: "ordered", resample_filter_uv: chromaResample);
         }
 
         private dynamic ConvertMask(dynamic mask, string format)

@@ -7,7 +7,6 @@ using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
 using AutoOverlay.AviSynth;
-using System.Windows.Forms.VisualStyles;
 
 [assembly: AvisynthFilterClass(typeof(LayerMask),
     nameof(LayerMask),
