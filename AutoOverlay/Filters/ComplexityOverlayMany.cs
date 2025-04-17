@@ -63,7 +63,7 @@ namespace AutoOverlay
         {
             var allPlanes = GetVideoInfo().pixel_type.GetPlanes();
             using var src = Source.GetFrame(n, StaticEnv);
-            var output = StaticEnv.MakeWritable(src) ? src : NewVideoFrame(StaticEnv, src);
+            var output = NewVideoFrame(StaticEnv, src);
             if (GetVideoInfo().IsRGB() && planeChannels.Length < 3 || Source.IsRealPlanar() && planeChannels.Length < 3)
             {
                 src.CopyTo(output, allPlanes);

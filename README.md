@@ -672,6 +672,9 @@ If the framing is dynamic, prepare *OverlayEngine* and specify it in the *engine
     ```OverlayEngine(clip1, clip2, maxDiff = 5, statFile = "diff.stat", editor = true)```
 
 ## Changelog
+### 17.04.2025 v0.7.6
+1. *ComplexityOverlay* and *ComplexityOverlayMany* bugfixes.
+
 ### 16.04.2025 v0.7.5
 1. *OverlayEngine*: improved auto-alignment in subpixel mode.
 2. *OverlayRender*: added *chromaResize* parameter for explicit selection of UV channel resampling algorithm, defaults to the value of the *downsize* parameter.
