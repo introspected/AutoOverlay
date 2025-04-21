@@ -14,7 +14,7 @@ using AvsFilterNet;
     "[InnerBounds]c[OuterBounds]c[OverlayBalanceX]f[OverlayBalanceY]f[FixedSource]b" +
     "[OverlayMode]s[Width]i[Height]i[PixelType]s[Gradient]i[Noise]i" +
     "[BorderOffset]c[SrcColorBorderOffset]c[OverColorBorderOffset]c" +
-    "[MaskMode]b[Opacity]f[ColorAdjust]f[ColorBuckets]i[ColorDither]f[ColorExclude]f[ColorFramesCount]i[ColorFramesDiff]f[ColorBufferedExtrapolation]b" +
+    "[MaskMode]b[Opacity]f[ColorAdjust]f[ColorBuckets]i[ColorDither]f[ColorExclude]i[ColorFramesCount]i[ColorFramesDiff]f[ColorBufferedExtrapolation]b" +
     "[AdjustChannels]s[GradientColor]f[Matrix]s[SourceMatrix]s[OverlayMatrix]s[Upsize]s[Downsize]s[ChromaResize]s[Rotate]s[Preview]b[Debug]b[Invert]b" +
     "[Background]s[BackgroundClip]c[BlankColor]i[BackBalance]f[BackBlur]i[FullScreen]b[EdgeGradient]s[BitDepth]i",
     OverlayConst.DEFAULT_MT_MODE)]
@@ -133,7 +133,7 @@ namespace AutoOverlay
         public override double ColorDither { get; protected set; } = OverlayConst.COLOR_DITHER;
 
         [AvsArgument(Min = 0, Max = 100)]
-        public override double ColorExclude { get; protected set; } = 0;
+        public override int ColorExclude { get; protected set; } = 0;
 
         [AvsArgument(Min = 0, Max = OverlayConst.ENGINE_HISTORY_LENGTH)]
         public override int ColorFramesCount { get; protected set; } = 0;

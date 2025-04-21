@@ -186,7 +186,7 @@ Separate - обособление кадра. Join prev - присоединит
                   string overlayMode, int width, int height, string pixelType, int gradient, int noise, 
                   int borderControl, float borderMaxDeviation, clip borderOffset, 
                   clip srcColorBorderOffset, rectangle overColorBorderOffset, bool maskMode, float opacity, 
-                  float colorAdjust, int colorBuckets, float colorDither, float colorExclude, 
+                  float colorAdjust, int colorBuckets, float colorDither, int colorExclude, 
                   int colorFramesCount, float colorFramesDiff, float colorMaxDeviation, 
                   bool colorBufferedExtrapolation, float gradientColor, clip colorMatchTarget, 
                   string adjustChannels, string matrix, string sourceMatrix, string overlayMatrix,
@@ -272,7 +272,7 @@ Separate - обособление кадра. Join prev - присоединит
     ColorMatch(clip, clip reference, clip sample, clip sampleMask, clip referenceMask, bool greyMask, 
                float intensity, int length, float dither, string channels, 
                int frameBuffer, float frameDiff, bool bufferedExtrapolation, bool limitedRange, 
-               float exclude, float gradient, int frame, int seed, string plane, string cacheId)
+               int exclude, float gradient, int frame, int seed, string plane, string cacheId)
 			   
 Автокоррекция цвета с помощью сопоставления цветовых гистограмм. Входной клип, sample и reference клипы должны быть в одном типе цветового диапазона (YUV or RGB). Входной клип и sample клип должны иметь одинаковую глубину цвета. Глубина цвета входного клипа изменится на глубину цвета клипа reference. Фильтр дает хороший результат только если sample и reference клипы содержат схожее наполнение кадра. Фильтр используется внутри OverlayRender, обрезая sample и reference клипы с учетом параметров наложения, но может использоваться и независимо, например для преобразвания HDR->SDR или наоборот клипов, имеющих одинаковое кадрирование.
 
@@ -290,7 +290,7 @@ Separate - обособление кадра. Join prev - присоединит
 - **frameDiff** (default 1) - максимальное среднеквадратическое отклонение гистограмм разницы цветов сэмпла и образца от текущего кадра к соседним
 - **bufferedExtrapolation** (default true) - использовать ли соседние кадры из frameBuffer только для экстраполяции цвета, т.е. для тех цветов, которые отсутствуют в области пересечения кадров
 - **limitedRange** (default false) - ТВ диапазон. Как правило нет смысла включать даже если исходные клипы в ТВ диапазоне.
-- **exclude** (default 0) - исключение редко встречающихся в изображениях цветов из гистограмм по формуле в диапазоне от 0 до 1. Позволяет избежать случайных выбросов. Например, в FullHD клипе при значении 0.000002 будут отброшены цвета с менее чем пятью пикселями.
+- **exclude** (default 0, max 100) - минимальное количество пикселей одного цвета, используемых при цветокоррекции. Позволяет избежать случайных выбросов. Не применяется в режиме дизеринга. 
 - **gradient** (default 0, max 1000000) - если больше нуля, активирует режим градиентной цветокоррекция, когда по каждому кадру формируется не одна, а четыре гистограммы, с акцентами на разные углы изображения. Это позволяет скорреактировать цвет неравномерно по всему изображению. Подходит прежде всего для клипов, имеющих разный оригинальный мастеринг. Чем выше значение - тем сильнее эффект. 
 - **frame** (default -1) - рассчитать LUT по определенному кадру, а не текущему.
 - **seed** (default is constant) - seed для дизеринга, если фильтр используется многократно для рендеринга одного кадра. Как правило, менять нет смысла.
@@ -302,7 +302,7 @@ Separate - обособление кадра. Join prev - присоединит
                     clip engine, clip sourceCrop, clip overlayCrop, bool invert, int iterations, 
                     string space, string format, string resize, int length, float dither, 
                     float gradient, int frameBuffer, float frameDiff, float frameMaxDeviation, 
-                    bool bufferedExtrapolation, float exclude, int frame, bool matrixConversionHQ,
+                    bool bufferedExtrapolation, int exclude, int frame, bool matrixConversionHQ,
                     string inputChromaLocation, string outputChromaLocation)
 					
 Многошаговая автоматическая коррекция цвета с поддержкой статистики из OverlayEngine. Позволяет гибко скорректировать цвет клипов до их совмещения через OverlayRender.
@@ -346,7 +346,7 @@ YuvRgb10 - двушаговая конвертация клипов в прои�
 ### ColorMatchStep
     ColorMatchStep(string sample, string reference, string space, float intensity, clip merge, 
                    float weight, float chromaWeight, string channels, int length, float dither, 
-                   loat gradient, int frameBuffer, float frameDiff, float exclude, bool debug)
+                   loat gradient, int frameBuffer, float frameDiff, int exclude, bool debug)
 				   
 Вспомогательный фильтр для определения цепочки преобразований внутри ColorMatchChain.
 
@@ -412,7 +412,7 @@ YuvRgb10 - двушаговая конвертация клипов в прои�
                         clip innerBounds, clip outerBounds, space overlayBalance, bool fixedSource, string overlayMode, 
                         int width, int height, string pixelType, int gradient, int noise, clip borderOffset,
                         clip srcColorBorderOffset, clip overColorBorderOffset, bool maskMode, float opacity, 
-                        float colorAdjust, int colorBuckets, float colorDither, float colorExclude, int colorFramesCount, 
+                        float colorAdjust, int colorBuckets, float colorDither, int colorExclude, int colorFramesCount, 
                         float colorFramesDiff, bool colorBufferedExtrapolation, string adjustChannels, float gradientColor, 
                         string matrix, string sourceMatrix, string overlayMatrix, string upsize, string downsize, 
                         string chromaResize, string rotate, bool preview, bool debug, bool invert, string background, 
@@ -657,6 +657,10 @@ ComplexityOverlay целесообразно использовать до пр�
     ```OverlayEngine(clip1, clip2, maxDiff = 5, statFile = "diff.stat", editor = true)```
 
 ## История изменений
+### 21.04.2025 v0.7.7
+1. *OverlayEngine*: исправлено автовыравнивание, если разрешение исходников сильно различается.
+2. Параметр *exclude* для коррекции цвета сделан целочисленным и теперь задает минимальное количество пикселей одного цвета вместо их доли во всем изображении, т.к. работа этого параметра не должна зависеть от разрешения.
+
 ### 17.04.2025 v0.7.6
 1. Восстановлена корректная работа *ComplexityOverlay* и *ComplexityOverlayMany*
 

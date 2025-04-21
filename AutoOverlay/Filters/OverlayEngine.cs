@@ -1345,51 +1345,28 @@ namespace AutoOverlay
                         var cropRight = crop.Right + cropRightCoef * cropStepHorizontal;
                         var cropBottom = crop.Bottom + cropBottomCoef * cropStepVertical;
 
-                        if (cropLeft < 0)
+                        static void CorrectCrop(ref double cropVal, ref int dimension, ref int location, bool correctLocation)
                         {
-                            cropLeft++;
-                            width--;
-                        }
-                        else if (cropLeft > 1)
-                        {
-                            cropLeft--;
-                            width++;
-                            x--;
-                        }
-
-                        if (cropRight < 0)
-                        {
-                            cropRight++;
-                            width--;
-                        }
-                        else if (cropRight > 1)
-                        {
-                            cropRight--;
-                            height++;
+                            if (cropVal < 0)
+                            {
+                                var intCrop = (-cropVal).Ceiling();
+                                cropVal += intCrop;
+                                dimension -= intCrop;
+                            }
+                            else if (cropVal > 1)
+                            {
+                                var intCrop = cropVal.Floor();
+                                cropVal -= intCrop;
+                                dimension += intCrop;
+                                if (correctLocation)
+                                    location -= intCrop;
+                            }
                         }
 
-                        if (cropTop < 0)
-                        {
-                            cropTop++;
-                            height--;
-                        }
-                        else if (cropTop > 1)
-                        {
-                            cropTop--;
-                            height++;
-                            y--;
-                        }
-
-                        if (cropBottom < 0)
-                        {
-                            cropBottom++;
-                            height--;
-                        }
-                        else if (cropBottom > 1)
-                        {
-                            cropBottom--;
-                            height++;
-                        }
+                        CorrectCrop(ref cropLeft, ref width, ref x, true);
+                        CorrectCrop(ref cropRight, ref width, ref x, false);
+                        CorrectCrop(ref cropTop, ref height, ref y, true);
+                        CorrectCrop(ref cropBottom, ref height, ref y, false);
 
                         if (config.FixedAspectRatio)
                         {

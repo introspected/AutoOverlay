@@ -5,12 +5,11 @@ using AvsFilterNet;
 using System.Threading.Tasks;
 using AutoOverlay.Histogram;
 using System.Linq;
-using System.Runtime.Remoting.Contexts;
 
 [assembly: AvisynthFilterClass(
     typeof(ColorMatch), nameof(ColorMatch),
     "cc[Sample]c[SampleMask]c[ReferenceMask]c[GreyMask]b[Intensity]f[Length]i[Dither]f[Channels]s" +
-    "[FrameBuffer]i[FrameDiff]f[BufferedExtrapolation]b[LimitedRange]b[Exclude]f[Gradient]f[Frame]i[Seed]i[Plane]s[CacheId]s",
+    "[FrameBuffer]i[FrameDiff]f[BufferedExtrapolation]b[LimitedRange]b[Exclude]i[Gradient]f[Frame]i[Seed]i[Plane]s[CacheId]s",
     OverlayConst.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
@@ -55,8 +54,8 @@ namespace AutoOverlay
         [AvsArgument] 
         public bool LimitedRange { get; private set; }
 
-        [AvsArgument(Min = 0, Max = 1)]
-        public double Exclude { get; set; } = 0;
+        [AvsArgument(Min = 0, Max = 100)]
+        public int Exclude { get; set; } = 0;
 
         [AvsArgument(Min = 0, Max = 1000000)]
         public double Gradient { get; set; }

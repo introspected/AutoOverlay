@@ -5,7 +5,7 @@ using AvsFilterNet;
 
 [assembly: AvisynthFilterClass(
     typeof(ColorMatchStep), nameof(ColorMatchStep),
-    "[Sample]s[Reference]s[Space]s[Intensity]f[Merge]c[Weight]f[ChromaWeight]f[Channels]s[Length]i[Dither]f[Gradient]f[FrameBuffer]i[FrameDiff]f[Exclude]f[Debug]b",
+    "[Sample]s[Reference]s[Space]s[Intensity]f[Merge]c[Weight]f[ChromaWeight]f[Channels]s[Length]i[Dither]f[Gradient]f[FrameBuffer]i[FrameDiff]f[Exclude]i[Debug]b",
     OverlayConst.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
@@ -50,8 +50,8 @@ namespace AutoOverlay
         [AvsArgument(Min = 0, Max = 100)]
         public double FrameDiff { get; set; } = -1;
 
-        [AvsArgument(Min = 0, Max = 1)]
-        public double Exclude { get; set; } = -1;
+        [AvsArgument(Min = 0, Max = 100)]
+        public int Exclude { get; set; } = -1;
 
         [AvsArgument]
         public override bool Debug { get; protected set; }

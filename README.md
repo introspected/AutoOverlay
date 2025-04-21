@@ -203,7 +203,7 @@ Modified and unsaved episodes are highlighted in yellow in the grid. The *Save* 
                   string overlayMode, int width, int height, string pixelType, int gradient, int noise, 
                   int borderControl, float borderMaxDeviation, clip borderOffset, 
                   clip srcColorBorderOffset, rectangle overColorBorderOffset, bool maskMode, float opacity, 
-                  float colorAdjust, int colorBuckets, float colorDither, float colorExclude, 
+                  float colorAdjust, int colorBuckets, float colorDither, int colorExclude, 
                   int colorFramesCount, float colorFramesDiff, float colorMaxDeviation, 
                   bool colorBufferedExtrapolation, float gradientColor, clip colorMatchTarget, 
                   string adjustChannels, string matrix, string sourceMatrix, string overlayMatrix,
@@ -289,7 +289,7 @@ The filter renders the result of combining two or more clips with specific setti
     ColorMatch(clip, clip reference, clip sample, clip sampleMask, clip referenceMask, bool greyMask, 
                float intensity, int length, float dither, string channels, 
                int frameBuffer, float frameDiff, bool bufferedExtrapolation, bool limitedRange, 
-               float exclude, float gradient, int frame, int seed, string plane, string cacheId)
+               int exclude, float gradient, int frame, int seed, string plane, string cacheId)
 			   
 Automatic color correction by matching color histograms. The input clip, *sample*, and *reference* clips must be in the same color space type (YUV or RGB). The input clip and *sample* clip must have the same bit depth. The input clip’s bit depth will change to match the *reference* clip’s bit depth. The filter yields good results only if the *sample* and *reference* clips have similar frame content. The filter is used within *OverlayRender*, cropping the *sample* and *reference* clips based on overlay parameters, but it can also be used independently, for example, to convert HDR to SDR or vice versa for clips with identical framing.
 
@@ -307,7 +307,7 @@ Automatic color correction by matching color histograms. The input clip, *sample
 - **frameDiff** (default 1) - the maximum mean squared deviation of color difference histograms between the sample and reference from the current frame to neighboring frames.
 - **bufferedExtrapolation** (default true) - whether to use neighboring frames from *frameBuffer* only for color extrapolation, i.e., for colors absent in the frame intersection area.
 - **limitedRange** (default false) - TV range. Generally, there is no need to enable this even if the source clips are in TV range.
-- **exclude** (default 0) - exclusion of rare colors in images from histograms using a formula ranging from 0 to 1. Helps avoid random outliers. For example, in a FullHD clip with a value of 0.000002, colors with fewer than five pixels will be discarded.
+- **exclude** (default 0, max 100) - The minimum number of pixels of a single color used in color correction. Helps avoid random outliers. Not applied in dithering mode.
 - **gradient** (default 0, max 1000000) - if greater than zero, activates gradient color correction mode, where four histograms are generated per frame, emphasizing different corners of the image. This allows uneven color correction across the image. Suitable primarily for clips with different original mastering. Higher values increase the effect.
 - **frame** (default -1) - calculate the LUT based on a specific frame rather than the current one.
 - **seed** (default is constant) - seed for dithering if the filter is used multiple times for rendering a single frame. Typically, there is no need to change it.
@@ -319,7 +319,7 @@ Automatic color correction by matching color histograms. The input clip, *sample
                     clip engine, clip sourceCrop, clip overlayCrop, bool invert, int iterations, 
                     string space, string format, string resize, int length, float dither, 
                     float gradient, int frameBuffer, float frameDiff, float frameMaxDeviation, 
-                    bool bufferedExtrapolation, float exclude, int frame, bool matrixConversionHQ,
+                    bool bufferedExtrapolation, int exclude, int frame, bool matrixConversionHQ,
                     string inputChromaLocation, string outputChromaLocation)
 					
 Multi-step automatic color correction with support for statistics from *OverlayEngine*. Allows flexible color correction of clips before combining them via *OverlayRender*.  
@@ -363,7 +363,7 @@ The transformation chain is defined using concatenated *ColorMatchStep* filters 
 ### ColorMatchStep
     ColorMatchStep(string sample, string reference, string space, float intensity, clip merge, 
                    float weight, float chromaWeight, string channels, int length, float dither, 
-                   float gradient, int frameBuffer, float frameDiff, float exclude, bool debug)
+                   float gradient, int frameBuffer, float frameDiff, int exclude, bool debug)
 				   
 A helper filter for defining the transformation chain within *ColorMatchChain*.
 
@@ -429,7 +429,7 @@ A filter for visualizing the combination of two clips.
                         clip innerBounds, clip outerBounds, space overlayBalance, bool fixedSource, string overlayMode, 
                         int width, int height, string pixelType, int gradient, int noise, clip borderOffset,
                         clip srcColorBorderOffset, clip overColorBorderOffset, bool maskMode, float opacity, 
-                        float colorAdjust, int colorBuckets, float colorDither, float colorExclude, int colorFramesCount, 
+                        float colorAdjust, int colorBuckets, float colorDither, int colorExclude, int colorFramesCount, 
                         float colorFramesDiff, bool colorBufferedExtrapolation, string adjustChannels, float gradientColor, 
                         string matrix, string sourceMatrix, string overlayMatrix, string upsize, string downsize, 
                         string chromaResize, string rotate, bool preview, bool debug, bool invert, string background, 
@@ -672,6 +672,10 @@ If the framing is dynamic, prepare *OverlayEngine* and specify it in the *engine
     ```OverlayEngine(clip1, clip2, maxDiff = 5, statFile = "diff.stat", editor = true)```
 
 ## Changelog
+### 21.04.2025 v0.7.7
+1. *OverlayEngine*: Fixed auto-alignment when source resolutions differ significantly.
+2. The *exclude* parameter for color correction is now an integer, specifying the minimum number of pixels of a single color instead of their proportion in the entire image, as its operation should not depend on resolution.
+
 ### 17.04.2025 v0.7.6
 1. *ComplexityOverlay* and *ComplexityOverlayMany* bugfixes.
 

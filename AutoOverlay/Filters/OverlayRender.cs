@@ -115,7 +115,7 @@ namespace AutoOverlay
         public abstract double ColorAdjust { get; protected set; }
         public abstract int ColorBuckets { get; protected set; }
         public abstract double ColorDither { get; protected set; }
-        public abstract double ColorExclude { get; protected set; }
+        public abstract int ColorExclude { get; protected set; }
         public abstract int ColorFramesCount { get; protected set; }
         public abstract double ColorFramesDiff { get; protected set; }
         public abstract double ColorMaxDeviation { get; protected set; }

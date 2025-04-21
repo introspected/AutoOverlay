@@ -12,6 +12,7 @@ namespace AutoOverlay.Histogram
         public int Length { get; }
         public double[] Values { get; }
         public double[] Total { get; }
+        public long PixelCount { get; }
         public MinMax Range { get; set; }
         private readonly double offset;
         private readonly double step;
@@ -88,6 +89,10 @@ namespace AutoOverlay.Histogram
             var levels = 1L << depth;
             Length = length > levels ? (int)levels : length;
             Range = Length == levels ? new MinMax(depth) : new MinMax(framePlane);
+
+            //if (framePlane.byteDepth == 4)
+            //    System.Diagnostics.Debug.WriteLine($"Plane {planeChannel.EffectivePlane} Min {Range.Min} Max {Range.Max}");
+
             Values = new double[Length];
             Total = new double[Length];
             offset = Range.Min;
@@ -95,6 +100,7 @@ namespace AutoOverlay.Histogram
             if (step == 0)
             {
                 constant = Range.Min;
+                PixelCount = framePlane.width * framePlane.height;
                 return;
             }
             FramePlane? maskPlane = null;
@@ -106,11 +112,11 @@ namespace AutoOverlay.Histogram
                 maskPlane = plane;
             }
 
-            var pixelCount = gradient.HasValue
+            PixelCount = gradient.HasValue
                 ? framePlane.FillGradientHistogram(gradient.Value, maskPlane, Values, offset, step)
                 : framePlane.FillHistogram(maskPlane, Values, offset, step);
 
-            double divider = pixelCount;
+            double divider = PixelCount;
 
             if (gradient.HasValue)
                 divider *= gradient.Value.topLeft + gradient.Value.topRight + gradient.Value.bottomRight + gradient.Value.bottomLeft - 4;
@@ -131,6 +137,7 @@ namespace AutoOverlay.Histogram
             Length = length > levels ? (int)levels : length;
             Values = values;
             Total = new double[values.Length];
+            PixelCount = pixelCount;
             Range = range;
             this.offset = offset;
             this.step = step;
@@ -149,30 +156,6 @@ namespace AutoOverlay.Histogram
             (depthMinColor, rangeMinColor, depthMaxColor, rangeMaxColor) = GetMinMaxColor(planeChannel.EffectivePlane, limitedRange);
         }
 
-        private (double depthMin, double rangeMin, double depthMax, double rangeMax) GetMinMaxColor(YUVPlanes plane, bool limitedRange)
-        {
-            if (depth == 32)
-            {
-                double min = Math.Min(-3, Range.Min), max = Math.Max(3, Range.Max);
-                if (limitedRange)
-                {
-                    min = plane.IsChroma() ? -0.5 : 0;
-                    max = plane.IsChroma() ? 0.5 : 1;
-                }
-                return (float.MinValue, min, float.MaxValue, max);
-            }
-            var depthMin = 0;
-            var depthMax = (1 << depth) - 1;
-            if (limitedRange && !plane.IsRgb())
-            {
-                var rangeMin = 16 << (depth - 8);
-                var limit = plane.IsLuma() ? 235 : 240;
-                var rangeMax = limit << (depth - 8);
-                return (depthMin, rangeMin, depthMax, rangeMax);
-            }
-            return (depthMin, depthMin, depthMax, depthMax);
-        }
-
         private ColorHistogram(ColorHistogram[] histograms, bool forceMain)
         {
             var main = histograms.First();
@@ -180,6 +163,8 @@ namespace AutoOverlay.Histogram
             Values = new double[Length];
             Total = new double[Length];
             Range = new MinMax(histograms.Min(p => p.Range.Min), histograms.Max(p => p.Range.Max));
+
+            PixelCount = histograms.Sum(p => p.PixelCount);
 
             offset = Range.Min;
             step = (Range.Max - Range.Min) / (Length - 1d);
@@ -283,12 +268,36 @@ namespace AutoOverlay.Histogram
             }
         }
 
-        public Lut GetLut(ColorHistogram reference, double dither, double intensity, double exclude)
+        private (double depthMin, double rangeMin, double depthMax, double rangeMax) GetMinMaxColor(YUVPlanes plane, bool limitedRange)
         {
-            return new Lut(Values, reference.Values, dither, intensity, exclude);
+            if (depth == 32)
+            {
+                double min = Math.Min(-3, Range.Min), max = Math.Max(3, Range.Max);
+                if (limitedRange)
+                {
+                    min = plane.IsChroma() ? -0.5 : 0;
+                    max = plane.IsChroma() ? 0.5 : 1;
+                }
+                return (float.MinValue, min, float.MaxValue, max);
+            }
+            var depthMin = 0;
+            var depthMax = (1 << depth) - 1;
+            if (limitedRange && !plane.IsRgb())
+            {
+                var rangeMin = 16 << (depth - 8);
+                var limit = plane.IsLuma() ? 235 : 240;
+                var rangeMax = limit << (depth - 8);
+                return (depthMin, rangeMin, depthMax, rangeMax);
+            }
+            return (depthMin, depthMin, depthMax, depthMax);
         }
 
-        public IInterpolator GetInterpolator(ColorHistogram reference, double intensity, double exclude)
+        public Lut GetLut(ColorHistogram reference, double dither, double intensity, int exclude)
+        {
+            return new Lut(Values, reference.Values, dither, intensity);
+        }
+
+        public IInterpolator GetInterpolator(ColorHistogram reference, double intensity, int exclude)
         {
             var sampleInterpolator = GetColorInterpolator();
             var referenceInterpolator = reference.GetColorInterpolator();
@@ -297,6 +306,8 @@ namespace AutoOverlay.Histogram
                 return referenceInterpolator;
 
             var map = new SortedDictionary<double, double>();
+            var sampleExclude = exclude / (double)PixelCount;
+            var refExclude = exclude / (double)reference.PixelCount;
             unsafe
             {
                 fixed (double* values = Values)
@@ -304,7 +315,7 @@ namespace AutoOverlay.Histogram
                 {
                     for (var i = 0; i < Length; i++)
                     {
-                        if (values[i] > exclude)
+                        if (values[i] > sampleExclude)
                         {
                             var sampleColor = offset + i * step;
                             var referenceColor = referenceInterpolator.Interpolate(total[i]);
@@ -318,7 +329,7 @@ namespace AutoOverlay.Histogram
                 {
                     for (var i = 0; i < reference.Length; i++)
                     {
-                        if (values[i] > exclude)
+                        if (values[i] > refExclude)
                         {
                             var sampleColor = sampleInterpolator.Interpolate(total[i]);
                             var referenceColor = reference.offset + i * reference.step;

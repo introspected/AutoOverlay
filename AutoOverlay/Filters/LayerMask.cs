@@ -235,6 +235,17 @@ namespace AutoOverlay.Filters
             return frame;
         }
 
+        public override int SetCacheHints(CacheType cachehints, int frame_range)
+        {
+            switch (cachehints)
+            {
+                case CacheType.CACHE_DONT_CACHE_ME:
+                    return 1;
+                default:
+                    return base.SetCacheHints(cachehints, frame_range);
+            }
+        }
+
         protected override void Dispose(bool disposing)
         {
             white.Dispose();

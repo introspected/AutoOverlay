@@ -9,7 +9,7 @@ using System;
     typeof(ColorMatchChain), nameof(ColorMatchChain),
     "cc[SampleSpace]s[ReferenceSpace]s[Chain]c[Preset]s[Sample]c[SampleMask]c[ReferenceMask]c[GreyMask]b[Engine]c[SourceCrop]c[OverlayCrop]c" +
     "[Invert]b[Iterations]i[Space]s[Format]s[Resize]s[Length]i[Dither]f[Gradient]f[FrameBuffer]i[FrameDiff]f[FrameMaxDeviation]f" +
-    "[BufferedExtrapolation]b[Exclude]f[Frame]i[MatrixConversionHQ]b[InputChromaLocation]s[OutputChromaLocation]s",
+    "[BufferedExtrapolation]b[Exclude]i[Frame]i[MatrixConversionHQ]b[InputChromaLocation]s[OutputChromaLocation]s",
     OverlayConst.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
@@ -180,8 +180,8 @@ namespace AutoOverlay
         [AvsArgument]
         public bool BufferedExtrapolation { get; set; } = true;
 
-        [AvsArgument(Min = 0, Max = 1)]
-        public double Exclude { get; set; }
+        [AvsArgument(Min = 0, Max = 100)]
+        public int Exclude { get; set; }
 
         [AvsArgument(Min = -1)]
         public int Frame { get; private set; } = -1;
@@ -205,7 +205,7 @@ namespace AutoOverlay
                 throw new AvisynthException("Chain is empty");
 
             chromaResample = Resize.GetChromaResample() ?? "spline16";
-            Resize ??= OverlayConst.DEFAULT_PRESIZE_FUNCTION;
+            Resize ??= StaticEnv.FunctionCoalesce(OverlayConst.DEFAULT_PRESIZE_FUNCTION + "MT", OverlayConst.DEFAULT_PRESIZE_FUNCTION);
 
             var srcSpace = SampleSpace;
             

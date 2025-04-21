@@ -14,7 +14,7 @@ public ref class Lut sealed
 	std::vector<std::vector<double>>* dynamicWeights;
 
 public:
-	Lut(array<double>^ sampleHistogram, array<double>^ referenceHistogram, const double dither, const double intensity, const double exclude)
+	Lut(array<double>^ sampleHistogram, array<double>^ referenceHistogram, const double dither, const double intensity)
 	{
 		auto length = sampleHistogram->Length;
 		fixedColors = new std::vector(length, -1);
@@ -40,7 +40,7 @@ public:
 				auto& weights = (*dynamicWeights)[oldColor];
 				if (add > 0 && sample[oldColor] > 0)
 				{
-					if (add > 0 && sample[oldColor] > exclude && reference[newColor] > exclude)
+					if (add > 0)
 					{
 						const auto targetColor = newColor * intensity + oldColor * backIntensity;
 						const auto firstColor = static_cast<int>(targetColor);
