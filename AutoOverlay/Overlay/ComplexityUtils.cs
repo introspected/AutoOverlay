@@ -1,11 +1,13 @@
 ﻿using System;
 using System.Drawing;
+using System.Runtime.CompilerServices;
 
 namespace AutoOverlay
 {
     public static class ComplexityUtils
     {
-        public static unsafe double Byte(byte* data, int x, int y, int pitch, int pixelSize, Size size, int stepCount)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe double Byte(byte* data, int x, int y, int pitch, int pixelSize, ref Size size, int stepCount)
         {
             var value = data[x];
             var sum = 0;
@@ -33,7 +35,8 @@ namespace AutoOverlay
             return Math.Abs(value - (double)sum / count);
         }
 
-        public static unsafe double Short(ushort* data, int x, int y, int pitch, int pixelSize, Size size, int stepCount)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe double Short(ushort* data, int x, int y, int pitch, int pixelSize, ref Size size, int stepCount)
         {
             var value = data[x];
             var sum = 0;
@@ -61,7 +64,8 @@ namespace AutoOverlay
             return Math.Abs(value - (double)sum / count);
         }
 
-        public static unsafe double Float(float* data, int x, int y, int pitch, int pixelSize, Size size, int stepCount)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static unsafe double Float(float* data, int x, int y, int pitch, int pixelSize, ref Size size, int stepCount)
         {
             var value = data[x];
             var sum = 0d;

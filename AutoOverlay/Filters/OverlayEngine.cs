@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -22,7 +21,7 @@ using AvsFilterNet;
     "[SceneBuffer]i[ShakeBuffer]i[Stabilize]b[Scan]b[Correction]b" +
     "[FrameDiffTolerance]f[FrameAreaTolerance]f[SceneDiffTolerance]f[SceneAreaTolerance]f[FrameDiffBias]f[MaxDiff]f" +
     "[LegacyMode]b[BackwardFrames]i[ForwardFrames]i[MaxDiffIncrease]f[ScanDistance]i[ScanScale]f[StickLevel]f[StickDistance]f" +
-    "[Configs]c[Presize]s[Resize]s[Rotate]s[Editor]b[Mode]s[ColorAdjust]i[SceneFile]s[SIMD]b[Debug]b",
+    "[Configs]c[Presize]s[Resize]s[Rotate]s[Editor]b[Mode]s[ColorAdjust]i[SceneFile]s[SceneClips]c*[SIMD]b[Debug]b",
     OverlayConst.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
@@ -160,6 +159,9 @@ namespace AutoOverlay
         public string SceneFile { get; private set; }
 
         [AvsArgument]
+        public Clip[] SceneClips { get; private set; }
+
+        [AvsArgument]
         public bool SIMD { get; private set; } = true;
 
         [AvsArgument]
@@ -187,6 +189,10 @@ namespace AutoOverlay
         public HashSet<int> KeyFrames { get; } = new();
 
         private int framesTotal;
+
+        private MinMax[][][] sceneClipRanges;
+
+        private PlaneChannel[] planeChannels;
 
         private static readonly Predicate<OverlayData>
             LeftStick = p => p.Overlay.Left == p.Source.Left && p.OverlayCrop.Left.IsNearlyZero(),
@@ -247,6 +253,9 @@ namespace AutoOverlay
 
             OverlayStat = new FileOverlayStat(StatFile, SrcInfo.Size, OverInfo.Size);
 
+            var vi = GetVideoInfo();
+            framesTotal = vi.num_frames = Math.Min(SrcInfo.FrameCount, OverInfo.FrameCount);
+
             if (SceneFile != null)
             {
                 foreach (var line in File.ReadLines(SceneFile))
@@ -254,10 +263,17 @@ namespace AutoOverlay
                     if (int.TryParse(line, out var frame))
                         KeyFrames.Add(frame);
                 }
+
+                planeChannels = SrcInfo.ColorSpace.GetPlaneChannels();
+                sceneClipRanges = new MinMax[SceneClips.Length][][];
+                for (var i = 0; i < SceneClips.Length; i++)
+                    sceneClipRanges[i] = new MinMax[framesTotal][];
+            } 
+            else if (SceneClips.Any())
+            {
+                throw new AvisynthException("Scene clip without scene file");
             }
 
-            var vi = GetVideoInfo();
-            framesTotal = vi.num_frames = Math.Min(SrcInfo.FrameCount, OverInfo.FrameCount);
             if (Mode is OverlayEngineMode.PROCESSED or OverlayEngineMode.UNPROCESSED)
             {
                 SelectedFrames = new int[vi.num_frames];
@@ -317,28 +333,80 @@ namespace AutoOverlay
             {
                 n = SelectedFrames[n];
             }
+
+            CurrentFrameChanged?.Invoke(this, new FrameEventArgs(n));
+
             var info = GetOverlayInfo(n);
             info.KeyFrame = KeyFrames.Contains(n);
-            CurrentFrameChanged?.Invoke(this, new FrameEventArgs(n));
+            List<OverlayInfo> sequence = [info];
+            sequence.AddRange(Enumerable.Range(1, OverlayConst.ENGINE_HISTORY_LENGTH)
+                .SelectMany(p => new[] { n - p, n + p })
+                .Where(p => p >= 0 && p < framesTotal)
+                .Select(p => OverlayStat[p])
+                .Where(p => p != null)
+                .Peek(p => p.KeyFrame = KeyFrames.Contains(p.FrameNumber)));
+            SortedSet<OverlayInfo> keyFrames = new();
+
+            for (var k = 0; k < SceneClips.Length; k++)
+            {
+                var sceneClip = SceneClips[k];
+                var frameRanges = sceneClipRanges[k];
+                var sceneStart = Enumerable.Range(0, n + 1).Reverse().FirstOrDefault(p => KeyFrames.Contains(p));
+                var sceneEnd = Enumerable.Range(n + 1, framesTotal - n - 1).FirstOrDefault(p => KeyFrames.Contains(p)) - 1;
+                if (sceneEnd == -1)
+                    sceneEnd = framesTotal - 1;
+
+                (int frame, double val)[] minimums = new (int, double)[planeChannels.Length];
+                (int frame, double val)[] maximums = new (int, double)[planeChannels.Length];
+                (int frame, double val)[] ranges = new (int, double)[planeChannels.Length];
+
+                for (var i = 0; i < planeChannels.Length; i++)
+                {
+                    minimums[i].val = double.MaxValue;
+                    maximums[i].val = double.MinValue;
+                }
+
+                for (var i = sceneStart; i <= sceneEnd; i++)
+                {
+                    var frameRange = frameRanges[i];
+                    if (frameRange == null)
+                    {
+                        using var sceneFrame = sceneClip.GetFrame(i, StaticEnv);
+                        frameRange = frameRanges[i] = planeChannels
+                            .Select(p => new FramePlane(p, sceneFrame, true))
+                            .Select(p => new MinMax(p))
+                            .ToArray();
+                    }
+
+                    const int limit = 0;
+
+                    for (var plane = 0; plane < frameRange.Length; plane++)
+                    {
+                        var minMax = frameRange[plane];
+                        if (minimums[plane].val - minMax.Min > limit)
+                            minimums[plane] = new(i, minMax.Min);
+                        else if (minMax.Max - maximums[plane].val > limit)
+                            maximums[plane] = new(i, minMax.Max);
+                        var range = minMax.Max - minMax.Min;
+                        if (range - ranges[plane].val > limit)
+                            ranges[plane] = new(i, range);
+                    }
+                }
+
+                var frames = minimums
+                    .Union(maximums)
+                    .Union(ranges)
+                    .Select(p => p.frame)
+                    .Select(p => OverlayStat[p])
+                    .Where(p => p != null);
+                foreach (var overlayInfo in frames)
+                    keyFrames.Add(overlayInfo);
+            }
+
+            var engineFrame = new OverlayEngineFrame(sequence, keyFrames.ToList());
             var frame = Debug ? GetSubtitledFrame(() => this + "\n" + info) : base.GetFrame(n);
             StaticEnv.MakeWritable(frame);
-            unsafe
-            {
-                using var stream = new UnmanagedMemoryStream((byte*)frame.GetWritePtr().ToPointer(),
-                    frame.GetRowSize() * frame.GetHeight(), frame.GetRowSize() * frame.GetHeight(), FileAccess.Write);
-                using var writer = new BinaryWriter(stream);
-                writer.Write(nameof(OverlayEngine));
-                writer.Write(GetHashCode());
-                info.Write(writer, info.Message);
-                var history = Enumerable.Range(1, OverlayConst.ENGINE_HISTORY_LENGTH)
-                    .SelectMany(p => new[] { n - p, n + p })
-                    .Where(p => p >= 0 && p < framesTotal)
-                    .Select(p => OverlayStat[p])
-                    .Where(p => p != null)
-                    .Peek(p => p.KeyFrame = KeyFrames.Contains(p.FrameNumber));
-                foreach (var overlayInfo in history)
-                    overlayInfo.Write(writer);
-            }
+            engineFrame.ToFrame(frame);
             return frame;
         }
 

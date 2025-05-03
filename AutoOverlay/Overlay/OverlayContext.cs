@@ -102,13 +102,9 @@ namespace AutoOverlay.Overlay
             if (AdjustColor)
             {
                 AdjustChannels = render.AdjustChannels;
-
-                if (render.ColorFramesCount > 0)
-                {
-                    Cache = Enumerable.Range(0, 2 + ExtraClips.Count)
-                        .Select(_ => Guid.NewGuid().ToString())
-                        .ToList();
-                }
+                Cache = Enumerable.Range(0, 2 + ExtraClips.Count)
+                    .Select(_ => Guid.NewGuid().ToString())
+                    .ToList();
             }
 
             Input = new OverlayInput

@@ -181,6 +181,7 @@ namespace AutoOverlay.AviSynth
                     }
                     Clip.SetCacheHints(CacheType.CACHE_SET_MIN_CAPACITY, 0);
                     Clip.SetCacheHints(CacheType.CACHE_GET_MAX_CAPACITY, cacheLength);
+                    Clip.SetCacheHints(CacheType.CACHE_GENERIC, cacheLength);
                     result = this;
                     return true;
             }

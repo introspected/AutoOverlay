@@ -109,6 +109,7 @@
     <Compile Include="Core\LinkedHashSet.cs" />
     <Compile Include="Enum\BackgroundMode.cs" />
     <Compile Include="Enum\ChromaLocation.cs" />
+    <Compile Include="Enum\ColorMatchMode.cs" />
     <Compile Include="Enum\ColorMatchPreset.cs" />
     <Compile Include="Enum\Corner.cs" />
     <Compile Include="Enum\EdgeGradient.cs" />
@@ -117,6 +118,7 @@
     <Compile Include="Enum\OverlayRenderPreset.cs" />
     <Compile Include="Filters\ColorMatchChain.cs" />
     <Compile Include="Filters\ColorMatchStep.cs" />
+    <Compile Include="Filters\CombinePlanesMT.cs" />
     <Compile Include="Filters\LayerMask.cs" />
     <Compile Include="Filters\ComplexityOverlayMany.cs" />
     <Compile Include="Filters\CustomOverlayRender.cs" />
@@ -160,6 +162,7 @@
     <Compile Include="Overlay\OverlayConst.cs" />
     <Compile Include="Overlay\OverlayDifference.cs" />
     <Compile Include="Overlay\OverlayDifferenceD.cs" />
+    <Compile Include="Overlay\OverlayEngineFrame.cs" />
     <Compile Include="Overlay\OverlayLayer.cs" />
     <Compile Include="Overlay\OverlayMapper.cs" />
     <Compile Include="Overlay\OverlaySequence.cs" />

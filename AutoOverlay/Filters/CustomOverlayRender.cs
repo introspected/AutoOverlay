@@ -48,7 +48,7 @@ namespace AutoOverlay
             OverlayInfo info;
             lock (Child)
                 using (var infoFrame = Child.GetFrame(n, StaticEnv))
-                    info = OverlayInfo.FromFrame(infoFrame).First().ScaleBySource(Source.GetVideoInfo().GetSize());
+                    info = OverlayEngineFrame.FromFrame(infoFrame).Sequence.First().ScaleBySource(Source.GetVideoInfo().GetSize());
             var hybrid = DynamicEnv.Invoke(Function,
                 Engine, Source, Overlay, info.Placement, info.Angle, info.OverlaySize, info.Diff);
             if (Debug)

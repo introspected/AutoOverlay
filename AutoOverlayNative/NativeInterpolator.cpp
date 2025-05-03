@@ -37,6 +37,6 @@ inline double NativeInterpolator::Interpolate(double t) const noexcept
 		return yValues.back();
 
 	const auto it = std::ranges::upper_bound(xValues, t);
-	int index = std::distance(xValues.begin(), it) - 1;
+	const auto index = std::distance(xValues.begin(), it) - 1;
 	return yValues[index] + (t - xValues[index]) * cValues[index];
 }

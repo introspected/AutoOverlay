@@ -5,17 +5,21 @@ using AvsFilterNet;
 using System.Threading.Tasks;
 using AutoOverlay.Histogram;
 using System.Linq;
+using System.Collections.Generic;
 
 [assembly: AvisynthFilterClass(
     typeof(ColorMatch), nameof(ColorMatch),
     "cc[Sample]c[SampleMask]c[ReferenceMask]c[GreyMask]b[Intensity]f[Length]i[Dither]f[Channels]s" +
-    "[FrameBuffer]i[FrameDiff]f[BufferedExtrapolation]b[LimitedRange]b[Exclude]i[Gradient]f[Frame]i[Seed]i[Plane]s[CacheId]s",
+    "[FrameBuffer]i[FrameDiff]f[LimitedRange]b[Exclude]i[Gradient]f[Frames]i*[Seed]i[Plane]s[CacheId]s",
     OverlayConst.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
     public class ColorMatch : OverlayFilter
     {
-        [AvsArgument(Required = true)]
+        [AvsArgument]
+        public Clip Input { get; private set; }
+
+        [AvsArgument]
         public Clip Reference { get; private set; }
 
         [AvsArgument]
@@ -48,9 +52,6 @@ namespace AutoOverlay
         [AvsArgument(Min = 0, Max = 100)]
         public double FrameDiff { get; set; } = 1;
 
-        [AvsArgument(Min = 0)]
-        public bool BufferedExtrapolation { get; set; } = true;
-
         [AvsArgument] 
         public bool LimitedRange { get; private set; }
 
@@ -60,8 +61,8 @@ namespace AutoOverlay
         [AvsArgument(Min = 0, Max = 1000000)]
         public double Gradient { get; set; }
 
-        [AvsArgument(Min = -1)]
-        public int Frame { get; private set; } = -1;
+        [AvsArgument]
+        public int[] Frames { get; private set; }
 
         [AvsArgument]
         public int Seed { get; private set; }
@@ -82,8 +83,8 @@ namespace AutoOverlay
 
         protected override void Initialize(AVSValue args)
         {
-            Sample ??= Child;
-            var vi = Child.GetVideoInfo();
+            Sample ??= Input;
+            var vi = Input.GetVideoInfo();
             if (vi.IsRGB() || vi.pixel_type.HasFlag(ColorSpaces.CS_GENERIC_RGBP) || vi.pixel_type.HasFlag(ColorSpaces.CS_GENERIC_RGBAP))
                 LimitedRange = false;
             var refVi = Reference.GetVideoInfo();
@@ -92,7 +93,7 @@ namespace AutoOverlay
             vi.pixel_type = vi.pixel_type.VPlaneFirst().ChangeBitDepth(refVi.pixel_type.GetBitDepth());
             frameCount = vi.num_frames = Math.Min(vi.num_frames, Math.Min(refVi.num_frames, sampleVi.num_frames));
             SetVideoInfo(ref vi);
-            planeChannelTuples = ColorMatchTuple.Compose(Child, Sample, Reference, Channels?.ToLower(), GreyMask, Plane);
+            planeChannelTuples = ColorMatchTuple.Compose(Input, Sample, Reference, Channels?.ToLower(), GreyMask, Plane);
             cornerGradient = Gradient > 0;
             histogramCache = ColorHistogramCache.GetOrAdd(CacheId, () => new ColorHistogramCache(planeChannelTuples, Length, LimitedRange, cornerGradient ? Gradient : null));
             planes = vi.pixel_type.GetPlanes();
@@ -100,7 +101,7 @@ namespace AutoOverlay
 
         protected override VideoFrame GetFrame(int n)
         {
-            var input = Child.GetFrame(n, StaticEnv);
+            var input = Input.GetFrame(n, StaticEnv);
 
             VideoFrame output;
             if (keepBitDepth && StaticEnv.MakeWritable(input))
@@ -112,16 +113,32 @@ namespace AutoOverlay
                     input.CopyTo(output, planes);
             }
 
-            var targetFrame = Frame == -1 ? n : Frame;
-            var lookAround = targetFrame.Enumerate();
-            if (CacheId == null)
-                lookAround = new[] { -1, 1 }
-                    .SelectMany(sign => Enumerable.Range(1, FrameBuffer).Select(p => targetFrame + sign * p))
-                    .Where(p => p > 0 && p < frameCount)
-                    .Union(lookAround);
-            foreach (var frame in lookAround)
-                histogramCache.GetOrAdd(frame, Sample.Dynamic(), Reference.Dynamic(), SampleMask.Dynamic(), ReferenceMask.Dynamic());
-            var buffer = histogramCache.Compose(targetFrame, FrameBuffer, FrameDiff, BufferedExtrapolation);
+            Dictionary<(YUVPlanes, Corner), ColorHistogramCache.PlaneHistograms> buffer;
+
+            if (Frames.Any())
+            {
+                if (CacheId == null)
+                {
+                    Task.WaitAll(Frames
+                        .Select(frame => histogramCache.GetOrAdd(frame, Sample, Reference, SampleMask, ReferenceMask))
+                        .ToArray<Task>());
+
+                }
+                buffer = histogramCache.Compose(Frames);
+            }
+            else
+            {
+                var lookAround = n.Enumerate();
+                if (CacheId == null)
+                    lookAround = new[] { -1, 1 }
+                        .SelectMany(sign => Enumerable.Range(1, FrameBuffer).Select(p => n + sign * p))
+                        .Where(p => p > 0 && p < frameCount)
+                        .Union(lookAround);
+                Task.WaitAll(lookAround.Select(frame => histogramCache
+                    .GetOrAdd(frame, Sample, Reference, SampleMask, ReferenceMask))
+                    .ToArray<Task>());
+                buffer = histogramCache.Compose(n, FrameBuffer, FrameDiff);
+            }
 
             void MatchColor(ColorMatchTuple tuple, Corner corner, VideoFrame outFrame)
             {
@@ -173,8 +190,8 @@ namespace AutoOverlay
                 Parallel.ForEach(planeChannelTuples, tuple => MatchColor(tuple, default, output));
             }
 
-            if (CacheId == null)
-                histogramCache.Shrink(targetFrame - OverlayConst.ENGINE_HISTORY_LENGTH * 2, targetFrame + OverlayConst.ENGINE_HISTORY_LENGTH * 2, false);
+            if (CacheId == null && !Frames.Any())
+                histogramCache.Shrink(n - OverlayConst.ENGINE_HISTORY_LENGTH * 2, n + OverlayConst.ENGINE_HISTORY_LENGTH * 2, false);
             return output;
         }
 

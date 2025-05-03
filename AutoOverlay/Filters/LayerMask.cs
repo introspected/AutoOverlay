@@ -1,5 +1,4 @@
-﻿using AutoOverlay;
-using AutoOverlay.Filters;
+﻿using AutoOverlay.Filters;
 using AvsFilterNet;
 using System;
 using System.Collections.Generic;
@@ -11,7 +10,7 @@ using AutoOverlay.AviSynth;
 [assembly: AvisynthFilterClass(typeof(LayerMask),
     nameof(LayerMask),
     "c[LayerIndex]i[CanvasWidth]i[CanvasHeight]i[Gradient]i[Noise]b[GradientEdge]s[Opacity]f[Layers]c[Seed]i[ExcludedLayers]i*",
-    OverlayConst.DEFAULT_MT_MODE)]
+    MtMode.NICE_FILTER)]
 namespace AutoOverlay.Filters
 {
     public class LayerMask : OverlayFilter
@@ -120,7 +119,6 @@ namespace AutoOverlay.Filters
                 var opacityColor = (byte)(0xFF * Opacity);
                 var nonEdges = GradientEdge == EdgeGradient.NONE;
                 var cornerColor = nonEdges ? 0x80 : 0x00;
-                var cornerNoise = Noise && nonEdges;
 
                 // 1. Fill intersection area with solid color
                 interFrame.Fill(opacityColor);

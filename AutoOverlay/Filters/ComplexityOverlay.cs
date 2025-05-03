@@ -129,8 +129,8 @@ namespace AutoOverlay
                                 var writer = (byte*)outPlane.pointer + y * outStride;
                                 for (var x = 0; x < size.Width; x += pixelSize)
                                 {
-                                    var srcComplexity = ComplexityUtils.Byte(srcData, x, y, pixelSize, srcStride, size, Steps);
-                                    var overComplexity = ComplexityUtils.Byte(overData, x, y, pixelSize, overStride, size, Steps);
+                                    var srcComplexity = ComplexityUtils.Byte(srcData, x, y, pixelSize, srcStride, ref size, Steps);
+                                    var overComplexity = ComplexityUtils.Byte(overData, x, y, pixelSize, overStride, ref size, Steps);
                                     var diff = srcComplexity - overComplexity;
                                     var srcPreferred = Invert ? diff < Preference : diff > Preference;
                                     if (Mask)
@@ -149,8 +149,8 @@ namespace AutoOverlay
                                 var writer = (ushort*)outPlane.pointer + y * outStride;
                                 for (var x = 0; x < size.Width; x += pixelSize)
                                 {
-                                    var srcComplexity = ComplexityUtils.Short(srcData, x, y, pixelSize, srcStride, size, Steps);
-                                    var overComplexity = ComplexityUtils.Short(overData, x, y, pixelSize, overStride, size, Steps);
+                                    var srcComplexity = ComplexityUtils.Short(srcData, x, y, pixelSize, srcStride, ref size, Steps);
+                                    var overComplexity = ComplexityUtils.Short(overData, x, y, pixelSize, overStride, ref size, Steps);
                                     var diff = srcComplexity - overComplexity;
                                     var srcPreferred = Invert ? diff < Preference : diff > Preference;
                                     if (Mask)
@@ -167,8 +167,8 @@ namespace AutoOverlay
                                 var writer = (float*)outPlane.pointer + y * outStride;
                                 for (var x = 0; x < size.Width; x += pixelSize)
                                 {
-                                    var srcComplexity = ComplexityUtils.Float(srcData, x, y, pixelSize, srcStride, size, Steps);
-                                    var overComplexity = ComplexityUtils.Float(overData, x, y, pixelSize, overStride, size, Steps);
+                                    var srcComplexity = ComplexityUtils.Float(srcData, x, y, pixelSize, srcStride, ref size, Steps);
+                                    var overComplexity = ComplexityUtils.Float(overData, x, y, pixelSize, overStride, ref size, Steps);
                                     var diff = srcComplexity - overComplexity;
                                     var srcPreferred = Invert ? diff < Preference : diff > Preference;
                                     if (Mask)

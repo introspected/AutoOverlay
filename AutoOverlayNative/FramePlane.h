@@ -608,19 +608,19 @@ private:
     template <typename TColor> void FillNoise(double tl, double tr, double br, double bl, int color, NativeRandom random)
     {
         auto ptr = static_cast<TColor*>(pointer);
-        auto shift = bitDepth - 8;
-        TColor filler = color << shift;
-        auto width1 = row - 1.0;
+        const auto shift = bitDepth - 8;
+        const TColor filler = color << shift;
+        const auto width1 = row - 1.0;
         for (auto y = 0; y < height; y++, ptr += stride)
         {
-            auto yRatio = y / (height - 1.0);
+            const auto yRatio = y / (height - 1.0);
             for (auto x = 0; x < row; x += pixelSize)
             {
-                auto xRatio = x / width1;
+                const auto xRatio = x / width1;
 
-                auto top = tl * (1 - xRatio) + tr * xRatio;
-                auto bottom = bl * (1 - xRatio) + br * xRatio;
-                auto weight = top * (1 - yRatio) + bottom * yRatio;
+                const auto top = tl * (1 - xRatio) + tr * xRatio;
+                const auto bottom = bl * (1 - xRatio) + br * xRatio;
+                const auto weight = top * (1 - yRatio) + bottom * yRatio;
 
                 if (random.NextDouble() < weight)
                 {

@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
+﻿using System.Drawing;
 using AutoOverlay;
 using AutoOverlay.AviSynth;
 using AutoOverlay.Overlay;
@@ -14,8 +12,9 @@ using AvsFilterNet;
     "[InnerBounds]c[OuterBounds]c[OverlayBalanceX]f[OverlayBalanceY]f[FixedSource]b" +
     "[OverlayMode]s[Width]i[Height]i[PixelType]s[Gradient]i[Noise]i" +
     "[BorderOffset]c[SrcColorBorderOffset]c[OverColorBorderOffset]c" +
-    "[MaskMode]b[Opacity]f[ColorAdjust]f[ColorBuckets]i[ColorDither]f[ColorExclude]i[ColorFramesCount]i[ColorFramesDiff]f[ColorBufferedExtrapolation]b" +
-    "[AdjustChannels]s[GradientColor]f[Matrix]s[SourceMatrix]s[OverlayMatrix]s[Upsize]s[Downsize]s[ChromaResize]s[Rotate]s[Preview]b[Debug]b[Invert]b" +
+    "[MaskMode]b[Opacity]f[ColorAdjust]f[ColorBuckets]i[ColorDither]f[ColorExclude]i[ColorFramesCount]i[ColorFramesDiff]f" +
+    "[AdjustChannels]s[GradientColor]f[ColorFrames]i*[ColorMatchTarget]c[Matrix]s[SourceMatrix]s[OverlayMatrix]s" +
+    "[Upsize]s[Downsize]s[ChromaResize]s[Rotate]s[Preview]b[Debug]b[Invert]b" +
     "[Background]s[BackgroundClip]c[BlankColor]i[BackBalance]f[BackBlur]i[FullScreen]b[EdgeGradient]s[BitDepth]i",
     OverlayConst.DEFAULT_MT_MODE)]
 namespace AutoOverlay
@@ -142,14 +141,15 @@ namespace AutoOverlay
         public override double ColorFramesDiff { get; protected set; } = 2;
 
         [AvsArgument]
-        public override bool ColorBufferedExtrapolation { get; protected set; } = true;
-
-        [AvsArgument]
         public override string AdjustChannels { get; protected set; }
 
         [AvsArgument]
         public override double GradientColor { get; protected set; }
 
+        [AvsArgument]
+        public override int[] ColorFrames { get; protected set; }
+
+        [AvsArgument]
         public override Clip ColorMatchTarget { get; protected set; }
 
         [AvsArgument]
@@ -214,7 +214,6 @@ namespace AutoOverlay
 
         protected override void Initialize(AVSValue args)
         {
-            base.Initialize(args);
             var srcInfo = Source.GetVideoInfo();
             var overInfo = Overlay.GetVideoInfo();
             overlaySettings = new OverlayInfo
@@ -228,13 +227,14 @@ namespace AutoOverlay
                 SourceSize = srcInfo.GetSize(),
                 OverlayWarp = Warp.Parse(WarpPoints)
             };
+            base.Initialize(args);
         }
 
-        protected override List<OverlayInfo> GetOverlayInfo(int n)
+        protected override OverlayEngineFrame GetOverlayInfo(int n)
         {
             var info = overlaySettings.Clone();
             info.FrameNumber = n;
-            return [info];
+            return new OverlayEngineFrame([info], []);
         }
     }
 }

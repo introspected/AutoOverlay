@@ -103,12 +103,12 @@ namespace AutoOverlay
                                     var writer = (byte*)outPlane.pointer + y * outStride;
                                     for (var x = 0; x < size.Width; x += pixelSize)
                                     {
-                                        var currentComplexity = ComplexityUtils.Byte(srcData, x, y, pixelSize, srcStride, size, Steps);
+                                        var currentComplexity = ComplexityUtils.Byte(srcData, x, y, pixelSize, srcStride, ref size, Steps);
                                         var currentData = srcData;
                                         for (var i = 0; i < data.Length; i++)
                                         {
                                             var nextData = data[i];
-                                            var complexity = ComplexityUtils.Byte(nextData, x, y, pixelSize, strides[i], size, Steps);
+                                            var complexity = ComplexityUtils.Byte(nextData, x, y, pixelSize, strides[i], ref size, Steps);
                                             if (Invert ? complexity < currentComplexity : complexity > currentComplexity)
                                             {
                                                 currentComplexity = complexity;
@@ -131,12 +131,12 @@ namespace AutoOverlay
                                     var writer = (ushort*)outPlane.pointer + y * outStride;
                                     for (var x = 0; x < size.Width; x += pixelSize)
                                     {
-                                        var currentComplexity = ComplexityUtils.Short(srcData, x, y, pixelSize, srcStride, size, Steps);
+                                        var currentComplexity = ComplexityUtils.Short(srcData, x, y, pixelSize, srcStride, ref size, Steps);
                                         var currentData = srcData;
                                         for (var i = 0; i < data.Length; i++)
                                         {
                                             var nextData = data[i];
-                                            var complexity = ComplexityUtils.Short(nextData, x, y, pixelSize, strides[i], size, Steps);
+                                            var complexity = ComplexityUtils.Short(nextData, x, y, pixelSize, strides[i], ref size, Steps);
                                             if (Invert ? complexity < currentComplexity : complexity > currentComplexity)
                                             {
                                                 currentComplexity = complexity;
@@ -159,12 +159,12 @@ namespace AutoOverlay
                                     var writer = (float*)outPlane.pointer + y * outStride;
                                     for (var x = 0; x < size.Width; x += pixelSize)
                                     {
-                                        var currentComplexity = ComplexityUtils.Float(srcData, x, y, pixelSize, srcStride, size, Steps);
+                                        var currentComplexity = ComplexityUtils.Float(srcData, x, y, pixelSize, srcStride, ref size, Steps);
                                         var currentData = srcData;
                                         for (var i = 0; i < data.Length; i++)
                                         {
                                             var nextData = data[i];
-                                            var complexity = ComplexityUtils.Float(nextData, x, y, pixelSize, strides[i], size, Steps);
+                                            var complexity = ComplexityUtils.Float(nextData, x, y, pixelSize, strides[i], ref size, Steps);
                                             if (Invert ? complexity < currentComplexity : complexity > currentComplexity)
                                             {
                                                 currentComplexity = complexity;

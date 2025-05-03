@@ -87,32 +87,6 @@ namespace AutoOverlay
             format.WriteFrame(writer, this);
         }
 
-        public static List<OverlayInfo> FromFrame(VideoFrame frame)
-        {
-            unsafe
-            {
-                using var stream = new UnmanagedMemoryStream(
-                    (byte*)frame.GetReadPtr().ToPointer(),
-                    frame.GetRowSize() * frame.GetHeight(),
-                    frame.GetRowSize() * frame.GetHeight(),
-                    FileAccess.Read);
-                using var reader = new BinaryReader(stream);
-                var list = new List<OverlayInfo>(OverlayConst.ENGINE_HISTORY_LENGTH);
-                var caption = reader.ReadString();
-                if (caption != nameof(OverlayEngine))
-                    throw new AvisynthException();
-                reader.ReadInt32();
-                while (true)
-                {
-                    var info = Read(reader);
-                    if (info == null)
-                        break;
-                    list.Add(info);
-                }
-                return list;
-            }
-        }
-
         public string DisplayInfo()
         {
             var key = KeyFrame ? "[KeyFrame]" : "";

@@ -39,10 +39,10 @@ namespace AutoOverlay
         [AvsArgument]
         public override bool Debug { get; protected set; }
 
-        public List<OverlayInfo> GetOverlayInfo(int frameNumber)
+        public OverlayEngineFrame GetOverlayInfo(int frameNumber)
         {
             using var frame = Child.GetFrame(frameNumber, StaticEnv);
-            return OverlayInfo.FromFrame(frame);
+            return OverlayEngineFrame.FromFrame(frame);
         }
     }
 }

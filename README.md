@@ -105,7 +105,7 @@ It is possible to combine multiple configurations into chains using standard cli
                   float frameDiffBias, float maxDiff, bool legacyMode, int backwardFrames, int forwardFrames, 
                   float maxDiffIncrease, int scanDistance, float scanScale, float stickLevel, float stickDistance,
                   clip configs, string presize, string resize, string rotate, bool editor, string mode,
-                  int colorAdjust, string sceneFile, bool SIMD, bool debug)
+                  int colorAdjust, string sceneFile, clip[] sceneClips, bool SIMD, bool debug)
 
 The filter takes two clips as input: the base clip and the overlaid clip, and performs an auto-alignment procedure by resizing, rotating, and shifting the overlaid clip to find the minimum *diff* value. The optimal overlay parameters are encoded into the output frame so they can be read by other filters. The sequence of such frame-by-frame overlay parameters (statistics) can be accumulated in memory or in a file for reuse without needing to repeat the costly auto-alignment procedure. The statistics file can be analyzed and edited in the built-in graphical editor. Statistics are accumulated as the clip is navigated in any direction, provided the movement is frame-by-frame sequential; otherwise, neighboring frames will not be considered.
 
@@ -157,7 +157,8 @@ The filter takes two clips as input: the base clip and the overlaid clip, and pe
   - PROCESSED - include only already processed frames
   - UNPROCESSED - include only unprocessed frames
 - **colorAdjust** - color correction of clips during overlay for more accurate alignment: 0 - towards the base clip, 1 - towards the overlaid clip.
-- **sceneFile** - the path to a file with keyframes for separating scenes during the image auto-alignment process.
+- **sceneFile** - the path to a file with keyframes for separating scenes during the image auto-alignment process and color correction.
+- **sceneClips** - an array of arbitrary clips used to select keyframes for color correction per channel: frames with the minimum and maximum pixel values, as well as the frame with the maximum dynamic range. This parameter can only be used in conjunction with the *sceneFile* parameter. Clips in *sceneClips* should be lightweight; otherwise, performance may be significantly reduced.
 - **simd** (default true) - use of the SIMD Library to improve performance in some cases.
 - **debug** (default false) - display of overlay parameters, reduces performance.
 
@@ -205,7 +206,7 @@ Modified and unsaved episodes are highlighted in yellow in the grid. The *Save* 
                   clip srcColorBorderOffset, rectangle overColorBorderOffset, bool maskMode, float opacity, 
                   float colorAdjust, int colorBuckets, float colorDither, int colorExclude, 
                   int colorFramesCount, float colorFramesDiff, float colorMaxDeviation, 
-                  bool colorBufferedExtrapolation, float gradientColor, clip colorMatchTarget, 
+                  float gradientColor, int[] colorFrames, clip colorMatchTarget, 
                   string adjustChannels, string matrix, string sourceMatrix, string overlayMatrix,
                   string upsize, string downsize, string chromaResize, string rotate, bool preview, 
                   bool debug, bool invert, string background, clip backgroundClip, int blankColor, 
@@ -258,14 +259,14 @@ The filter renders the result of combining two or more clips with specific setti
 - **maskMode** (default false) - if *true*, replaces all clips with a white mask.
 - **opacity** (default 1) - the opacity level of the overlaid image, from 0 to 1.
 - **colorAdjust** (default -1, disabled) - a float value between 0 and 1. 0 - towards the base clip’s color, 1 - towards the overlaid clip’s color, 0.5 - averaged color. With additional clips, only values -1, 0, and 1 are supported. Color correction is based on comparing histograms of the intersection area.
-- **colorBuckets** (default 2000) - see *ColorMatch.length*.
+- **colorBuckets** (default 1024) - see *ColorMatch.length*.
 - **colorDither** (default 0.95) - see *ColorMatch.dither*.
 - **colorExclude** (default 0) - see *ColorMatch.exclude*.
 - **colorFramesCount** (default 0) - the number of neighboring frames on both sides whose information is included in building the color correspondence map for color correction.
 - **colorFramesDiff** (default 1) - the maximum mean squared deviation of color difference histograms between the sample and reference from the current frame to neighboring frames for color correction.
 - **colorMaxDeviation** (default 0.5) - the maximum deviation of the total area between the current and neighboring frames for use in a frame sequence during color correction.
-- **colorBufferedExtrapolation** - see *ColorMatch.bufferedExtrapolation*.
 - **gradientColor** - see *ColorMatch.gradient*.
+- **colorFrames** - see *ColorMatch.frames*.
 - **colorMatchTarget** - used for complex color correction scenarios within the *ColorMatchChain* filter.
 - **adjustChannels** (default empty) - the channels in which to adjust color. Examples: "yuv", "y", "rgb", "rg".
 - **matrix** (default empty) - if specified, the YUV image is converted to RGB using the specified matrix during processing.
@@ -288,8 +289,8 @@ The filter renders the result of combining two or more clips with specific setti
 ### ColorMatch
     ColorMatch(clip, clip reference, clip sample, clip sampleMask, clip referenceMask, bool greyMask, 
                float intensity, int length, float dither, string channels, 
-               int frameBuffer, float frameDiff, bool bufferedExtrapolation, bool limitedRange, 
-               int exclude, float gradient, int frame, int seed, string plane, string cacheId)
+               int frameBuffer, float frameDiff, bool limitedRange, 
+               int exclude, float gradient, int[] frames, int seed, string plane, string cacheId)
 			   
 Automatic color correction by matching color histograms. The input clip, *sample*, and *reference* clips must be in the same color space type (YUV or RGB). The input clip and *sample* clip must have the same bit depth. The input clip’s bit depth will change to match the *reference* clip’s bit depth. The filter yields good results only if the *sample* and *reference* clips have similar frame content. The filter is used within *OverlayRender*, cropping the *sample* and *reference* clips based on overlay parameters, but it can also be used independently, for example, to convert HDR to SDR or vice versa for clips with identical framing.
 
@@ -300,16 +301,15 @@ Automatic color correction by matching color histograms. The input clip, *sample
 - **sampleMask** and **referenceMask** (default empty) - masks for including only pixels with the maximum value in the specified bit depth in processing, i.e., 255, 1023, etc.
 - **greyMask** (default true) - mask based only on luma or all channels (used only for YUV).
 - **intensity** (default 1) - the intensity of color correction.
-- **length** (default 2000, max 1000000) - the histogram length; higher values improve quality but slow performance. The actual length is limited by the bit depth (256 for 8-bit, 1024 for 10-bit, etc.).
+- **length** (default 1024, max 1000000) - the histogram length; higher values improve quality but slow performance. The actual length is limited by the bit depth (256 for 8-bit, 1024 for 10-bit, etc.).
 - **dither** (default 0.95) - dithering level from 0 (disabled) to 1 (aggressive). Applied only if the actual histogram length equals the bit depth. Adds ordered noise if one source color must be split into multiple colors based on their weights.
 - **channels** (default yuv or rgb) - the planes or channels to process. Any combination of y, u, v or r, g, b is allowed (e.g., y, uv, r, br).
 - **frameBuffer** (default 0) - the number of neighboring frames on both sides whose information is included in building the color correspondence map.
 - **frameDiff** (default 1) - the maximum mean squared deviation of color difference histograms between the sample and reference from the current frame to neighboring frames.
-- **bufferedExtrapolation** (default true) - whether to use neighboring frames from *frameBuffer* only for color extrapolation, i.e., for colors absent in the frame intersection area.
 - **limitedRange** (default false) - TV range. Generally, there is no need to enable this even if the source clips are in TV range.
 - **exclude** (default 0, max 100) - The minimum number of pixels of a single color used in color correction. Helps avoid random outliers. Not applied in dithering mode.
 - **gradient** (default 0, max 1000000) - if greater than zero, activates gradient color correction mode, where four histograms are generated per frame, emphasizing different corners of the image. This allows uneven color correction across the image. Suitable primarily for clips with different original mastering. Higher values increase the effect.
-- **frame** (default -1) - calculate the LUT based on a specific frame rather than the current one.
+- **frames** (default empty) - сalculate an averaged LUT based on specified frames instead of the current frame and apply it to all frames of the input clip.
 - **seed** (default is constant) - seed for dithering if the filter is used multiple times for rendering a single frame. Typically, there is no need to change it.
 - **plane** and **cacheId** - used internally by *OverlayRender*.
 
@@ -319,7 +319,7 @@ Automatic color correction by matching color histograms. The input clip, *sample
                     clip engine, clip sourceCrop, clip overlayCrop, bool invert, int iterations, 
                     string space, string format, string resize, int length, float dither, 
                     float gradient, int frameBuffer, float frameDiff, float frameMaxDeviation, 
-                    bool bufferedExtrapolation, int exclude, int frame, bool matrixConversionHQ,
+                    int exclude, int[] frames, bool matrixConversionHQ,
                     string inputChromaLocation, string outputChromaLocation)
 					
 Multi-step automatic color correction with support for statistics from *OverlayEngine*. Allows flexible color correction of clips before combining them via *OverlayRender*.  
@@ -348,15 +348,14 @@ The transformation chain is defined using concatenated *ColorMatchStep* filters 
 - **space** - the resulting clip’s color space, e.g., *2020ncl:st2084:2020:f* or *PC.2020*. Defaults to the last color space in the transformation chain.
 - **format** - the resulting clip’s format, e.g., *YUV420P10*. Defaults to the last format in the transformation chain.
 - **resize** (default BilinearResize) - the filter for resizing images when using the *engine* parameter; high quality is not required. If specified, it is also used for UV channel resampling, otherwise spline16 is used.
-- **length** (default 2000) - see *ColorMatch.length*.
+- **length** (default 1024) - see *ColorMatch.length*.
 - **dither** (default 0.95) - see *ColorMatch.dither*.
 - **gradient** (default 0) - see *ColorMatch.gradient*.
 - **frameBuffer** (default 0) - see *ColorMatch.frameBuffer*.
 - **frameDiff** (default 1) - see *ColorMatch.frameDiff*.
 - **frameMaxDeviation** (default 0.5) - see *OverlayRender.colorMaxDeviation*.
-- **bufferedExtrapolation** (default false) - see *ColorMatch.bufferedExtrapolation*.
 - **exclude** (default 0) - see *ColorMatch.exclude*.
-- **frame** - see *ColorMatch.frame*.
+- **frames** - see *ColorMatch.frames*.
 - **matrixConversionHQ** (default false) - high-quality color matrix conversion in YUV space with conversion to 32-bit.
 - **inputChromaLocation** and **outputChromaLocation** - offset of UV channels relative to the luma channel for input and output clips. Possible values: left, center, top_left, top, bottom, bottom_left. Defaults to the frame property *_ChromaLocation*, or left if not specified.
 
@@ -672,6 +671,14 @@ If the framing is dynamic, prepare *OverlayEngine* and specify it in the *engine
     ```OverlayEngine(clip1, clip2, maxDiff = 5, statFile = "diff.stat", editor = true)```
 
 ## Changelog
+### 05.03.2025 v0.7.8
+1. *OverlayEngine*: new parameter *sceneClips*, which, when paired with the *sceneFile* parameter, enables automatic selection of keyframes in a scene for more accurate color correction.
+2. *ColorMatchChain*: added control over the output clip's _ColorRange property.
+3. *ColorMatch* and *ColorMatchChain*: The *frame* parameter has been renamed to *frames* and now supports specifying *multiple* frames, based on which an averaged LUT will be applied to the entire output clip.
+4. The *bufferedExtrapolation* parameter has been removed from all filters where it was present due to its unpredictable results.
+5. *OverlayRender*: new parameter *colorFrames* - the same as *ColorMatch.frames*.
+6. *OverlayRender*: new internal filter *CombinePlanesMT* - a multithreaded equivalent of the system *CombinePlanes*. It does not require explicit use and is used within *OverlayRender* to improve performance.
+
 ### 21.04.2025 v0.7.7
 1. *OverlayEngine*: Fixed auto-alignment when source resolutions differ significantly.
 2. The *exclude* parameter for color correction is now an integer, specifying the minimum number of pixels of a single color instead of their proportion in the entire image, as its operation should not depend on resolution.

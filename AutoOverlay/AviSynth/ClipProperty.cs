@@ -14,6 +14,7 @@ namespace AutoOverlay
                 if (!cached)
                 {
                     value = clip.Dynamic().propGetAny(key, index, offset);
+                    cached = true;
                 }
                 return value is T typed ? typed : default;
             }
@@ -25,6 +26,14 @@ namespace AutoOverlay
                 clip = c.Dynamic();
             var unboxed = Value.Unbox();
             return unboxed == null ? clip : clip.Dynamic().propSet(key, unboxed);
+        }
+
+        public dynamic Write(dynamic clip)
+        {
+            if (clip is Clip c)
+                clip = c.Dynamic();
+            var unboxed = Value.Unbox();
+            return unboxed == null ? clip.propDelete(key) : clip.Dynamic().propSet(key, unboxed);
         }
     }
 }

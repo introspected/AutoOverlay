@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
+using AutoOverlay.AviSynth;
 
 namespace AutoOverlay.Histogram
 {
@@ -13,7 +14,7 @@ namespace AutoOverlay.Histogram
     {
         private static readonly ConcurrentDictionary<string, ColorHistogramCache> caches = new();
 
-        private readonly ConcurrentDictionary<int, FrameCache> cache = new();
+        private readonly ConcurrentDictionary<int, Task<FrameCache>> cache = new();
 
         private readonly ParallelOptions parallelOptions = new();
 
@@ -54,6 +55,8 @@ namespace AutoOverlay.Histogram
             }
         }
 
+        public bool IsEmpty => cache.IsEmpty;
+
         public class FrameCache : Dictionary<(YUVPlanes, Corner), PlaneHistograms>
         {
             public bool Active { get; set; } = true;
@@ -71,24 +74,34 @@ namespace AutoOverlay.Histogram
                 cache.cache.Clear();
         }
 
-        public Dictionary<(YUVPlanes, Corner), PlaneHistograms> Compose(int frame, int buffer, double diff, bool forceMain)
+        public Dictionary<(YUVPlanes, Corner), PlaneHistograms> Compose(int frame, int buffer, double diff)
         {
-            var main = cache[frame];
+            var main = cache[frame].Result;
             var neighbours = new[] { -1, 1 }.SelectMany(sign => Enumerable.Range(1, buffer)
                     .Select(p => frame + sign * p)
                     .TakeWhile(p => cache.ContainsKey(p))
-                    .Select(p => new{ Frame = p, Cache = cache[p] })
+                    .Select(p => new{ Frame = p, Cache = cache[p]?.Result })
                     .TakeWhile(p => p.Cache is { Active: true } 
                                     && main.Keys.All(plane => Math.Abs(main[plane].Diff - p.Cache[plane].Diff) < diff)))
                 //.Peek(p => Debug.WriteLine("Cache frame around " + frame + ": " + p.Frame))
                 .Select(p => p.Cache)
                 .ToList();
+            //Debug.WriteLine($"Diff {frame}: " + string.Join(", ", main.Values.Select(p => p.Diff).ToList()));
             return main.Keys.ToDictionary(p => p, key => new PlaneHistograms
             {
-                Sample = ColorHistogram.Compose(forceMain, main[key].Sample.Enumerate()
+                Sample = ColorHistogram.Compose(main[key].Sample.Enumerate()
                     .Union(neighbours.Select(p => p[key].Sample)).ToArray()),
-                Reference = ColorHistogram.Compose(forceMain, main[key].Reference.Enumerate()
+                Reference = ColorHistogram.Compose(main[key].Reference.Enumerate()
                     .Union(neighbours.Select(p => p[key].Reference)).ToArray()),
+            });
+        }
+
+        public Dictionary<(YUVPlanes, Corner), PlaneHistograms> Compose(int[] frames)
+        {
+            return cache[frames.First()].Result.Keys.ToDictionary(p => p, key => new PlaneHistograms
+            {
+                Sample = ColorHistogram.Compose(frames.Select(p => cache[p].Result[key].Sample).ToArray()),
+                Reference = ColorHistogram.Compose(frames.Select(p => cache[p].Result[key].Reference).ToArray()),
             });
         }
 
@@ -99,24 +112,56 @@ namespace AutoOverlay.Histogram
                 if (frame < first || frame > last)
                     cache.TryRemove(frame, out _);
                 else if (deactivate && cache.TryGetValue(frame, out var value))
-                    value.Active = false;
+                    value.Result.Active = false;
             }
         }
 
-        public FrameCache this[int frame] => cache.TryGetValue(frame, out var value) ? value : null;
+        public FrameCache this[int frame] => cache.TryGetValue(frame, out var value) ? value.Result : null;
 
         public bool Contains(int frame) => cache.ContainsKey(frame);
 
-        public FrameCache GetOrAdd(int frame,
-            dynamic sample, dynamic reference, dynamic sampleMask, dynamic referenceMask,
+        public Task<FrameCache> GetOrAdd(int frame,
+            Clip sample, Clip reference, Clip sampleMask, Clip referenceMask,
             Rectangle srcCrop = default, Rectangle sampleCrop = default, Rectangle refCrop = default) =>
             cache.GetOrAdd(frame, n =>
             {
                 //Debug.WriteLine("Cache frame: " + n);
-                using (new VideoFrameCollector())
-                    return PrepareFrame(sample[n], reference[n], sampleMask?[n], referenceMask?[n],
-                        srcCrop, sampleCrop, refCrop);
-            }).Also(p => p.Active = true);
+                var env = DynamicEnvironment.StaticEnv;
+                VideoFrame Read(Clip clip) => clip?.GetFrame(n, env);
+
+                VideoFrame sampleFrame = null, refFrame = null, sampleMaskFrame = null, refMaskFrame = null;
+
+                Parallel.Invoke(
+                    () =>
+                    {
+                        sampleFrame = Read(sample);
+                        sampleMaskFrame = Read(sampleMask);
+                    },
+                    () =>
+                    {
+                        refFrame = Read(reference);
+                        refMaskFrame = Read(referenceMask);
+                    });
+
+                return Task.Factory.StartNew(() =>
+                {
+                    try
+                    {
+                        return PrepareFrame(sampleFrame, refFrame, sampleMaskFrame, refMaskFrame, srcCrop, sampleCrop, refCrop);
+                    }
+                    finally
+                    {
+                        sampleFrame.Dispose();
+                        refFrame.Dispose();
+                        sampleMaskFrame?.Dispose();
+                        refMaskFrame?.Dispose();
+                    }
+                });
+            }).ContinueWith(task =>
+            {
+                task.Result.Active = true;
+                return task.Result;
+            });
 
         private FrameCache PrepareFrame(
             VideoFrame sample, VideoFrame reference, VideoFrame sampleMask, VideoFrame referenceMask,

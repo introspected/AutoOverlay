@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
 using AutoOverlay.Histogram;
 using AutoOverlay.Overlay;
 using AvsFilterNet;
@@ -119,8 +121,8 @@ namespace AutoOverlay
         public abstract int ColorFramesCount { get; protected set; }
         public abstract double ColorFramesDiff { get; protected set; }
         public abstract double ColorMaxDeviation { get; protected set; }
-        public abstract bool ColorBufferedExtrapolation { get; protected set; }
         public abstract double GradientColor { get; protected set; }
+        public abstract int[] ColorFrames { get; protected set; }
         public abstract Clip ColorMatchTarget { get; protected set; }
 
         public abstract string Matrix { get; protected set; }
@@ -150,14 +152,18 @@ namespace AutoOverlay
 
         protected readonly List<OverlayContext> contexts = [];
 
-        protected abstract List<OverlayInfo> GetOverlayInfo(int n);
+        private Clip srcDispose, overlayDispose;
+
+        protected abstract OverlayEngineFrame GetOverlayInfo(int n);
 
         protected override void Initialize(AVSValue args)
         {
             base.Initialize(args);
             ExtraClips ??= [];
 
-            var cacheSize = ColorFramesCount * 2 + 1;
+            var cacheSize = Math.Max(10, ColorFramesCount * 2 + 1);
+            srcDispose = Source;
+            overlayDispose = Overlay;
             Source = Source.Dynamic().Cache(cacheSize);
             Overlay = Overlay.Dynamic().Cache(cacheSize);
 
@@ -287,44 +293,41 @@ namespace AutoOverlay
 
         protected override VideoFrame GetFrame(int n)
         {
-            StaticEnv.SetVar("current_frame", n.ToAvsValue());
             var ctx = contexts.First();
-            var history = GetOverlayInfo(n).Select(p =>
-                    p.ScaleBySource(ctx.SourceInfo.Size, SourceCrop)
-                        .CropOverlay(ctx.OverlayInfo.Size, OverlayCrop))
-                .ToList();
-            if (Invert)
-                history = history.Select(p => p.Invert()).ToList();
-            var info = history.First();
-            var extra = GetExtraOverlayInfo(n);
+            var frameInfo = GetOverlayInfo(n);
+            frameInfo = AdaptOverlayInfo(frameInfo, ctx.OverlayInfo.Size, OverlayCrop, Invert);
+            var info = frameInfo.Sequence.First();
+            StaticEnv.SetVar("current_frame", info.FrameNumber.ToAvsValue());
+            var extraFrames = GetExtraOverlayInfo(n);
 
-            var hybrid = RenderFrame(history, extra);
+            var hybrid = RenderFrame(frameInfo, extraFrames);
 
             if (Debug)
             {
                 var alignParams = info.DisplayInfo();
-                var layers = OverlayLayer.GetLayers(info.FrameNumber, contexts.First(), history, extra);
+                var layers = OverlayLayer.GetLayers(info.FrameNumber, contexts.First(), frameInfo, extraFrames);
                 var renderParams = layers[0].Data.ToString();
                 var debugInfo = alignParams + "\n\n" + renderParams;
                 hybrid = hybrid.Subtitle(debugInfo.Replace("\n", "\\n"), lsp: 0, size: 14);
             }
             if (Debug || Preview)
-                RenderPreview(ref hybrid, contexts.First(), history, extra);
+                RenderPreview(ref hybrid, contexts.First(), frameInfo.Sequence, extraFrames.Select(p => p.Sequence).ToArray());
 
             var chromaLocation = SrcChromaLocation() ?? OverChromaLocation();
             if (chromaLocation.HasValue)
                 hybrid = hybrid.propSet("_ChromaLocation", (int)chromaLocation.Value);
 
-            return hybrid[info.FrameNumber];
+            return hybrid[n];
         }
 
-        protected virtual dynamic RenderFrame(List<OverlayInfo> history, List<OverlayInfo>[] extra)
+        protected virtual dynamic RenderFrame(OverlayEngineFrame frameInfo, OverlayEngineFrame[] extra)
         {
-            var outClips = contexts.Select(ctx => RenderFrame(ctx, history, extra));
+            var outClips = contexts.Select(ctx => RenderFrame(ctx, frameInfo, extra));
 
-            var hybrid = contexts.Count == 1 ? outClips.First() : DynamicEnv.CombinePlanes(outClips,
-                planes: contexts.Select(p => p.Plane.GetLetter()).Aggregate(string.Concat),
-                pixel_type: PixelType);
+            //var hybrid = contexts.Count == 1 ? outClips.First() : DynamicEnv.CombinePlanes(outClips,
+            //    planes: contexts.Select(p => p.Plane.GetLetter()).Aggregate(string.Concat),
+            //    pixel_type: PixelType);
+            var hybrid = contexts.Count == 1 ? outClips.First() : DynamicEnv.CombinePlanesMT(outClips, pixelType: PixelType);
 
             var vi = GetVideoInfo();
             if (!vi.IsRGB() && !string.IsNullOrEmpty(Matrix))
@@ -343,15 +346,16 @@ namespace AutoOverlay
 
         protected dynamic RenderFrame(
             OverlayContext ctx, 
-            List<OverlayInfo> history,
-            List<OverlayInfo>[] extra)
+            OverlayEngineFrame frameInfo,
+            OverlayEngineFrame[] extraFrames)
         {
+            var history = frameInfo.Sequence;
             var currentFrame = history.First().FrameNumber;
-            var layers = OverlayLayer.GetLayers(currentFrame, ctx, history, extra);
+            var layers = OverlayLayer.GetLayers(currentFrame, ctx, frameInfo, extraFrames);
             var primary = layers.First();
             var secondary = layers.Skip(1).First();
 
-            IEnumerable<(OverlayInfo, List<OverlayLayer>)> GetLayerHistory(int length, double deviation) => new[] { -1, 0, 1 }
+            IEnumerable<(int, List<OverlayLayer>)> GetLayerHistory(int length, double deviation) => new[] { -1, 0, 1 }
                 .SelectMany(sign => history
                     .Where(p => Math.Abs(p.FrameNumber - currentFrame) <= length)
                     .Where(p => Math.Sign(p.FrameNumber.CompareTo(currentFrame)) == sign)
@@ -360,13 +364,13 @@ namespace AutoOverlay
                     {
                         Info = p,
                         Prev = history.FirstOrDefault(f => f.FrameNumber == p.FrameNumber - sign),
-                        Layers = OverlayLayer.GetLayers(p.FrameNumber, ctx, history, extra)
+                        Layers = sign == 0 ? layers : OverlayLayer.GetLayers(p.FrameNumber, ctx, frameInfo, extraFrames)
                     })
                     .TakeWhile(p => sign == 0 || p.Prev != null &&
                         (sign == 1 && !p.Info.KeyFrame || sign == -1 && !p.Prev.KeyFrame) &&
                         p.Info.NearlyEquals(p.Prev, deviation)))
-                .Select(p => (p.Info, p.Layers))
-                .OrderBy(p => p.Info.FrameNumber);
+                .Select(p => (p.Info.FrameNumber, p.Layers))
+                .OrderBy(p => p.FrameNumber);
 
             if (ctx.AdjustColor && !MaskMode)
             {
@@ -392,37 +396,90 @@ namespace AutoOverlay
                 dynamic AdjustClip(double intensity, OverlayLayer source, OverlayLayer reference, string cacheId)
                 {
                     var tuples = ColorMatchTuple.Compose(source.Clip, source.Clip, reference.Clip, AdjustChannels, true, ctx.Plane.GetLetter());
-                    if (intensity <= double.Epsilon || intensity - 1 >= double.Epsilon)
+                    if (intensity <= 0)
                         return source.Clip;
                     var mask = GetMask(source, reference);
 
-                    if (ColorFramesCount > 0)
+                    int[] frames = null;
+
+                    var layerEngineFrame = source.Source ? reference.EngineFrame : source.EngineFrame;
+
+                    var colorMode = layerEngineFrame.KeyFrames.Any() ? ColorMatchMode.Scene :
+                        ColorFrames.Any() ? ColorMatchMode.Frames :
+                        ColorFramesCount > 0 ? ColorMatchMode.History : ColorMatchMode.None;
+                    if (layerEngineFrame.KeyFrames.Any())
+                        colorMode = ColorMatchMode.Scene;
+
+                    if (colorMode != ColorMatchMode.None)
                     {
                         double? cornerGradient = GradientColor > 0 ? GradientColor : null;
                         var cache = ColorHistogramCache.GetOrAdd(cacheId, () => new ColorHistogramCache(tuples, ColorBuckets, false, cornerGradient));
-                        cache.Shrink(currentFrame - OverlayConst.ENGINE_HISTORY_LENGTH * 2, currentFrame + OverlayConst.ENGINE_HISTORY_LENGTH * 2);
-                        foreach (var (nearInfo, nearLayers) in GetLayerHistory(ColorFramesCount, ColorMaxDeviation))
+
+                        IEnumerable<(int nearFrame, OverlayLayer srcLayer, OverlayLayer refLayer)> sequence;
+
+                        void FrameBasedSequence(List<OverlayInfo> keyFrames)
                         {
-                            //System.Diagnostics.Debug.WriteLine("Near frame around " + currentFrame + ": " + nearInfo.FrameNumber);
-                            var nearFrame = nearInfo.FrameNumber;
-                            var srcLayer = nearLayers[source.Index];
-                            var refLayer = nearLayers[reference.Index];
+                            cache.Shrink(keyFrames.First().FrameNumber, keyFrames.Last().FrameNumber);
+                            var overIndex = Math.Max(source.Index, reference.Index);
+                            sequence = keyFrames
+                                .Select(p => (p.FrameNumber, OverlayLayer.GetLayerPair(ctx, p, overIndex)))
+                                .Select(p => source.Source
+                                    ? (p.Item1, p.Item2.Item1, p.Item2.Item2)
+                                    : (p.Item1, p.Item2.Item2, p.Item2.Item1));
+                            frames = frameInfo.KeyFrames.Select(p => p.FrameNumber).ToArray();
+                        }
+
+                        switch (colorMode)
+                        {
+                            case ColorMatchMode.History:
+                                cache.Shrink(currentFrame - OverlayConst.ENGINE_HISTORY_LENGTH * 2, currentFrame + OverlayConst.ENGINE_HISTORY_LENGTH * 2);
+                                sequence = GetLayerHistory(ColorFramesCount, ColorMaxDeviation)
+                                    .Select(p => (p.Item1, p.Item2[source.Index], p.Item2[reference.Index]));
+                                break;
+                            case ColorMatchMode.Scene:
+                                FrameBasedSequence(layerEngineFrame.KeyFrames);
+                                break;
+                            case ColorMatchMode.Frames:
+                                if (cache.IsEmpty)
+                                {
+                                    var overIndex = Math.Max(source.Index, reference.Index);
+                                    var isMainOver = overIndex == ctx.Render.OverlayOrder + 1;
+                                    var extraIndex = overIndex > ctx.Render.OverlayOrder ? overIndex - 2 : overIndex - 1;
+                                    var overSize = isMainOver ? contexts.First().OverlayInfo.Size : contexts.First().ExtraClips[extraIndex].Info.Size;
+                                    var crop = isMainOver ? OverlayCrop : ExtraClips[extraIndex].Crop;
+                                    Func<int, OverlayEngineFrame> getOverlayInfo = isMainOver
+                                        ? GetOverlayInfo
+                                        : n => ExtraClips[extraIndex].GetOverlayInfo(n);
+                                    FrameBasedSequence(ColorFrames
+                                        .Select(p => AdaptOverlayInfo(getOverlayInfo(p), overSize, crop, Invert).Sequence.First())
+                                        .ToList());
+                                }
+                                else sequence = [];
+                                frames = ColorFrames;
+                                break;
+                            default:
+                                throw new InvalidOperationException();
+                        }
+                        var tasks = new List<Task>();
+                        foreach (var (nearFrame, srcLayer, refLayer) in sequence)
+                        {
+                            //System.Diagnostics.Debug.WriteLine("Near frame around " + currentFrame + ": " + nearFrame);
                             var colorMask = GetMask(srcLayer, refLayer);
-                            cache.GetOrAdd(nearFrame,
+                            var task = cache.GetOrAdd(nearFrame,
                                 Crop(srcLayer.Clip, srcLayer.Rectangle, refLayer.Rectangle),
                                 Crop(refLayer.Clip, refLayer.Rectangle, srcLayer.Rectangle),
                                 colorMask, colorMask);
+                            tasks.Add(task);
                         }
+                        Task.WaitAll(tasks.ToArray());
                     }
-                    else cacheId = null;
 
                     var colorMatchSrc = ColorMatchTarget?.ExtractPlane(ctx.Plane)?.Dynamic() ?? source.Clip;
                     return colorMatchSrc.ColorMatch(
                         Crop(reference.Clip, reference.Rectangle, source.Rectangle),
                         Crop(source.Clip, source.Rectangle, reference.Rectangle),
-                        mask, mask,
+                        mask, mask, frames: frames,
                         cacheId: cacheId, frameBuffer: ColorFramesCount, frameDiff: ColorFramesDiff,
-                        bufferedExtrapolation: ColorBufferedExtrapolation,
                         length: ColorBuckets, dither: ColorDither, intensity: intensity, exclude: ColorExclude,
                         gradient: GradientColor, channels: ctx.AdjustChannels, plane: ctx.Plane.GetLetter());
                 }
@@ -628,18 +685,28 @@ namespace AutoOverlay
             return hybrid;
         }
 
-        protected List<OverlayInfo>[] GetExtraOverlayInfo(int frame)
+        private OverlayEngineFrame[] GetExtraOverlayInfo(int frame)
         {
             var ctx = contexts.First();
             return ExtraClips
-                .Select((p, i) => p.GetOverlayInfo(frame).Select(info =>
-                        info.ScaleBySource(ctx.SourceInfo.Size, SourceCrop)
-                            .CropOverlay(ctx.ExtraClips[i].Info.Size, p.Crop))
-                    .ToList())
+                .Select((p, i) => AdaptOverlayInfo(p.GetOverlayInfo(frame), ctx.ExtraClips[i].Info.Size, p.Crop))
                 .ToArray();
         }
 
-        protected void RenderPreview(ref dynamic hybrid, OverlayContext ctx, List<OverlayInfo> history, List<OverlayInfo>[] extra)
+        private OverlayEngineFrame AdaptOverlayInfo(OverlayEngineFrame engineFrame, Size overSize, RectangleD overCrop, bool invert = false)
+        {
+            var ctx = contexts.First();
+            return new OverlayEngineFrame(Adapt(engineFrame.Sequence), Adapt(engineFrame.KeyFrames));
+
+            List<OverlayInfo> Adapt(List<OverlayInfo> list) => list
+                .Select(info => info
+                    .ScaleBySource(ctx.SourceInfo.Size, SourceCrop)
+                    .CropOverlay(overSize, overCrop))
+                .Select(p => invert ? p.Invert() : p)
+                .ToList();
+        }
+
+        private void RenderPreview(ref dynamic hybrid, OverlayContext ctx, List<OverlayInfo> history, List<OverlayInfo>[] extra)
         {
             var previewSize = (Size)(ctx.TargetInfo.Size.AsSpace() / 3).Eval(p => p - p % 4);
             var previewRect = new RectangleF(new Point(ctx.TargetInfo.Width - previewSize.Width - 20, 20), previewSize).Floor();
@@ -724,6 +791,8 @@ namespace AutoOverlay
 
         protected sealed override void Dispose(bool A_0)
         {
+            srcDispose.Dispose();
+            overlayDispose.Dispose();
             contexts.ForEach(p => p.Dispose());
             base.Dispose(A_0);
         }

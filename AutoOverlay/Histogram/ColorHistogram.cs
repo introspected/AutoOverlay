@@ -23,13 +23,13 @@ namespace AutoOverlay.Histogram
         private readonly double? constant;
         private readonly int depth;
 
-        public static ColorHistogram Compose(bool forceMain, params ColorHistogram[] histograms)
+        public static ColorHistogram Compose(params ColorHistogram[] histograms)
         {
             if (histograms.Length == 0)
                 throw new AvisynthException("Empty histograms");
             if (histograms.Length == 1)
                 return histograms.First();
-            return new ColorHistogram(histograms, forceMain);
+            return new ColorHistogram(histograms);
         }
 
         public static Dictionary<Corner, ColorHistogram> Gradient(
@@ -156,7 +156,7 @@ namespace AutoOverlay.Histogram
             (depthMinColor, rangeMinColor, depthMaxColor, rangeMaxColor) = GetMinMaxColor(planeChannel.EffectivePlane, limitedRange);
         }
 
-        private ColorHistogram(ColorHistogram[] histograms, bool forceMain)
+        private ColorHistogram(ColorHistogram[] histograms)
         {
             var main = histograms.First();
             Length = main.Length;
@@ -183,7 +183,6 @@ namespace AutoOverlay.Histogram
             unsafe
             {
                 fixed (double* values = Values)
-                fixed (double* total = Total)
                 {
                     for (var j = 0; j < histCount; j++)
                     {
@@ -198,73 +197,45 @@ namespace AutoOverlay.Histogram
                             if (weight <= double.Epsilon)
                             {
                                 values[index] += 1;
-                                total[index] += 1;
                                 continue;
                             }
                             values[index] += weight;
-                            total[index] += weight;
                             if (weight < 1)
                             {
                                 weight = 1 - weight;
                                 index++;
                                 values[index] += weight;
-                                total[index] += weight;
                             }
                             continue;
                         }
                         fixed (double* histValues = histograms[j].Values)
-                        fixed (double* histTotal = histograms[j].Total)
                         {
                             for (var i = 0; i < Length; i++)
                             {
+                                var histValue = histValues[i];
+                                if (histValue == 0) continue;
                                 var histColor = histOffset + histStep * i;
                                 var color = (histColor - offset) / step;
-                                //var round = Math.Round(color);
-                                //if (color.IsNearlyEquals(round))
-                                //{
-                                //    var roundIndex = (int)round;
-                                //    values[roundIndex] += histValues[i];
-                                //    total[roundIndex] += histTotal[i];
-                                //    continue;
-                                //}
                                 var weight = 1 - (color - Math.Floor(color));
                                 var index = (int)color;
-                                values[index] += histValues[i] * weight;
-                                total[index] += histTotal[i] * weight;
+                                values[index] += histValue * weight;
                                 if (weight < 1)
                                 {
                                     weight = 1 - weight;
                                     index++;
-                                    values[index] += histValues[i] * weight;
-                                    total[index] += histTotal[i] * weight;
+                                    values[index] += histValue * weight;
                                 }
                             }
                         }
                     }
 
                     var sum = 0.0;
-                    for (var i = 0; i < Length; i++)
-                    {
-                        total[i] = sum += values[i] /= histCount;
-                        //total[i] /= histCount;
-                    }
+                    fixed (double* total = Total)
+                        for (var i = 0; i < Length; i++)
+                        {
+                            total[i] = sum += values[i] /= histCount;
+                        }
                 }
-            }
-
-            if (forceMain && histograms.Length > 1)
-            {
-                var min = Values.TakeWhile(p => p == 0).Count();
-                var max = Values.Length - Values.Reverse().TakeWhile(p => p == 0).Count() - 1;
-                var added = 0.0;
-                var forced = (double[]) main.Values.Clone();
-                for (var i = 0; i < min; i++)
-                    added += forced[i] = Values[i];
-                for (var i = max + 1; i < Values.Length; i++)
-                    added += forced[i] = Values[i];
-                var coef = 1 - added;
-                for (var i = min; i <= max; i++)
-                    forced[i] *= coef;
-                Values = forced;
             }
         }
 

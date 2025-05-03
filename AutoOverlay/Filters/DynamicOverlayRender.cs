@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Drawing;
+﻿using System.Drawing;
 using AutoOverlay;
 using AutoOverlay.AviSynth;
 using AvsFilterNet;
@@ -12,7 +11,7 @@ using AvsFilterNet;
     "[OverlayMode]s[Width]i[Height]i[PixelType]s[Gradient]i[Noise]i" +
     "[BorderControl]i[BorderMaxDeviation]f[BorderOffset]c[SrcColorBorderOffset]c[OverColorBorderOffset]c" +
     "[MaskMode]b[Opacity]f[ColorAdjust]f[ColorBuckets]i[ColorDither]f[ColorExclude]i[ColorFramesCount]i[ColorFramesDiff]f" +
-    "[ColorMaxDeviation]f[ColorBufferedExtrapolation]b[GradientColor]f[ColorMatchTarget]c[AdjustChannels]s[Matrix]s" +
+    "[ColorMaxDeviation]f[GradientColor]f[ColorFrames]i*[ColorMatchTarget]c[AdjustChannels]s[Matrix]s" +
     "[SourceMatrix]s[OverlayMatrix]s[Upsize]s[Downsize]s[ChromaResize]s[Rotate]s[Preview]b[Debug]b[Invert]b" +
     "[Background]s[BackgroundClip]c[BlankColor]i[BackBalance]f[BackBlur]i[FullScreen]b[EdgeGradient]s[BitDepth]i",
     OverlayConst.DEFAULT_MT_MODE)]
@@ -137,11 +136,11 @@ namespace AutoOverlay
         [AvsArgument(Min = 0)]
         public override double ColorMaxDeviation { get; protected set; } = 0.5;
 
-        [AvsArgument]
-        public override bool ColorBufferedExtrapolation { get; protected set; } = true;
-
         [AvsArgument(Min = 0, Max = 1000000)]
         public override double GradientColor { get; protected set; }
+
+        [AvsArgument]
+        public override int[] ColorFrames { get; protected set; }
 
         [AvsArgument]
         public override Clip ColorMatchTarget { get; protected set; }
@@ -203,10 +202,10 @@ namespace AutoOverlay
         [AvsArgument(Min = 8, Max = 16)]
         public override int BitDepth { get; protected set; }
 
-        protected override List<OverlayInfo> GetOverlayInfo(int n)
+        protected override OverlayEngineFrame GetOverlayInfo(int n)
         {
             using var frame = Engine.GetFrame(n, StaticEnv);
-            return OverlayInfo.FromFrame(frame);
+            return OverlayEngineFrame.FromFrame(frame);
         }
     }
 }

@@ -19,7 +19,7 @@ namespace AutoOverlay
 
         public static readonly Size NO_SUB_SAMPLE = new(1, 1);
 
-        public const int COLOR_BUCKETS_COUNT = 2000;
+        public const int COLOR_BUCKETS_COUNT = 1024;
         public const double COLOR_DITHER = 0.95;
     }
 }

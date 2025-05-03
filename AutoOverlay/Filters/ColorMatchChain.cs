@@ -9,7 +9,7 @@ using System;
     typeof(ColorMatchChain), nameof(ColorMatchChain),
     "cc[SampleSpace]s[ReferenceSpace]s[Chain]c[Preset]s[Sample]c[SampleMask]c[ReferenceMask]c[GreyMask]b[Engine]c[SourceCrop]c[OverlayCrop]c" +
     "[Invert]b[Iterations]i[Space]s[Format]s[Resize]s[Length]i[Dither]f[Gradient]f[FrameBuffer]i[FrameDiff]f[FrameMaxDeviation]f" +
-    "[BufferedExtrapolation]b[Exclude]i[Frame]i[MatrixConversionHQ]b[InputChromaLocation]s[OutputChromaLocation]s",
+    "[Exclude]i[Frames]i*[MatrixConversionHQ]b[InputChromaLocation]s[OutputChromaLocation]s",
     OverlayConst.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
@@ -177,14 +177,11 @@ namespace AutoOverlay
         [AvsArgument(Min = 0)]
         public double FrameMaxDeviation { get; protected set; } = 0.5;
 
-        [AvsArgument]
-        public bool BufferedExtrapolation { get; set; } = true;
-
         [AvsArgument(Min = 0, Max = 100)]
         public int Exclude { get; set; }
 
-        [AvsArgument(Min = -1)]
-        public int Frame { get; private set; } = -1;
+        [AvsArgument]
+        public int[] Frames { get; private set; }
 
         [AvsArgument(Min = 0, Max = 1)]
         public bool MatrixConversionHQ { get; set; }
@@ -199,10 +196,14 @@ namespace AutoOverlay
 
         private dynamic chain;
 
+        private ClipProperty<int?> colorRange;
+
         protected override void AfterInitialize()
         {
             if (!Chain.Any())
                 throw new AvisynthException("Chain is empty");
+
+            colorRange = new ClipProperty<int?>(Reference, "_ColorRange");
 
             chromaResample = Resize.GetChromaResample() ?? "spline16";
             Resize ??= StaticEnv.FunctionCoalesce(OverlayConst.DEFAULT_PRESIZE_FUNCTION + "MT", OverlayConst.DEFAULT_PRESIZE_FUNCTION);
@@ -239,21 +240,19 @@ namespace AutoOverlay
                 if (Engine == null)
                     return converted.ColorMatch(
                         reference, sample, sampleMask: sampleMask, referenceMask: referenceMask,
-                        intensity: step.Intensity, length: length, dither: dither, exclude: exclude, frame: Frame, greyMask: GreyMask,
-                        gradient: gradient, frameBuffer: frameBuffer, frameDiff: frameDiff, bufferedExtrapolation: BufferedExtrapolation);
+                        intensity: step.Intensity, length: length, dither: dither, exclude: exclude, frames: Frames, greyMask: GreyMask,
+                        gradient: gradient, frameBuffer: frameBuffer, frameDiff: frameDiff);
                 var renderSrc = Invert ? reference : sample;
                 var renderOver = Invert ? sample : reference;
                 var renderIntensity = Invert ? 1 - step.Intensity : step.Intensity;
                 if (Invert)
                     (sampleMask, referenceMask) = (referenceMask, sampleMask);
-                if (Frame >= 0)
-                    throw new AvisynthException("Not implemented yet");
                 return DynamicEnv.OverlayRender(Engine, renderSrc, renderOver, sourceCrop: SourceCrop, overlayCrop: OverlayCrop,
-                    sourceMask: sampleMask, overlayMask: referenceMask,
+                    sourceMask: sampleMask, overlayMask: referenceMask, colorFrames: Frames,
                     colorMatchTarget: converted, colorAdjust: renderIntensity, invert: Invert, colorBuckets: length,
-                    gradientColor: gradient, adjustChannels: step.Channels, preset: OverlayRenderPreset.FitSource.ToString(), 
+                    gradientColor: gradient, adjustChannels: step.Channels, preset: nameof(OverlayRenderPreset.FitSource), 
                     upsize: Resize, colorExclude: exclude, colorFramesCount: frameBuffer, colorFramesDiff: frameDiff,
-                    colorMaxDeviation: FrameMaxDeviation, colorBufferedExtrapolation: BufferedExtrapolation);
+                    colorMaxDeviation: FrameMaxDeviation);
             }
 
             dynamic Merge(dynamic clip, dynamic merge, ColorMatchStep step)
@@ -318,6 +317,8 @@ namespace AutoOverlay
 
         protected override VideoFrame GetFrame(int n)
         {
+            if (Preset != ColorMatchPreset.Default)
+                return colorRange.Write(chain)[n];
             return chain[n];
         }
 

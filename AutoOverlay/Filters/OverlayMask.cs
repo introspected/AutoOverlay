@@ -8,7 +8,7 @@ using AvsFilterNet;
 [assembly: AvisynthFilterClass(typeof(OverlayMask),
     nameof(OverlayMask),
     "[template]c[width]i[height]i[left]i[top]i[right]i[bottom]i[noise]b[gradient]b[seed]i",
-    OverlayConst.DEFAULT_MT_MODE)]
+    MtMode.NICE_FILTER)]
 namespace AutoOverlay
 {
     public class OverlayMask : OverlayFilter
