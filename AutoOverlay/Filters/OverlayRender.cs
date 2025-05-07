@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using AutoOverlay.Histogram;
 using AutoOverlay.Overlay;
@@ -154,6 +153,8 @@ namespace AutoOverlay
 
         private Clip srcDispose, overlayDispose;
 
+        private bool mtRender;
+
         protected abstract OverlayEngineFrame GetOverlayInfo(int n);
 
         protected override void Initialize(AVSValue args)
@@ -166,6 +167,8 @@ namespace AutoOverlay
             overlayDispose = Overlay;
             Source = Source.Dynamic().Cache(cacheSize);
             Overlay = Overlay.Dynamic().Cache(cacheSize);
+
+            mtRender = StaticEnv.GetVar("AO_MT_RENDER", false);
 
             // AviSynth 3.7.4 hack
             var version = ((Clip)AvsUtils.GetBlankClip(Source, true)).GetVersion();
@@ -308,7 +311,7 @@ namespace AutoOverlay
                 var layers = OverlayLayer.GetLayers(info.FrameNumber, contexts.First(), frameInfo, extraFrames);
                 var renderParams = layers[0].Data.ToString();
                 var debugInfo = alignParams + "\n\n" + renderParams;
-                hybrid = hybrid.Subtitle(debugInfo.Replace("\n", "\\n"), lsp: 0, size: 14);
+                hybrid = hybrid.Subtitle(debugInfo.Replace("\n", "\\n") + $"\\nMT: {mtRender}", lsp: 0, size: 14);
             }
             if (Debug || Preview)
                 RenderPreview(ref hybrid, contexts.First(), frameInfo.Sequence, extraFrames.Select(p => p.Sequence).ToArray());
@@ -324,10 +327,15 @@ namespace AutoOverlay
         {
             var outClips = contexts.Select(ctx => RenderFrame(ctx, frameInfo, extra));
 
-            //var hybrid = contexts.Count == 1 ? outClips.First() : DynamicEnv.CombinePlanes(outClips,
-            //    planes: contexts.Select(p => p.Plane.GetLetter()).Aggregate(string.Concat),
-            //    pixel_type: PixelType);
-            var hybrid = contexts.Count == 1 ? outClips.First() : DynamicEnv.CombinePlanesMT(outClips, pixelType: PixelType);
+            dynamic hybrid;
+            if (contexts.Count == 1)
+                hybrid = outClips.First();
+            else if (mtRender)
+                hybrid = DynamicEnv.CombinePlanesMT(outClips, pixelType: PixelType);
+            else
+                hybrid = DynamicEnv.CombinePlanes(outClips,
+                    planes: contexts.Select(p => p.Plane.GetLetter()).Aggregate(string.Concat),
+                    pixel_type: PixelType);
 
             var vi = GetVideoInfo();
             if (!vi.IsRGB() && !string.IsNullOrEmpty(Matrix))
@@ -643,7 +651,7 @@ namespace AutoOverlay
                 hybrid = hybrid.Overlay(
                     layer.Clip,
                     layer.Rectangle.Location,
-                    mode: OverlayMode,
+                    mode: overlayMode,
                     mask: mask);
 
                 FillChromeBorder(layer.ExtraBorders.Left,

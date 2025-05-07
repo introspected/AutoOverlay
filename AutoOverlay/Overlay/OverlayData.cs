@@ -56,7 +56,7 @@ namespace AutoOverlay.Overlay
                 SourceWarp = SourceWarp,
                 OverlayWarp = OverlayWarp,
                 Angle = OverlayAngle,
-                Placement = Overlay.Location.AsSpace() - OverlayCrop.Location
+                Placement = Overlay.Location.AsSpace() - overScale.AsSpace()*OverlayCrop.Location
             };
         }
 

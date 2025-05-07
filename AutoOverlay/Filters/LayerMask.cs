@@ -54,8 +54,9 @@ namespace AutoOverlay.Filters
         protected override void Initialize(AVSValue args)
         {
             var vi = Child.GetVideoInfo();
+            vi.pixel_type = ColorSpaces.CS_Y8.ChangeBitDepth(vi.pixel_type.GetBitDepth());
             SetVideoInfo(ref vi);
-            planeChannel = vi.pixel_type.GetPlaneChannels()[0];
+            planeChannel = vi.pixel_type.GetPlaneChannels().First();
             union = Layers.Aggregate(Rectangle.Union);
             if (CanvasWidth == 0)
                 CanvasWidth = union.Width;
@@ -67,14 +68,21 @@ namespace AutoOverlay.Filters
         protected override void AfterInitialize()
         {
             currentLayer = Layers[LayerIndex];
-            white = AvsUtils.GetBlankClip(Child, true);
+            white = AvsUtils.GetBlankClip(Child.Dynamic().ConvertToY(), true);
         }
 
         protected override VideoFrame GetFrame(int n)
         {
             VideoFrame frame = white[0];
             StaticEnv.MakeWritable(frame);
+            ProcessPlaneChannel(frame, planeChannel);
+            return frame;
+        }
+
+        private void ProcessPlaneChannel(VideoFrame frame, PlaneChannel planeChannel)
+        {
             var framePlane = new FramePlane(planeChannel, frame, false);
+            var seed = Seed << planeChannel.ChannelOffset;
 
             Action RunIf(bool predicate, Action action, Action otherwise = null) => predicate ? action : otherwise ?? (() => { });
 
@@ -127,17 +135,17 @@ namespace AutoOverlay.Filters
                 // Intersection edges
                 if (Noise)
                 {
-                    Action left = () => interFrame.TakeLeft(Gradient).FillNoise(1, 0, 0, 1, currentLayer.Left > layer.Left ? 0x00 : 0xFF, Seed << 0),
-                        top = () => interFrame.TakeTop(Gradient).FillNoise(1, 1, 0, 0, currentLayer.Top > layer.Top ? 0 : 0xFF, Seed << 2),
-                        right = () => interFrame.TakeRight(Gradient).FillNoise(0, 1, 1, 0, currentLayer.Right < layer.Right ? 0x00 : 0xFF, Seed << 1),
-                        bottom = () => interFrame.TakeBottom(Gradient).FillNoise(0, 0, 1, 1, currentLayer.Bottom < layer.Bottom ? 0 : 0xFF, Seed << 3);
+                    Action left = () => interFrame.TakeLeft(Gradient).FillNoise(1, 0, 0, 1, currentLayer.Left > layer.Left ? 0x00 : 0xFF, seed << 0),
+                        top = () => interFrame.TakeTop(Gradient).FillNoise(1, 1, 0, 0, currentLayer.Top > layer.Top ? 0 : 0xFF, seed << 2),
+                        right = () => interFrame.TakeRight(Gradient).FillNoise(0, 1, 1, 0, currentLayer.Right < layer.Right ? 0x00 : 0xFF, seed << 1),
+                        bottom = () => interFrame.TakeBottom(Gradient).FillNoise(0, 0, 1, 1, currentLayer.Bottom < layer.Bottom ? 0 : 0xFF, seed << 3);
 
                     if (Opacity is 0 or 1)
                     {
                         Parallel.Invoke(left, top, right, bottom);
                         FillCorners(0, 1, Opacity, 0.5, p => p / 2, (a, b) => a - b,
                             (plane, tl, tr, br, bl, index) => plane.Also(p => p.Fill(0))
-                                .RotateNoise(tl, tr, br, bl, 0xFF, index, Seed << index << LayerIndex));
+                                .RotateNoise(tl, tr, br, bl, 0xFF, index, seed << index << LayerIndex));
                     }
                     else
                     {
@@ -229,8 +237,6 @@ namespace AutoOverlay.Filters
 
                 framePlane.ROI(roi).Min(interFrame);
             }
-
-            return frame;
         }
 
         public override int SetCacheHints(CacheType cachehints, int frame_range)

@@ -135,7 +135,7 @@ namespace AutoOverlay
         public double StickDistance { get; set; } = 1;
 
         [AvsArgument]
-        public OverlayConfig[] Configs { get; private set; }
+        public OverlayConfig[] Configs { get; set; }
 
         [AvsArgument]
         public string Presize { get; private set; }
@@ -153,7 +153,7 @@ namespace AutoOverlay
         public OverlayEngineMode Mode { get; private set; } = OverlayEngineMode.DEFAULT;
 
         [AvsArgument(Min = -1, Max = 1)]
-        public int ColorAdjust { get; private set; } = -1;
+        public int ColorAdjust { get; set; } = -1;
 
         [AvsArgument]
         public string SceneFile { get; private set; }
@@ -193,6 +193,8 @@ namespace AutoOverlay
         private MinMax[][][] sceneClipRanges;
 
         private PlaneChannel[] planeChannels;
+
+        private string maskResizeFuncHq;
 
         private static readonly Predicate<OverlayData>
             LeftStick = p => p.Overlay.Left == p.Source.Left && p.OverlayCrop.Left.IsNearlyZero(),
@@ -238,6 +240,7 @@ namespace AutoOverlay
 
             Presize = Presize.ToLower();
             Resize = Resize.ToLower();
+            maskResizeFuncHq = StaticEnv.FunctionCoalesce(Presize + "mt", Presize);
 
             if (!Configs.Any())
                 Configs = [new OverlayConfig()];
@@ -1390,8 +1393,8 @@ namespace AutoOverlay
                 var cropCoef = Math.Pow(2, -substep);
                 var testParams = new HashSet<TestOverlay>();
 
-                var cropStepHorizontal = cropCoef * OverInfo.Width / rect.Width;
-                var cropStepVertical = cropCoef * OverInfo.Height / rect.Height;
+                var sizeCoef = OverInfo.Size.AsSpace() / rect.Size;
+                var cropStep = sizeCoef * cropCoef;
 
                 foreach (var bestCrop in bestCrops)
                 {
@@ -1408,33 +1411,34 @@ namespace AutoOverlay
                         var width = data.Overlay.Width;
                         var height = data.Overlay.Height;
 
-                        var cropLeft = crop.Left + cropLeftCoef * cropStepHorizontal;
-                        var cropTop = crop.Top + cropTopCoef * cropStepVertical;
-                        var cropRight = crop.Right + cropRightCoef * cropStepHorizontal;
-                        var cropBottom = crop.Bottom + cropBottomCoef * cropStepVertical;
+                        var cropLeft = crop.Left + cropLeftCoef * cropStep.X;
+                        var cropTop = crop.Top + cropTopCoef * cropStep.Y;
+                        var cropRight = crop.Right + cropRightCoef * cropStep.X;
+                        var cropBottom = crop.Bottom + cropBottomCoef * cropStep.Y;
 
-                        static void CorrectCrop(ref double cropVal, ref int dimension, ref int location, bool correctLocation)
+                        static void CorrectCrop(ref double cropVal, double sizeCoef, ref int dimension, ref int location, bool correctLocation)
                         {
-                            if (cropVal < 0)
+                            var scaledCrop = cropVal / sizeCoef;
+                            if (scaledCrop < 0)
                             {
-                                var intCrop = (-cropVal).Ceiling();
-                                cropVal += intCrop;
+                                var intCrop = (-scaledCrop).Ceiling();
+                                cropVal += intCrop * sizeCoef;
                                 dimension -= intCrop;
                             }
-                            else if (cropVal > 1)
+                            else if (scaledCrop > 1)
                             {
-                                var intCrop = cropVal.Floor();
-                                cropVal -= intCrop;
+                                var intCrop = scaledCrop.Floor();
+                                cropVal -= intCrop * sizeCoef;
                                 dimension += intCrop;
                                 if (correctLocation)
                                     location -= intCrop;
                             }
                         }
 
-                        CorrectCrop(ref cropLeft, ref width, ref x, true);
-                        CorrectCrop(ref cropRight, ref width, ref x, false);
-                        CorrectCrop(ref cropTop, ref height, ref y, true);
-                        CorrectCrop(ref cropBottom, ref height, ref y, false);
+                        CorrectCrop(ref cropLeft, sizeCoef.X, ref width, ref x, true);
+                        CorrectCrop(ref cropRight, sizeCoef.X, ref width, ref x, false);
+                        CorrectCrop(ref cropTop, sizeCoef.Y, ref height, ref y, true);
+                        CorrectCrop(ref cropBottom, sizeCoef.Y, ref height, ref y, false);
 
                         if (config.FixedAspectRatio)
                         {
@@ -1711,6 +1715,7 @@ namespace AutoOverlay
             var overBaseSize = overBase.GetSize();
             var hq = overBaseSize.Equals(OverInfo.Size);
             var resizeFunc = hq ? Resize : Presize;
+            var maskResizeFunc = hq ? maskResizeFuncHq : Presize;
 
 #if DEBUG
             testParams.FirstOrDefault()?.Watch?.Start();
@@ -1739,6 +1744,7 @@ namespace AutoOverlay
                         let maxArea = searchAreas.Aggregate(searchAreas.First(), Rectangle.Union)
                         let realCrop = testGroup.Key.Crop
                         let realResizeFunc = realCrop.IsEmpty || !resizeFunc.StartsWith("simd") ? resizeFunc : resizeFunc.Substring(4)
+                        let maskRealResizeFunc = realCrop.IsEmpty || !maskResizeFunc.StartsWith("simd") ? maskResizeFunc : maskResizeFunc.Substring(4)
                         let excess = testGroup.Key.Angle != 0 || realResizeFunc.StartsWith("simd") ? Rectangle.Empty : Rectangle.FromLTRB(
                             Math.Max(0, -maxArea.Right),
                             Math.Max(0, -maxArea.Bottom),
@@ -1768,7 +1774,7 @@ namespace AutoOverlay
                         let overMask = alwaysNullMask
                             ? null
                             : (VideoFrame)ResizeRotate(rotationMask ? AvsUtils.GetBlankClip(overBase, true) : overMaskBase,
-                                realResizeFunc, Rotate, activeWidth, activeHeight, testGroup.Key.Angle, activeCrop, testGroup.Key.WarpPoints)[n]
+                                maskRealResizeFunc, Rotate, activeWidth, activeHeight, testGroup.Key.Angle, activeCrop, testGroup.Key.WarpPoints)[n]
                         let overSize = new Size(activeWidth, activeHeight)
 #if DEBUG
                 let watchStop = testGroup.Key.Watch?.Also(p => p.Stop())

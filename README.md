@@ -1,5 +1,7 @@
 # AutoOverlay AviSynth plugin
 
+**ENG** | [RUS](README_rus.md)
+
 ### Requirements
 - AviSynth+ 3.7+: https://github.com/AviSynth/AviSynthPlus/releases/
 - AvsFilterNet plugin https://github.com/Asd-g/AvsFilterNet (included)
@@ -30,12 +32,11 @@ After auto-alignment, one clip can be overlaid onto another in various ways usin
 AviSynth+ supports automatic plugin loading if the .NET plugin file name contains the `_netautoload` suffix, which is present by default.
 
 ## Sample
-    portrait=ImageSource("Lenna.portrait.jpg")
-    landscape=ImageSource("Lenna.landscape.jpg")
+    portrait = ImageSource("Lenna.portrait.jpg")
+    landscape = ImageSource("Lenna.landscape.jpg")
 
     OverlayEngine(portrait, landscape)
-    OverlayRender(portrait, landscape, colorAdjust=1, outerBounds=Rect(1), innerBounds=Rect(1), \
-                  background="blur", edgeGradient="full", gradient=80, width=500, height=500)
+    OverlayRender(portrait, landscape, colorAdjust = 1, preset = "fitscreenblur", width=500, height=500)
     
 <details> 
     <summary><b>Portrait image + landscape image -> script output</b></summary>
@@ -671,6 +672,13 @@ If the framing is dynamic, prepare *OverlayEngine* and specify it in the *engine
     ```OverlayEngine(clip1, clip2, maxDiff = 5, statFile = "diff.stat", editor = true)```
 
 ## Changelog
+### 07.05.2025 v0.7.9
+1. *OverlayEngine*: improved auto-alignment in subpixel mode.
+2. *OverlayEngine*: fixed auto-alignment issues when the resolution difference between clips exceeds twofold.
+3. *OverlayEngine*: for improved performance, mask resizing uses the filter specified in the *presize* parameter or its multithreaded equivalent if set.
+4. *OverlayRender*: due to unstable performance, the internal filter *CombinePlanesMT* is no longer used by default. It can be enabled by setting the environment (script) variable *AO_MT_RENDER = true*.
+5. Fixed support for interleaved color spaces.
+
 ### 05.03.2025 v0.7.8
 1. *OverlayEngine*: new parameter *sceneClips*, which, when paired with the *sceneFile* parameter, enables automatic selection of keyframes in a scene for more accurate color correction.
 2. *ColorMatchChain*: added control over the output clip's _ColorRange property.

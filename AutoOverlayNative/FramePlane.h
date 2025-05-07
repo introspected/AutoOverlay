@@ -128,7 +128,7 @@ public:
         framePlane->byteDepth = byteDepth;
         framePlane->pixelSize = pixelSize;
         framePlane->width = width - left - right;
-        framePlane->row = framePlane->width *pixelSize;
+        framePlane->row = framePlane->width * pixelSize;
         framePlane->height = height - top - bottom;
         framePlane->stride = stride;
         framePlane->pointer = static_cast<unsigned char*>(pointer) + (left + top * stride) * byteDepth;
@@ -635,7 +635,7 @@ private:
         auto ptr = static_cast<TColor*>(pointer);
         auto overPtr = static_cast<TColor*>(overlay.pointer);
         for (auto y = 0; y < height; y++, ptr += stride, overPtr += overlay.stride)
-            for (auto x = 0; x < row; x++)
+            for (auto x = 0; x < row; x += pixelSize)
             {
                 ptr[x] = std::min(ptr[x], overPtr[x]);
             }
@@ -764,7 +764,7 @@ private:
                 const auto maskStride = maskPlane->stride;
                 for (auto y = 0; y < height; y++, data += stride, mask += maskStride)
                 {
-                    for (auto x = 0; x < width; x += pixelSize)
+                    for (auto x = 0; x < row; x += pixelSize)
                     {
                         if (mask[x] < maskMax)
                         {
@@ -779,7 +779,7 @@ private:
             {
                 for (auto y = 0; y < height; y++, data += stride)
                 {
-                    for (auto x = 0; x < width; x += pixelSize)
+                    for (auto x = 0; x < row; x += pixelSize)
                     {
                         ++values[static_cast<int>(data[x])];
                     }
@@ -793,7 +793,7 @@ private:
                 const auto maskStride = maskPlane->stride;
                 for (auto y = 0; y < height; y++, data += stride, mask += maskStride)
                 {
-                    for (auto x = 0; x < width; x += pixelSize)
+                    for (auto x = 0; x < row; x += pixelSize)
                     {
                         if (mask[x] < maskMax)
                         {
@@ -813,7 +813,7 @@ private:
             {
                 for (auto y = 0; y < height; y++, data += stride)
                 {
-                    for (auto x = 0; x < width; x += pixelSize)
+                    for (auto x = 0; x < row; x += pixelSize)
                     {
                         const auto realColor = (data[x] - offset) / step;
                         const auto minColor = static_cast<unsigned int>(std::floor(realColor));
@@ -849,7 +849,7 @@ private:
                 {
                     const auto yRatio = y / height1;
                     const auto yRatio0 = 1 - yRatio;
-                    for (auto x = 0; x < width; x += pixelSize)
+                    for (auto x = 0; x < row; x += pixelSize)
                     {
                         if (mask[x] < maskMax)
                         {
@@ -872,7 +872,7 @@ private:
                 {
                     const auto yRatio = y / height1;
                     const auto yRatio0 = 1 - yRatio;
-                    for (auto x = 0; x < width; x += pixelSize)
+                    for (auto x = 0; x < row; x += pixelSize)
                     {
                         const auto xRatio = x / width1;
                         const auto xRatio0 = 1 - xRatio;
@@ -894,7 +894,7 @@ private:
                 {
                     const auto yRatio = y / height1;
                     const auto yRatio0 = 1 - yRatio;
-                    for (auto x = 0; x < width; x += pixelSize)
+                    for (auto x = 0; x < row; x += pixelSize)
                     {
                         if (mask[x] < maskMax)
                         {
@@ -935,7 +935,7 @@ private:
                 {
                     const auto yRatio = y / height1;
                     const auto yRatio0 = 1 - yRatio;
-                    for (auto x = 0; x < width; x += pixelSize)
+                    for (auto x = 0; x < row; x += pixelSize)
                     {
                         const auto xRatio = x / width1;
                         const auto xRatio0 = 1 - xRatio;
@@ -976,24 +976,11 @@ private:
         const auto inStride = input.stride;
         if (byteDepth == 4)
         {
-            if (pixelSize == 1)
+            for (auto y = 0; y < height; y++, inData += inStride, outData += stride)
             {
-                for (auto y = 0; y < height; y++, inData += inStride, outData += stride)
+                for (auto x = 0; x < row; x += pixelSize)
                 {
-                    for (auto x = 0; x < width; x++)
-                    {
-                        outData[x] = interpolator->Interpolate(inData[x]);
-                    }
-                }
-            }
-        	else
-            {
-                for (auto y = 0; y < height; y++, inData += inStride, outData += stride)
-                {
-                    for (auto x = 0; x < width; x += pixelSize)
-                    {
-                        outData[x] = interpolator->Interpolate(inData[x]);
-                    }
+                    outData[x] = interpolator->Interpolate(inData[x]);
                 }
             }
         }
@@ -1002,7 +989,7 @@ private:
             auto random = seed.HasValue ? NativeRandom(seed.Value) : NativeRandom();
             for (auto y = 0; y < height; y++, inData += inStride, outData += stride)
             {
-                for (auto x = 0; x < width; x += pixelSize)
+                for (auto x = 0; x < row; x += pixelSize)
                 {
                     TInput& src = inData[x];
                     const auto interpolated = interpolator->Interpolate(src);
@@ -1029,7 +1016,7 @@ private:
         const auto random = seed.HasValue ? new NativeRandom(seed.Value) : new NativeRandom();
         for (auto y = 0; y < height; y++, inData += inStride, outData += stride)
         {
-            for (auto x = 0; x < width; x += pixelSize)
+            for (auto x = 0; x < row; x += pixelSize)
             {
                 outData[x] = lut->Interpolate(inData[x], random);
             }

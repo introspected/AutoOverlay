@@ -1,5 +1,7 @@
 # AutoOverlay AviSynth plugin
 
+[ENG](README.md) | **RUS**
+
 ### Требования
 - AviSynth+ 3.7+: https://github.com/AviSynth/AviSynthPlus/releases/
 - AvsFilterNet plugin https://github.com/Asd-g/AvsFilterNet (включено в поставку)
@@ -28,6 +30,22 @@
     LoadPlugin("%plugin folder%\AvsFilterNet.dll")
     LoadNetPlugin("%plugin folder %\AutoOverlay_netautoload.dll")
 AviSynth+ поддерживает автоподключение плагинов, если имя файла плагина .NET содержит суффикс `_netautoload`, который по умолчанию есть.
+
+## Пример
+    portrait = ImageSource("Lenna.portrait.jpg")
+    landscape = ImageSource("Lenna.landscape.jpg")
+
+    OverlayEngine(portrait, landscape)
+    OverlayRender(portrait, landscape, colorAdjust = 1, preset = "fitscreenblur", width=500, height=500)
+    
+<details> 
+    <summary><b>Portrait image + landscape image -> script output</b></summary>
+    <p>
+        <img src="https://github.com/introspected/AutoOverlay/blob/master/sample/Lenna.portrait.jpg"/>
+        <img src="https://github.com/introspected/AutoOverlay/blob/master/sample/Lenna.landscape.jpg"/>
+        <img src="https://github.com/introspected/AutoOverlay/blob/master/sample/Lenna.AutoOverlay.png"/>
+    </p>
+</details>
 
 ## Фильтры
 ### OverlayConfig
@@ -656,6 +674,13 @@ ComplexityOverlay целесообразно использовать до пр�
     ```OverlayEngine(clip1, clip2, maxDiff = 5, statFile = "diff.stat", editor = true)```
 
 ## История изменений
+### 07.05.2025 v0.7.9
+1. *OverlayEngine*: улучшено автовыравнивание в субпиксельном режиме.
+2. *OverlayEngine*: исправлено автовыравнивание при более чем двукратной разнице в разрешении клипов.
+3. *OverlayEngine*: для повышения производительности для ресайзинга масок используется фильтр из параметра *presize*, либо его многопоточный аналог, если установлен. 
+4. *OverlayRender*: из-за нестабильной работы служебный фильтр *CombinePlanesMT* теперь не используется по умолчанию. Включается при наличии в окружении (скрипте) переменной *AO_MT_RENDER = true*.
+5. Исправлена поддержка interleaved цветовых пространств.
+
 ### 03.05.2025 v0.7.8
 1. *OverlayEngine*: новый параметр *sceneClips*, позволяющий в паре с параметром *sceneFile* автоматически отобрать ключевые кадры в сцене для более точной цветокоррекции.
 2. *ColorMatchChain*: контроль свойства клипа _ColorRange на выходе.

@@ -30,21 +30,22 @@ namespace AutoOverlay
 
         public override VideoFrame GetFrame(int n, ScriptEnvironment env)
         {
-            var main = inputs.First().Clip.GetFrame(n, env);
-            var output = NewVideoFrame(env, main);
-            
-            void Copy(Input input, VideoFrame overrideFrame)
+            var tasks = inputs.Select(input => Task.Factory.StartNew(() => new
             {
-                using var frame = overrideFrame ?? input.Clip.GetFrame(n, env);
-                env.BitBlt(output.GetWritePtr(input.Plane), output.GetPitch(input.Plane),
+                input.Plane,
+                Frame = input.Clip.GetFrame(n, env)
+            })).ToList();
+
+            var output = NewVideoFrame(env, tasks.First().Result.Frame);
+
+            Parallel.ForEach(tasks, task =>
+            {
+                using var frame = task.Result.Frame;
+                var plane = task.Result.Plane;
+                env.BitBlt(output.GetWritePtr(plane), output.GetPitch(plane),
                     frame.GetReadPtr(), frame.GetPitch(),
                     frame.GetRowSize(), frame.GetHeight());
-            }
-
-            if (oneFirst)
-                Copy(inputs.First(), main);
-            var loop = inputs.Select((input, i) => (input, i)).Skip(oneFirst ? 1 : 0);
-            Parallel.ForEach(loop, (p, i) => Copy(p.input, p.i == 0 ? main : null));
+            });
             return output;
         }
 
