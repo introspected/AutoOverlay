@@ -6,7 +6,7 @@ using AvsFilterNet;
 [assembly: AvisynthFilterClass(
     typeof(OverlayClip),
     nameof(OverlayClip),
-    "cc[mask]c[Crop]c[Opacity]f[ChromaLocation]s[Matrix]s[Minor]b[Color]i[Debug]b",
+    "cc[mask]c[Crop]c[Opacity]f[ChromaLocation]s[Matrix]s[Minor]b[Color]i[Name]s[Debug]b",
     OverlayConst.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
@@ -35,6 +35,9 @@ namespace AutoOverlay
 
         [AvsArgument]
         public int Color { get; private set; } = 0x808080;
+
+        [AvsArgument]
+        public string Name { get; private set; }
 
         [AvsArgument]
         public override bool Debug { get; protected set; }

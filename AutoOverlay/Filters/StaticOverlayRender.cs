@@ -14,7 +14,7 @@ using AvsFilterNet;
     "[BorderOffset]c[SrcColorBorderOffset]c[OverColorBorderOffset]c" +
     "[MaskMode]b[Opacity]f[ColorAdjust]f[ColorBuckets]i[ColorDither]f[ColorExclude]i[ColorFramesCount]i[ColorFramesDiff]f" +
     "[AdjustChannels]s[GradientColor]f[ColorFrames]i*[ColorMatchTarget]c[Matrix]s[SourceMatrix]s[OverlayMatrix]s" +
-    "[Upsize]s[Downsize]s[ChromaResize]s[Rotate]s[Preview]b[Debug]b[Invert]b" +
+    "[Upsize]s[Downsize]s[ChromaResize]s[Rotate]s[Preview]b[SourceName]s[OverlayName]s[Legend]i[Debug]b[Invert]b" +
     "[Background]s[BackgroundClip]c[BlankColor]i[BackBalance]f[BackBlur]i[FullScreen]b[EdgeGradient]s[BitDepth]i",
     OverlayConst.DEFAULT_MT_MODE)]
 namespace AutoOverlay
@@ -175,6 +175,15 @@ namespace AutoOverlay
 
         [AvsArgument]
         public override bool Preview { get; protected set; }
+
+        [AvsArgument]
+        public override string SourceName { get; protected set; }
+
+        [AvsArgument]
+        public override string OverlayName { get; protected set; }
+
+        [AvsArgument]
+        public override int Legend { get; protected set; }
 
         [AvsArgument]
         public override bool Debug { get; protected set; }

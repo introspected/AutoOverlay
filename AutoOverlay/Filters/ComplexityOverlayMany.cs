@@ -51,7 +51,7 @@ namespace AutoOverlay
 
             if (overVi.Any(p => srcVi.GetSize() != p.GetSize()))
                 throw new AvisynthException("Clips with different resolution");
-            if (overVi.Any(p => srcVi.pixel_type != p.pixel_type))
+            if (overVi.Any(p => srcVi.pixel_type.VPlaneFirst() != p.pixel_type.VPlaneFirst()))
                 throw new AvisynthException("Clips with different color spaces");
 
             planeChannels = srcVi.pixel_type.GetPlaneChannels(Channels);

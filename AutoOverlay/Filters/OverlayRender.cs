@@ -137,6 +137,9 @@ namespace AutoOverlay
         public abstract EdgeGradient EdgeGradient { get; protected set; }
         public abstract int BitDepth { get; protected set; }
         public abstract bool Preview { get; protected set; }
+        public abstract string SourceName { get; protected set; }
+        public abstract string OverlayName { get; protected set; }
+        public abstract int Legend { get; protected set; }
         #endregion
 
         public ColorSpaces ColorSpace { get; protected set; }
@@ -228,7 +231,7 @@ namespace AutoOverlay
                 throw new AvisynthException("ColorAdjust 0, 1 only allowed when video bit depth is different");
             BitDepth = BitDepth > 0 ? BitDepth : ColorAdjust.IsNearlyEquals(1) ? overBitDepth : srcBitDepth;
             ColorSpace = vi.pixel_type = vi.pixel_type.ChangeBitDepth(BitDepth);
-            vi.num_frames = Child.GetVideoInfo().num_frames;
+            vi.num_frames = Child.GetVideoInfo().num_frames.Enumerate().Union(ExtraClips.Select(p => p.Child.GetVideoInfo().num_frames)).Min();
             planes = string.IsNullOrEmpty(Matrix) ? vi.pixel_type.GetPlanes() : [YUVPlanes.PLANAR_R, YUVPlanes.PLANAR_G, YUVPlanes.PLANAR_B];
             PixelType = vi.pixel_type.GetName();
             if (ColorMatchTarget != null)
@@ -320,7 +323,7 @@ namespace AutoOverlay
             if (chromaLocation.HasValue)
                 hybrid = hybrid.propSet("_ChromaLocation", (int)chromaLocation.Value);
 
-            return hybrid[n];
+            return hybrid[info.FrameNumber];
         }
 
         protected virtual dynamic RenderFrame(OverlayEngineFrame frameInfo, OverlayEngineFrame[] extra)
@@ -634,7 +637,7 @@ namespace AutoOverlay
                     mask = mask == null ? layer.Mask : mask.Overlay(layer.Mask, mode: "darken");
                     mask = mask.Overlay(backMask, mode: "lighten");
 
-                    canvasMask = canvasMask.Overlay(layer.Mask.Invert(), layer.Rectangle.Location);
+                    canvasMask = canvasMask.Overlay(layer.Mask.Invert(), layer.Rectangle.Location, mode: "darken");
                     activeMask = true;
                 }
 
@@ -716,7 +719,8 @@ namespace AutoOverlay
 
         private void RenderPreview(ref dynamic hybrid, OverlayContext ctx, List<OverlayInfo> history, List<OverlayInfo>[] extra)
         {
-            var previewSize = (Size)(ctx.TargetInfo.Size.AsSpace() / 3).Eval(p => p - p % 4);
+            var previewWidth = Debug ? 3 : 4;
+            var previewSize = (Size)(ctx.TargetInfo.Size.AsSpace() / previewWidth).Eval(p => p - p % 4);
             var previewRect = new RectangleF(new Point(ctx.TargetInfo.Width - previewSize.Width - 20, 20), previewSize).Floor();
 
             var input = new OverlayInput
@@ -753,9 +757,6 @@ namespace AutoOverlay
             var canvas = canvasReal.Offset(offset).Scale(coef).Floor();
             var src = info.SourceRectangle.Offset(offset).Scale(coef).Floor();
             var over = PrepareOverlay(info);
-            var extraClips = extra
-                .Select(p => p.First())
-                .Select(PrepareOverlay);
 
             var pixelType = GetVideoInfo().pixel_type.WithoutSubSample();
 
@@ -772,22 +773,54 @@ namespace AutoOverlay
                     .AddBorders(2, 2, 2, 2, color: 0xFFFFFF)
                     .BilinearRotate(angle);
 
-
             var preview = hybrid
                 .Crop(previewRect.Location, previewRect.Right - ctx.TargetInfo.Width, previewRect.Bottom - ctx.TargetInfo.Height)
                 .Invoke(pixelType.GetConvertFunction())
                 .Overlay(PreviewClip(canvas.Size, 0x0000FF), canvas.Location, mask: PreviewMask(canvas.Size), opacity: 0.75)
                 .Overlay(PreviewClip(src.Size, 0xFF0000), src.Location, mask: PreviewMask(src.Size), opacity: 0.75)
                 .Overlay(PreviewClip(over.Size, 0x00FF00, info.Angle), over.Location, mask: PreviewMask(over.Size, info.Angle), opacity: 0.75);
-            foreach (var extraClip in extraClips.Select((Clip, Index) => new { Clip, Index }))
-                preview = preview.Overlay(PreviewClip(
-                        extraClip.Clip.Size,
-                        ExtraClips[extraClip.Index].Color),
-                    extraClip.Clip.Location,
-                    mask: PreviewMask(extraClip.Clip.Size),
-                    opacity: 0.75);
+            
+            for (var i = 0; i < ExtraClips.Length; i++)
+            {
+                var clip = ExtraClips[i];
+                var rect = PrepareOverlay(extra[i].First());
+                var extraPreview = PreviewClip(rect.Size, clip.Color);
+                preview = preview.Overlay(extraPreview, rect.Location, mask: PreviewMask(rect.Size), opacity: 0.75);
+            }
 
             hybrid = hybrid.Overlay(preview, previewRect.Location);
+            if (Legend > 0)
+                RenderLegend(ref hybrid, history.First().FrameNumber);
+        }
+
+        private void RenderLegend(ref dynamic source, int frame)
+        {
+            var ctx = contexts.First();
+            var linesCount = ExtraClips.Length + 2;
+            var offset = 0;
+            if (!Debug)
+            {
+                linesCount++;
+                offset++;
+            }
+            var lineHeight = Legend + 2;
+            var legendHeight = lineHeight * linesCount;
+            var legendY = ctx.TargetInfo.Height - legendHeight - 4;
+            int ClipY(int num) => lineHeight * (num + offset);
+
+            var legend = source.Crop(0, legendY, Math.Min(ctx.TargetInfo.Width, 200), 0)
+                .Subtitle(SourceName ?? "Source", y: ClipY(0), text_color: 0xFF0000, size: Legend)
+                .Subtitle(OverlayName ?? "Overlay", y: ClipY(1), text_color: 0x00FF00, size: Legend);
+            if (!Debug)
+                legend = legend.Subtitle($"Frame: {frame}", size: Legend);
+            for (var i = 0; i < ExtraClips.Length; i++)
+            {
+                var extraClip = ExtraClips[i];
+                var name = extraClip.Name ?? $"Extra clip {i}";
+                legend = legend.Subtitle(name, y: ClipY(i + 2), text_color: extraClip.Color, size: Legend);
+            }
+
+            source = source.Overlay(legend, 0, legendY);
         }
 
         private static dynamic Crop(dynamic clip, Rectangle src, Rectangle over) => clip?.Crop(

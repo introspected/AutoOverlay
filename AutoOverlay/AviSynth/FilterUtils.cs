@@ -62,6 +62,19 @@ namespace AutoOverlay.AviSynth
                 if (tuple.Attribute.Required && !tuple.Defined)
                     throw new AvisynthException($"{tuple.QualifiedName} is required but not defined");
 
+                if (tuple.Type == typeof(Space))
+                {
+                    var defValue = tuple.Getter.Invoke(filter, null);
+                    var defSpace = (Space)defValue;
+                    var space = new Space(
+                        tuple.Argument[0].AsFloat(tuple.Argument[1].AsFloat(defSpace.X)),
+                        tuple.Argument[1].AsFloat(tuple.Argument[0].AsFloat(defSpace.Y)));
+                    ValidateRange(tuple.QualifiedName + "X", tuple.Attribute, space.X);
+                    ValidateRange(tuple.QualifiedName + "Y", tuple.Attribute, space.Y);
+                    tuple.Setter.Invoke(filter, [space]);
+                    continue;
+                }
+
                 dynamic value = tuple.Argument.AsObject(tuple.Type);
 
                 if (value == null)
@@ -78,8 +91,6 @@ namespace AutoOverlay.AviSynth
                 {
                     throw new AvisynthException($"Parameter {tuple.QualifiedName} not implemented yet");
                 }
-
-                var defValue = tuple.Getter.Invoke(filter, null);
 
                 RectangleD ReadRect(Clip clip, int i)
                 {
@@ -140,18 +151,6 @@ namespace AutoOverlay.AviSynth
                         InitCollection(i => rects.Select(rect => ReadRect(rect, i)).ToArray());
                         continue;
                     }
-                }
-
-                if (tuple.Type == typeof(Space))
-                {
-                    var defSpace = (Space)defValue;
-                    var space = new Space(
-                        tuple.Argument[0].AsFloat(tuple.Argument[1].AsFloat(defSpace.X)),
-                        tuple.Argument[1].AsFloat(tuple.Argument[0].AsFloat(defSpace.Y)));
-                    ValidateRange(tuple.QualifiedName + "X", tuple.Attribute, space.X);
-                    ValidateRange(tuple.QualifiedName + "Y", tuple.Attribute, space.Y);
-                    tuple.Setter.Invoke(filter, [space]);
-                    continue;
                 }
 
                 ValidateRange(tuple.QualifiedName, tuple.Attribute, value);

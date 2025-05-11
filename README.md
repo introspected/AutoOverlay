@@ -210,6 +210,7 @@ Modified and unsaved episodes are highlighted in yellow in the grid. The *Save* 
                   float gradientColor, int[] colorFrames, clip colorMatchTarget, 
                   string adjustChannels, string matrix, string sourceMatrix, string overlayMatrix,
                   string upsize, string downsize, string chromaResize, string rotate, bool preview, 
+                  string sourceName, string overlayName, int legend,
                   bool debug, bool invert, string background, clip backgroundClip, int blankColor, 
                   float backBalance, int backBlur, bool fullScreen, string edgeGradient, int bitDepth)
                   
@@ -276,6 +277,8 @@ The filter renders the result of combining two or more clips with specific setti
 - **chromaResize** - UV channel resampling function in the same format as *downsize* and *upsize*, defaults to the value of *downsize*.
 - **rotate** (default *BilinearRotate*) - the function for rotating the overlaid image.
 - **preview** - output preview.
+- **sourceName** and **overlayName** - names of the main and overlay clips for the legend.
+- **legend** (default disabled) - text size in pixels; enables the legend if *preview = true*.
 - **debug** - output overlay parameters and preview.
 - **invert** - swap the base and overlaid clips, "inverting" the overlay parameters.
 - **background** (default blank) - background fill method: *blank* (solid fill), *blur* (stretched image with fill), *inpaint* (not implemented).
@@ -453,7 +456,7 @@ A filter that allows visualizing the overlay result using a user-defined functio
 - **debug** (default false) - debug mode.
 
 ### OverlayClip
-    OverlayClip(clip clip, clip mask, clip crop, float opacity, string matrix, bool minor, int color, bool debug)
+    OverlayClip(clip clip, clip mask, clip crop, float opacity, string matrix, bool minor, int color, string name, bool debug)
 	
 A helper filter that allows specifying an additional clip, mask, and opacity level for *OverlayRender*.
 
@@ -672,6 +675,12 @@ If the framing is dynamic, prepare *OverlayEngine* and specify it in the *engine
     ```OverlayEngine(clip1, clip2, maxDiff = 5, statFile = "diff.stat", editor = true)```
 
 ## Changelog
+### 11.05.2025 v0.7.10
+1. *ComplexityOverlay* and *ComplexityOverlayMany*: the I420 and YV12 color spaces can now be used simultaneously.
+2. *OverlayRender*: fixed interaction with *OverlayEngine* in *PROCESSED* and *UNPROCESSED* modes.
+3. *OverlayRender*: new parameters *legend*, *sourceName*, *overlayName*, and *OverlayClip.name* for displaying a legend in preview mode.
+4. *OverlayRender*: fixed support for the *overlayBalanceX* and *overlayBalanceY* parameters.
+
 ### 07.05.2025 v0.7.9
 1. *OverlayEngine*: improved auto-alignment in subpixel mode.
 2. *OverlayEngine*: fixed auto-alignment issues when the resolution difference between clips exceeds twofold.

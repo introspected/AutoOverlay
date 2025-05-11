@@ -64,7 +64,7 @@ namespace AutoOverlay
                 throw new AvisynthException("Interleaved RGB with smooth not supported yet");
             if (srcVi.GetSize() != overVi.GetSize())
                 throw new AvisynthException("Clips with different resolution");
-            if (srcVi.pixel_type != overVi.pixel_type)
+            if (srcVi.pixel_type.VPlaneFirst() != overVi.pixel_type.VPlaneFirst())
                 throw new AvisynthException("Clips with different color spaces");
 
             planeChannels = srcVi.pixel_type.GetPlaneChannels(Channels);

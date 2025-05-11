@@ -3,7 +3,8 @@ using AutoOverlay;
 using AutoOverlay.AviSynth;
 using AvsFilterNet;
 
-[assembly: AvisynthFilterClass(typeof(DynamicOverlayRender),
+[assembly: AvisynthFilterClass(
+    typeof(DynamicOverlayRender),
     nameof(OverlayRender),
     "ccc[SourceMask]c[OverlayMask]c[SourceCrop]c[OverlayCrop]c[SourceChromaLocation]s[OverlayChromaLocation]s" +
     "[ExtraClips]c[Preset]s[InnerBounds]c[OuterBounds]c[OverlayBalanceX]f[OverlayBalanceY]f[FixedSource]b[OverlayOrder]i" +
@@ -12,8 +13,8 @@ using AvsFilterNet;
     "[BorderControl]i[BorderMaxDeviation]f[BorderOffset]c[SrcColorBorderOffset]c[OverColorBorderOffset]c" +
     "[MaskMode]b[Opacity]f[ColorAdjust]f[ColorBuckets]i[ColorDither]f[ColorExclude]i[ColorFramesCount]i[ColorFramesDiff]f" +
     "[ColorMaxDeviation]f[GradientColor]f[ColorFrames]i*[ColorMatchTarget]c[AdjustChannels]s[Matrix]s" +
-    "[SourceMatrix]s[OverlayMatrix]s[Upsize]s[Downsize]s[ChromaResize]s[Rotate]s[Preview]b[Debug]b[Invert]b" +
-    "[Background]s[BackgroundClip]c[BlankColor]i[BackBalance]f[BackBlur]i[FullScreen]b[EdgeGradient]s[BitDepth]i",
+    "[SourceMatrix]s[OverlayMatrix]s[Upsize]s[Downsize]s[ChromaResize]s[Rotate]s[Preview]b[SourceName]s[OverlayName]s[Legend]i" +
+    "[Debug]b[Invert]b[Background]s[BackgroundClip]c[BlankColor]i[BackBalance]f[BackBlur]i[FullScreen]b[EdgeGradient]s[BitDepth]i",
     OverlayConst.DEFAULT_MT_MODE)]
 namespace AutoOverlay
 {
@@ -171,6 +172,15 @@ namespace AutoOverlay
 
         [AvsArgument]
         public override bool Preview { get; protected set; }
+
+        [AvsArgument]
+        public override string SourceName { get; protected set; }
+
+        [AvsArgument]
+        public override string OverlayName { get; protected set; }
+
+        [AvsArgument(Min = 0)]
+        public override int Legend { get; protected set; }
 
         [AvsArgument]
         public override bool Debug { get; protected set; }

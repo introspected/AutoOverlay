@@ -210,6 +210,7 @@ Separate - обособление кадра. Join prev - присоединит
                   float gradientColor, int[] colorFrames, clip colorMatchTarget, 
                   string adjustChannels, string matrix, string sourceMatrix, string overlayMatrix,
                   string upsize, string downsize, string chromaResize, string rotate, bool preview, 
+                  string sourceName, string overlayName, int legend,
                   bool debug, bool invert, string background, clip backgroundClip, int blankColor, 
                   float backBalance, int backBlur, bool fullScreen, string edgeGradient, int bitDepth)
                   
@@ -276,6 +277,8 @@ Separate - обособление кадра. Join prev - присоединит
 - **chromaResize** - функция ресемплинга UV каналов в том же формате, что и downsize и upsize, по умолчанию используется значение *downsize*.
 - **rotate** (default *BilinearRotate*) - функция вращения накладываемого изображения.
 - **preview** - вывод превью.
+- **sourceName** и **overlayName** - названия основного и накладываемого клипов для легенды.
+- **legend** (default disabled) - размер текста в пикселях, активирует легенду, если *preview = true*.
 - **debug** - вывод параметров наложения и превью.
 - **invert** - поменять местами основной и накладываемый клипы, "инвертировать" параметры наложения. 
 - **background** (default blank) - способ заполнения фона: blank (сплошная заливка), blur (растянутое изображение с заливкой), inpaint (не реализовано). 
@@ -453,7 +456,7 @@ YuvRgb10 - двушаговая конвертация клипов в прои�
 - **debug** (default false) - debug mode.
 
 ### OverlayClip
-    OverlayClip(clip clip, clip mask, clip crop, float opacity, string matrix, bool minor, int color, bool debug)
+    OverlayClip(clip clip, clip mask, clip crop, float opacity, string matrix, bool minor, int color, string name, bool debug)
 	
 Вспомогательный фильтр, позволяющий указать дополнительный клип, маску и уровень прозрачности для OverlayRender.
 
@@ -674,6 +677,12 @@ ComplexityOverlay целесообразно использовать до пр�
     ```OverlayEngine(clip1, clip2, maxDiff = 5, statFile = "diff.stat", editor = true)```
 
 ## История изменений
+### 11.05.2025 v0.7.10
+1. *ComplexityOverlay* и *ComplexityOverlayMany*: цветовые пространства I420 и YV12 теперь могут использоваться одновременно.
+2. *OverlayRender*: исправлена работа с *OverlayEngine* в режимах *PROCESSED* и *UNPROCESSED*.
+3. *OverlayRender*: новые параметры *legend*, *sourceName*, *overlayName* и *OverlayClip.name* для отображения легенды в режиме preview.
+4. *OverlayRender*: исправлена поддержка параметров *overlayBalanceX* и *overlayBalanceY*.
+
 ### 07.05.2025 v0.7.9
 1. *OverlayEngine*: улучшено автовыравнивание в субпиксельном режиме.
 2. *OverlayEngine*: исправлено автовыравнивание при более чем двукратной разнице в разрешении клипов.
