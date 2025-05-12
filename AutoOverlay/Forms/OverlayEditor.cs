@@ -924,12 +924,13 @@ namespace AutoOverlay.Forms
 
         private void Adjust(ICollection<FrameInterval> intervals, string operationName)
         {
-            var currentFrame = CurrentFrame;
+            var range = (Interval.First, Interval.Last);
+            var currentInfo = GetOverlayInfo();
             new ProgressDialog(this, intervals, (frame, interval) =>
             {
                 var delta = (int) nudDistance.Value;
                 var scale = (double) nudScale.Value / 1000;
-                var keyFrame = interval == Interval ? Interval[currentFrame] : interval.First();
+                var keyFrame = frame >= range.First && frame <= range.Last ? currentInfo : interval.First();
                 return Engine.PanScanImpl(keyFrame, frame, delta, scale, false);
             })
             {

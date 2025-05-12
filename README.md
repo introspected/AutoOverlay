@@ -675,6 +675,9 @@ If the framing is dynamic, prepare *OverlayEngine* and specify it in the *engine
     ```OverlayEngine(clip1, clip2, maxDiff = 5, statFile = "diff.stat", editor = true)```
 
 ## Changelog
+### 12.05.2025 v0.7.11
+1. *OverlayRender* and *ColorMatchChain*: fixed performance degradation when using *colorAdjust* in simple mode.
+
 ### 11.05.2025 v0.7.10
 1. *ComplexityOverlay* and *ComplexityOverlayMany*: the I420 and YV12 color spaces can now be used simultaneously.
 2. *OverlayRender*: fixed interaction with *OverlayEngine* in *PROCESSED* and *UNPROCESSED* modes.

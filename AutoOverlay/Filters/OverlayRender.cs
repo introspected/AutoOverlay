@@ -421,7 +421,9 @@ namespace AutoOverlay
                     if (layerEngineFrame.KeyFrames.Any())
                         colorMode = ColorMatchMode.Scene;
 
-                    if (colorMode != ColorMatchMode.None)
+                    if (colorMode == ColorMatchMode.None)
+                        cacheId = null;
+                    else
                     {
                         double? cornerGradient = GradientColor > 0 ? GradientColor : null;
                         var cache = ColorHistogramCache.GetOrAdd(cacheId, () => new ColorHistogramCache(tuples, ColorBuckets, false, cornerGradient));
