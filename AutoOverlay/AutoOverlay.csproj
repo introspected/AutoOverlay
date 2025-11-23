@@ -125,6 +125,9 @@
     <Compile Include="Filters\OverlayClip.cs" />
     <Compile Include="Filters\SupportFilter.cs" />
     <Compile Include="Filters\WarpTemplate.cs" />
+    <Compile Include="Forms\AdvancedPictureBox.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Forms\OverlayEditor.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -137,6 +140,7 @@
     <Compile Include="Forms\ProgressDialog.Designer.cs">
       <DependentUpon>ProgressDialog.cs</DependentUpon>
     </Compile>
+    <Compile Include="Forms\TransposeGridController.cs" />
     <Compile Include="Histogram\ColorHistogramCache.cs" />
     <Compile Include="Histogram\ColorHistogram.cs" />
     <Compile Include="Histogram\ColorMatchTuple.cs" />

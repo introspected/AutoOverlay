@@ -7,8 +7,8 @@ using AvsFilterNet;
     typeof(DynamicOverlayRender),
     nameof(OverlayRender),
     "ccc[SourceMask]c[OverlayMask]c[SourceCrop]c[OverlayCrop]c[SourceChromaLocation]s[OverlayChromaLocation]s" +
-    "[ExtraClips]c[Preset]s[InnerBounds]c[OuterBounds]c[OverlayBalanceX]f[OverlayBalanceY]f[FixedSource]b[OverlayOrder]i" +
-    "[StabilizationDiffTolerance]f[StabilizationAreaTolerance]f[StabilizationLength]i" +
+    "[ExtraClips]c[Preset]s[InnerBounds]c[OuterBounds]c[OverlayBalanceX]f[OverlayBalanceY]f[FixedSource]b[IgnoreAspectRatio]b" +
+    "[OverlayOrder]i[StabilizationDiffTolerance]f[StabilizationAreaTolerance]f[StabilizationLength]i" +
     "[OverlayMode]s[Width]i[Height]i[PixelType]s[Gradient]i[Noise]i" +
     "[BorderControl]i[BorderMaxDeviation]f[BorderOffset]c[SrcColorBorderOffset]c[OverColorBorderOffset]c" +
     "[MaskMode]b[Opacity]f[ColorAdjust]f[ColorBuckets]i[ColorDither]f[ColorExclude]i[ColorFramesCount]i[ColorFramesDiff]f" +
@@ -64,6 +64,9 @@ namespace AutoOverlay
 
         [AvsArgument]
         public override bool FixedSource { get; protected set; }
+
+        [AvsArgument]
+        public override bool IgnoreAspectRatio { get; protected set; }
 
         [AvsArgument(Min = 0)]
         public override int OverlayOrder { get; protected set; }

@@ -180,7 +180,7 @@ namespace AutoOverlay
 
         public event EventHandler<FrameEventArgs> CurrentFrameChanged;
 
-        internal IEnumerable<OverlayConfigInstance> GetConfigs() => Configs.Select(p => p.GetInstance());
+        public IEnumerable<OverlayConfigInstance> GetConfigs() => Configs.Select(p => p.GetInstance());
 
         private Form form;
 
@@ -314,7 +314,7 @@ namespace AutoOverlay
                 });
                 thread.SetApartmentState(ApartmentState.STA);
                 thread.Start();
-                Thread.Sleep(100);
+                Thread.Sleep(500);
             }
             ScanScale /= 1000;
             if (PanScanMode)
@@ -1337,7 +1337,7 @@ namespace AutoOverlay
             return result;
         }
 
-        public OverlayInfo Enhance(OverlayInfo prototype, int n)
+        public OverlayInfo Enhance(OverlayInfo prototype, int n, IEnumerable<OverlayConfigInstance> overrideConfigs = null)
         {
             var input = new OverlayInput
             {
@@ -1361,8 +1361,8 @@ namespace AutoOverlay
 
                 var updatedData = RepeatImpl(prototypeData, n, srcClip, overClip);
                 prototypeData.Diff = updatedData.Diff;
-
-                var enhancedData = AutoAlignSubpixel(n, prototypeData.Enumerate(), GetConfigs().First(), srcClip, overClip);
+                var configs = overrideConfigs ?? GetConfigs();
+                var enhancedData = AutoAlignSubpixel(n, prototypeData.Enumerate(), configs.First(), srcClip, overClip);
                 return FindBest(enhancedData).GetOverlayInfo();
             }
         }
@@ -1607,10 +1607,12 @@ namespace AutoOverlay
             return PanScanImpl(precursor, n, ScanDistance, ScanScale, false);
         }
 
-        public OverlayInfo PanScanImpl(OverlayInfo precursor, int n, int delta, double scale, bool ignoreAspectRatio = true, double arVariance = 0.002)
+        public OverlayInfo PanScanImpl(OverlayInfo precursor, 
+            int n, int delta, double scale, bool ignoreAspectRatio = true, double arVariance = 0.002, 
+            IEnumerable<OverlayConfigInstance> overrideConfigs = null)
         {
             precursor = precursor.ScaleBySource(SrcInfo.Size);
-            var configs = GetConfigs().Select(config =>
+            var configs = (overrideConfigs ?? GetConfigs()).Select(config =>
             {
                 var (minAr, maxAr) = ignoreAspectRatio ? (0, int.MaxValue) : FindMinMaxAr(config);
                 if (!config.FixedAspectRatio) //TODO fix

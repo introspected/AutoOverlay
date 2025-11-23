@@ -116,6 +116,7 @@ namespace AutoOverlay.Overlay
                 OuterBounds = Render.OuterBounds,
                 OverlayBalance = Render.OverlayBalance,
                 FixedSource = Render.FixedSource,
+                IgnoreAspectRatio = Render.IgnoreAspectRatio,
                 ExtraClips = ExtraClips
             };
 

@@ -1,16 +1,15 @@
-﻿using System;
+﻿using AutoOverlay.AviSynth;
+using AutoOverlay.Overlay;
+using AvsFilterNet;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using AutoOverlay.AviSynth;
-using AutoOverlay.Overlay;
-using AvsFilterNet;
 
 namespace AutoOverlay.Forms
 {
@@ -36,6 +35,7 @@ namespace AutoOverlay.Forms
         public OverlayEngine Engine { get; }
 
         public BindingList<FrameInterval> Intervals { get; } = new();
+        public TransposeGridController<OverlayConfigInstance> Configuration { get; private set; }
 
         public ScriptEnvironment Env { get; }
 
@@ -46,6 +46,8 @@ namespace AutoOverlay.Forms
         private bool NeedSave => Intervals.Any(p => p.Modified);
 
         private static int Round(double value) => (int) Math.Round(value);
+
+        private readonly object lockEval = new(), lockCallback = new();
         #endregion
 
         #region State
@@ -95,6 +97,8 @@ namespace AutoOverlay.Forms
 
         private OverlayInfo CurrentFrameInfo => Interval?[CurrentFrame];
 
+        private IEnumerable<OverlayConfigInstance> OverridenConfigs => chbOverrideConfig.Checked ? Configuration.DataSource : null;
+
         public void CheckChanges()
         {
             var interval = prevInterval;
@@ -109,7 +113,8 @@ namespace AutoOverlay.Forms
                     foreach (var frame in interval)
                     {
                         frame.CopyFrom(info);
-                        frame.Modified = !frame.Equals(Engine.OverlayStat[frame.FrameNumber]);
+                        frame.Modified = !frame.Equals(Engine.OverlayStat[frame.FrameNumber]) 
+                                         || Math.Abs(frame.Diff - Engine.OverlayStat[frame.FrameNumber].Diff) > 0.001;
                     }
                 else
                 {
@@ -131,6 +136,8 @@ namespace AutoOverlay.Forms
             InitializeComponent();
             cbMode.Items.AddRange(Enum.GetValues(typeof(OverlayRenderPreset)).Cast<object>().ToArray());
             cbMode.SelectedItem = OverlayRenderPreset.FitSource;
+            cbEdgeGradient.Items.AddRange(Enum.GetValues(typeof(EdgeGradient)).Cast<object>().ToArray());
+            cbEdgeGradient.SelectedItem = EdgeGradient.NONE;
             cbOverlayMode.SelectedItem = "Blend";
             cbMatrix.Items.AddRange(AvsUtils.Matrices.ToArray<object>());
             cbMatrix.Enabled = chbRGB.Enabled = !engine.SrcInfo.Info.IsRGB();
@@ -145,6 +152,9 @@ namespace AutoOverlay.Forms
             nudX.Increment = nudY.Increment = nudOverlayWidth.Increment = nudOverlayHeight.Increment = (decimal)Math.Pow(2, -Engine.GetConfigs().First().Subpixel);
             nudMaxFrame.Value = nudMinFrame.Maximum = nudMaxFrame.Maximum = engine.GetVideoInfo().num_frames - 1;
             Engine.CurrentFrameChanged += OnCurrentFrameChanged;
+
+            Configuration = new TransposeGridController<OverlayConfigInstance>(gridConfig);
+            ResetConfiguration();
         }
 
         public void UpdateControls(OverlayInfo info)
@@ -158,12 +168,13 @@ namespace AutoOverlay.Forms
             nudX.Value = (decimal)info.Placement.X;
             nudY.Value = (decimal)info.Placement.Y;
             nudAngle.Value = (decimal)info.Angle;
-            nudOverlayWidth.Value = (decimal)info.OverlaySize.Width;
-            nudOverlayHeight.Value = (decimal)info.OverlaySize.Height;
+            nudOverlayWidth.Tag = nudOverlayWidth.Value = (decimal)info.OverlaySize.Width;
+            nudOverlayHeight.Tag = nudOverlayHeight.Value = (decimal)info.OverlaySize.Height;
             tbWarp.Text = info.OverlayWarp.ToString();
-            chbOverlaySizeSync.Checked = Round(Engine.OverInfo.Width / info.OverlayAspectRatio) == Engine.OverInfo.Height;
 
             update = false;
+
+            RefreshCurrentRow();
         }
 
         private void grid_RowPrePaint(object sender, DataGridViewRowPrePaintEventArgs e)
@@ -240,9 +251,11 @@ namespace AutoOverlay.Forms
                     nudY.Value++;
                     break;
                 case Keys.Add | Keys.Control:
+                    chbOverlaySizeSync.Checked = true;
                     nudOverlayWidth.Value++;
                     break;
                 case Keys.Subtract | Keys.Control:
+                    chbOverlaySizeSync.Checked = true;
                     nudOverlayWidth.Value--;
                     break;
                 case Keys.A:
@@ -313,7 +326,6 @@ namespace AutoOverlay.Forms
         private void chbEditor_CheckedChanged(object sender, EventArgs e)
         {
             panelManage.Visible = chbEditor.Checked;
-            pictureBox.SizeMode = chbEditor.Checked ? PictureBoxSizeMode.Zoom : PictureBoxSizeMode.CenterImage;
         }
 
         private void SuppressKeyPress(object sender, KeyEventArgs e)
@@ -377,6 +389,7 @@ namespace AutoOverlay.Forms
             nudCurrentFrame.ValueChanged += nudCurrentFrame_ValueChanged;
 
             UpdateControls(Interval?[CurrentFrame]);
+            grid.AutoResizeColumns(DataGridViewAutoSizeColumnsMode.AllCells);
             grid.Refresh();
             Cursor.Current = Cursors.Default;
         }
@@ -419,7 +432,7 @@ namespace AutoOverlay.Forms
             Compare();
         }
 
-        private void Compare(object sender = null, EventArgs e = null)
+        private void Compare()
         {
             if (compareFilename == null) return;
             Cursor.Current = Cursors.WaitCursor;
@@ -439,26 +452,27 @@ namespace AutoOverlay.Forms
                 Cursor.Current = Cursors.Default;
             }
         }
-#endregion
+        #endregion
 
         #region Frame management
         private void Render(object sender = null, EventArgs e = null)
         {
             if (update || CurrentFrameInfo == null) return;
-            if ((sender == chbOverlaySizeSync || sender == nudOverlayWidth) && chbOverlaySizeSync.Checked)
+            if (chbOverlaySizeSync.Checked)
             {
-                nudOverlayHeight.ValueChanged -= Render;
-                nudOverlayHeight.Value = (decimal)((double)nudOverlayWidth.Value / CurrentFrameInfo.OverlayAspectRatio);
-                nudOverlayHeight.ValueChanged += Render;
+                var ar = Convert.ToDouble(nudOverlayWidth.Tag) / Convert.ToDouble(nudOverlayHeight.Tag);
+                if (sender == nudOverlayWidth)
+                {
+                    nudOverlayHeight.Value = (decimal)((double)nudOverlayWidth.Value / ar);
+                }
+                else if (sender == nudOverlayHeight)
+                {
+                    nudOverlayWidth.Value = (decimal)((double)nudOverlayHeight.Value * ar);
+                }
             }
-            else
-            {
-                chbOverlaySizeSync.CheckedChanged -= Render;
-                chbOverlaySizeSync.Checked =
-                    (int)Math.Round((double)nudOverlayWidth.Value / CurrentFrameInfo.OverlayAspectRatio) ==
-                    (int)nudOverlayHeight.Value;
-                chbOverlaySizeSync.CheckedChanged += Render;
-            }
+
+            nudOverlayWidth.Tag = nudOverlayWidth.Value;
+            nudOverlayHeight.Tag = nudOverlayHeight.Value;
 
             RenderImpl();
         }
@@ -493,6 +507,7 @@ namespace AutoOverlay.Forms
                     : null,
                 gradient = (int) nudGradientSize.Value,
                 noise = (int) nudNoise.Value,
+                edgeGradient = cbEdgeGradient.SelectedItem.ToString(),
                 overlayMode = cbOverlayMode.SelectedItem.ToString(),
                 opacity = tbOpacity.Value / 100.0,
                 colorAdjust = chbColorAdjust.Checked ? tbColorAdjust.Value / 100.0 : -1,
@@ -522,6 +537,7 @@ namespace AutoOverlay.Forms
             public string overlayMode;
             public double opacity;
             public double colorAdjust;
+            public string edgeGradient;
             public bool debug;
             public OverlayRenderPreset preset;
         }
@@ -544,6 +560,7 @@ namespace AutoOverlay.Forms
                             width: request.outSize.Width,
                             height: request.outSize.Height,
                             gradient: request.gradient,
+                            edgeGradient: request.edgeGradient,
                             preset: request.preset,
                             noise: request.noise,
                             overlayMode: request.overlayMode,
@@ -574,7 +591,7 @@ namespace AutoOverlay.Forms
         {
             if (CurrentFrameInfo != null)
                 Interval.CopyFrom(GetOverlayInfo());
-            grid.Refresh();
+            RefreshCurrentRow();
         }
 
         private void InsertInterval(FrameInterval interval)
@@ -630,8 +647,14 @@ namespace AutoOverlay.Forms
             Interval[CurrentFrame] = info;
             UpdateControls(info);
             RenderImpl();
+            RefreshCurrentRow();
         }
 
+        private void RefreshCurrentRow()
+        {
+            if (grid.CurrentRow != null)
+                grid.InvalidateRow(grid.CurrentRow.Index);
+        }
 
         private void ResetInterval(object sender = null, EventArgs e = null)
         {
@@ -642,6 +665,7 @@ namespace AutoOverlay.Forms
             }
             UpdateControls(Interval[CurrentFrame]);
             RenderImpl();
+            RefreshCurrentRow();
         }
 
         private void Reset(object sender = null, EventArgs e = null)
@@ -672,13 +696,13 @@ namespace AutoOverlay.Forms
         private void btnJoinNext_Click(object sender, EventArgs e)
         {
             JoinNext();
-            grid.Refresh();
+            RefreshCurrentRow();
         }
 
         private void btnJoinPrev_Click(object sender, EventArgs e)
         {
             JoinPrev();
-            grid.Refresh();
+            RefreshCurrentRow();
         }
 
         private void JoinPrev()
@@ -789,7 +813,8 @@ namespace AutoOverlay.Forms
 
         private void trackBar_MouseDown(object sender, MouseEventArgs e)
         {
-            captured = true;
+            if (chbPreview.Checked)
+                captured = true;
         }
 
         private void trackBar_MouseUp(object sender, MouseEventArgs e)
@@ -807,7 +832,7 @@ namespace AutoOverlay.Forms
         private void btnAutoOverlaySingleFrame_Click(object sender, EventArgs e)
         {
             if (Interval == null) return;
-            Post(CurrentFrame, frame => Engine.AutoAlign(frame), (frame, info) =>
+            Post(CurrentFrame, frame => Engine.AutoAlign(frame, OverridenConfigs), (frame, info) =>
             {
                 Interval[frame] = info;
                 UpdateControls(info);
@@ -818,13 +843,13 @@ namespace AutoOverlay.Forms
 
         private void btnAutoOverlayScene_Click(object sender, EventArgs e)
         {
-            new ProgressDialog(this, [Interval], (frame, interval) => Engine.AutoAlign(frame)).ShowDialog(this);
+            new ProgressDialog(this, [Interval], (frame, interval) => Engine.AutoAlign(frame, OverridenConfigs)).ShowDialog(this);
         }
 
         private void btnAutoOverlaySeparatedFrame_Click(object sender, EventArgs e)
         {
             if (Interval == null) return;
-            Post(CurrentFrame, frame => Engine.AutoAlign(frame), (frame, info) =>
+            Post(CurrentFrame, frame => Engine.AutoAlign(frame, OverridenConfigs), (frame, info) =>
             {
                 Interval[CurrentFrame] = info;
                 if (Interval.Contains(CurrentFrame - 1) && !info.NearlyEquals(Interval[CurrentFrame - 1], MaxDeviation))
@@ -834,6 +859,10 @@ namespace AutoOverlay.Forms
                 }
                 RenderImpl();
             });
+        }
+        private void ResetConfiguration(object sender = null, EventArgs e = null)
+        {
+            Configuration.DataSource = Engine.GetConfigs().ToList();
         }
         #endregion
 
@@ -871,8 +900,8 @@ namespace AutoOverlay.Forms
 
         private void btnUpdateFrame_Click(object sender, EventArgs e)
         {
-            var repeated = Engine.RepeatImpl(GetOverlayInfo(), CurrentFrame);
-            UpdateControls(repeated);
+            Interval[CurrentFrame] = Engine.RepeatImpl(GetOverlayInfo(), CurrentFrame);
+            RefreshCurrentRow();
             RenderImpl();
         }
 
@@ -888,7 +917,7 @@ namespace AutoOverlay.Forms
 
         private void btnEnhanceFrame_Click(object sender, EventArgs e)
         {
-            var enhanced = Engine.Enhance(GetOverlayInfo(), CurrentFrame);
+            var enhanced = Engine.Enhance(GetOverlayInfo(), CurrentFrame, OverridenConfigs);
             UpdateControls(enhanced);
             RenderImpl();
         }
@@ -913,7 +942,7 @@ namespace AutoOverlay.Forms
                     Delta = (int)nudDistance.Value,
                     Scale = (double)nudScale.Value / 1000
                 },
-                tuple => Engine.PanScanImpl(tuple.KeyInfo, tuple.Frame, tuple.Delta, tuple.Scale, false),
+                tuple => Engine.PanScanImpl(tuple.KeyInfo, tuple.Frame, tuple.Delta, tuple.Scale, false, overrideConfigs: OverridenConfigs),
                 (tuple, info) =>
                 {
                     Interval[tuple.Frame] = info;
@@ -931,7 +960,7 @@ namespace AutoOverlay.Forms
                 var delta = (int) nudDistance.Value;
                 var scale = (double) nudScale.Value / 1000;
                 var keyFrame = frame >= range.First && frame <= range.Last ? currentInfo : interval.First();
-                return Engine.PanScanImpl(keyFrame, frame, delta, scale, false);
+                return Engine.PanScanImpl(keyFrame, frame, delta, scale, false, overrideConfigs: OverridenConfigs);
             })
             {
                 Text = operationName
@@ -948,7 +977,7 @@ namespace AutoOverlay.Forms
                 var keyFrame = interval[frame - 1] ?? interval[frame];
                 if (interval == Interval)
                     keyFrame.OverlayWarp = Interval[currentFrame].OverlayWarp;
-                return Engine.PanScanImpl(keyFrame, frame, delta, scale, false);
+                return Engine.PanScanImpl(keyFrame, frame, delta, scale, false, overrideConfigs: OverridenConfigs);
             })
             {
                 Text = operationName
@@ -957,7 +986,14 @@ namespace AutoOverlay.Forms
 
         private void Update(ICollection<FrameInterval> intervals, string operationName)
         {
-            new ProgressDialog(this, intervals, (frame, interval) => Engine.RepeatImpl(interval[frame], frame))
+            var currentFrame = CurrentFrame;
+            new ProgressDialog(this, intervals, (frame, interval) =>
+            {
+                var keyFrame = frame == currentFrame || Interval.Fixed && Interval.Contains(frame)
+                    ? GetOverlayInfo()
+                    : interval[frame];
+                return Engine.RepeatImpl(keyFrame, frame);
+            })
             {
                 Text = operationName
             }.ShowDialog(this);
@@ -965,7 +1001,7 @@ namespace AutoOverlay.Forms
 
         private void Enhance(ICollection<FrameInterval> intervals, string operationName)
         {
-            new ProgressDialog(this, intervals, (frame, interval) => Engine.Enhance(interval[frame], frame))
+            new ProgressDialog(this, intervals, (frame, interval) => Engine.Enhance(interval[frame], frame, OverridenConfigs))
             {
                 Text = operationName
             }.ShowDialog(this);
@@ -998,7 +1034,7 @@ namespace AutoOverlay.Forms
                 if (!operationId.Equals(this.SafeInvoke(p => p.activeOperationId)))
                     return;
                 V res;
-                lock (context)
+                lock (lockEval)
                 {
                     if (!operationId.Equals(this.SafeInvoke(p => p.activeOperationId)))
                         return;
@@ -1008,11 +1044,12 @@ namespace AutoOverlay.Forms
                     this.SafeInvoke(p =>
                     {
                         Application.DoEvents();
-                        if (operationId.Equals(activeOperationId))
-                        {
-                            callback.Invoke(res);
-                            Cursor = Cursors.Default;
-                        }
+                        lock (lockCallback)
+                            if (operationId.Equals(activeOperationId))
+                            {
+                                callback.Invoke(res);
+                                p.Cursor = Cursors.Default;
+                            }
                     });
             }, id);
         }

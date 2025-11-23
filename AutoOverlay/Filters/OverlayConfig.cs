@@ -62,7 +62,7 @@ namespace AutoOverlay
         #endregion
 
         [AvsArgument]
-        public OverlayConfigPreset Preset { get; private set; } = OverlayConfigPreset.Medium;
+        public OverlayConfigPreset Preset { get; set; } = OverlayConfigPreset.Medium;
 
         [AvsArgument(Min = 0, Max = 100)]
         public double MinOverlayArea { get; set; }

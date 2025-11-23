@@ -9,7 +9,7 @@ using AvsFilterNet;
     nameof(StaticOverlayRender),
     "cc[X]f[Y]f[Angle]f[OverlayWidth]f[OverlayHeight]f[WarpPoints]s[Diff]f[SourceMask]c[OverlayMask]c" +
     "[SourceCrop]c[OverlayCrop]c[SourceChromaLocation]s[OverlayChromaLocation]s[ExtraClips]c[Preset]s" +
-    "[InnerBounds]c[OuterBounds]c[OverlayBalanceX]f[OverlayBalanceY]f[FixedSource]b" +
+    "[InnerBounds]c[OuterBounds]c[OverlayBalanceX]f[OverlayBalanceY]f[FixedSource]b[IgnoreAspectRatio]b" +
     "[OverlayMode]s[Width]i[Height]i[PixelType]s[Gradient]i[Noise]i" +
     "[BorderOffset]c[SrcColorBorderOffset]c[OverColorBorderOffset]c" +
     "[MaskMode]b[Opacity]f[ColorAdjust]f[ColorBuckets]i[ColorDither]f[ColorExclude]i[ColorFramesCount]i[ColorFramesDiff]f" +
@@ -83,6 +83,9 @@ namespace AutoOverlay
 
         [AvsArgument]
         public override bool FixedSource { get; protected set; }
+
+        [AvsArgument]
+        public override bool IgnoreAspectRatio { get; protected set; }
 
         public override int OverlayOrder { get; protected set; }
         public override double StabilizationDiffTolerance { get; protected set; }

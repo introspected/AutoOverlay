@@ -69,7 +69,7 @@ namespace AutoOverlay.Overlay
                 .Select(p => p.Union)
                 .Aggregate(main.Union, (acc, rect) => acc.Union(rect));
 
-            var canvas = union.Expand(input.TargetSize.GetAspectRatio());
+            var canvas = input.IgnoreAspectRatio ? union : union.Expand(input.TargetSize.GetAspectRatio());
             var balanceCoef = (input.OverlayBalance + Space.One) / 2;
             var center = (main.SourceRectangle.Location + main.SourceRectangle.AsSpace() / 2) * balanceCoef.Remaining() +
                          (main.OverlayRectangle.Location + main.OverlayRectangle.AsSpace() / 2) * balanceCoef;
@@ -137,7 +137,7 @@ namespace AutoOverlay.Overlay
                 .Union(IterateCrop(canvas, RectangleD.Empty))
                 .Where(p => Math.Abs(p.Area - maxArea) < OverlayConst.EPSILON)
                 .Aggregate((acc, c) => acc.Union(c))
-                .Crop(input.TargetSize.GetAspectRatio(), center);
+                .Let(rect => input.IgnoreAspectRatio ? rect : rect.Crop(input.TargetSize.GetAspectRatio(), center));
         }
 
         public OverlayData GetOverlayData()

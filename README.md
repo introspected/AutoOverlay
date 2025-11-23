@@ -200,10 +200,10 @@ Modified and unsaved episodes are highlighted in yellow in the grid. The *Save* 
     OverlayRender(clip engine, clip source, clip overlay, clip sourceMask, clip overlayMask, 
                   clip sourceCrop, clip overlayCrop, string sourceChromaLocation, string overlayChromaLocation, 
                   clip extraClips, string preset, clip innerBounds, clip outerBounds, 
-                  float overlayBalanceX, float overlayBalanceY, bool fixedSource, int overlayOrder, 
-                  float stabilizationDiffTolerance, float stabilizationAreaTolerance, int stabilizationLength, 
-                  string overlayMode, int width, int height, string pixelType, int gradient, int noise, 
-                  int borderControl, float borderMaxDeviation, clip borderOffset, 
+                  float overlayBalanceX, float overlayBalanceY, bool fixedSource, bool IgnoreAspectRatio, 
+                  int overlayOrder, float stabilizationDiffTolerance, float stabilizationAreaTolerance, 
+                  int stabilizationLength, string overlayMode, int width, int height, string pixelType, 
+                  int gradient, int noise, int borderControl, float borderMaxDeviation, clip borderOffset, 
                   clip srcColorBorderOffset, rectangle overColorBorderOffset, bool maskMode, float opacity, 
                   float colorAdjust, int colorBuckets, float colorDither, int colorExclude, 
                   int colorFramesCount, float colorFramesDiff, float colorMaxDeviation, 
@@ -244,6 +244,7 @@ The filter renders the result of combining two or more clips with specific setti
 - **overlayBalanceX** (default 0) - horizontal centering of the image relative to the base clip (-1) or overlaid clip (1) in the range from -1 to 1.
 - **overlayBalanceY** (default 0) - vertical centering of the image relative to the base clip (-1) or overlaid clip (1) in the range from -1 to 1.
 - **fixedSource** (default false) - fixed centering of the resulting clip relative to the base clip.
+- **ignoreAspectRatio** (default false) - stretch the image to full screen, ignoring the original clip's aspect ratio.
 - **overlayOrder** (default 0) - the layer number for the overlaid clip. Allows overlaying the clip after additional clips.
 - **stabilizationDiffTolerance** (default 200) - the allowable *diff* difference between neighboring frames during scene rendering stabilization.
 - **stabilizationAreaTolerance** (default 1.5) - the allowable difference in percent between the intersection areas of neighboring frames during scene rendering stabilization.
@@ -429,8 +430,8 @@ A filter for visualizing the combination of two clips.
     StaticOverlayRender(clip source, clip overlay, float x, float y, float angle, float overlayWidth, float overlayHeight, 
                         string warpPoints, float diff, clip sourceMask, clip overlayMask, clip sourceCrop, clip overlayCrop,
                         string sourceChromaLocation, string overlayChromaLocation, clip extraClips, string preset, 
-                        clip innerBounds, clip outerBounds, space overlayBalance, bool fixedSource, string overlayMode, 
-                        int width, int height, string pixelType, int gradient, int noise, clip borderOffset,
+                        clip innerBounds, clip outerBounds, space overlayBalance, bool fixedSource, bool ignoreAspectRatio, 
+                        string overlayMode, int width, int height, string pixelType, int gradient, int noise, clip borderOffset,
                         clip srcColorBorderOffset, clip overColorBorderOffset, bool maskMode, float opacity, 
                         float colorAdjust, int colorBuckets, float colorDither, int colorExclude, int colorFramesCount, 
                         float colorFramesDiff, bool colorBufferedExtrapolation, string adjustChannels, float gradientColor, 
@@ -675,6 +676,11 @@ If the framing is dynamic, prepare *OverlayEngine* and specify it in the *engine
     ```OverlayEngine(clip1, clip2, maxDiff = 5, statFile = "diff.stat", editor = true)```
 
 ## Changelog
+### 23.11.2025 v0.7.12
+1. *OverlayEngine*: updated editor UI: tabs, preview scaling, configuration property overrides.
+2. *OverlayRender*: new parameter *ignoreAspectRatio* to stretch the image to full screen, ignoring the original aspect ratio.
+3. *OverlayRender*: fixed color correction when using multiple masks.
+
 ### 12.05.2025 v0.7.11
 1. *OverlayRender* and *ColorMatchChain*: fixed performance degradation when using *colorAdjust* in simple mode.
 

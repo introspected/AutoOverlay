@@ -131,14 +131,17 @@ namespace AutoOverlay.Filters
                 // 1. Fill intersection area with solid color
                 interFrame.Fill(opacityColor);
 
+                Func<int, int, bool> greater = Opacity > 0.5 ? (a, b) => a > b : (a, b) => a >= b;
+                Func<int, int, bool> lower = Opacity > 0.5 ? (a, b) => a < b : (a, b) => a <= b;
+
                 // 2. Border gradient if transparent
                 // Intersection edges
                 if (Noise)
                 {
-                    Action left = () => interFrame.TakeLeft(Gradient).FillNoise(1, 0, 0, 1, currentLayer.Left > layer.Left ? 0x00 : 0xFF, seed << 0),
-                        top = () => interFrame.TakeTop(Gradient).FillNoise(1, 1, 0, 0, currentLayer.Top > layer.Top ? 0 : 0xFF, seed << 2),
-                        right = () => interFrame.TakeRight(Gradient).FillNoise(0, 1, 1, 0, currentLayer.Right < layer.Right ? 0x00 : 0xFF, seed << 1),
-                        bottom = () => interFrame.TakeBottom(Gradient).FillNoise(0, 0, 1, 1, currentLayer.Bottom < layer.Bottom ? 0 : 0xFF, seed << 3);
+                    Action left = () => interFrame.TakeLeft(Gradient).FillNoise(1, 0, 0, 1, greater(currentLayer.Left, layer.Left) ? 0x00 : 0xFF, seed << 0),
+                        top = () => interFrame.TakeTop(Gradient).FillNoise(1, 1, 0, 0, greater(currentLayer.Top, layer.Top) ? 0 : 0xFF, seed << 2),
+                        right = () => interFrame.TakeRight(Gradient).FillNoise(0, 1, 1, 0, lower(currentLayer.Right, layer.Right) ? 0x00 : 0xFF, seed << 1),
+                        bottom = () => interFrame.TakeBottom(Gradient).FillNoise(0, 0, 1, 1, lower(currentLayer.Bottom, layer.Bottom) ? 0 : 0xFF, seed << 3);
 
                     if (Opacity is 0 or 1)
                     {
@@ -159,10 +162,10 @@ namespace AutoOverlay.Filters
                 else
                 {
                     Parallel.Invoke(
-                        FillEdge(0, interFrame.TakeLeft(Gradient), currentLayer.Left > layer.Left),
-                        FillEdge(1, interFrame.TakeTop(Gradient), currentLayer.Top > layer.Top),
-                        FillEdge(2, interFrame.TakeRight(Gradient), currentLayer.Right < layer.Right),
-                        FillEdge(3, interFrame.TakeBottom(Gradient), currentLayer.Bottom < layer.Bottom));
+                        FillEdge(0, interFrame.TakeLeft(Gradient), greater(currentLayer.Left, layer.Left)),
+                        FillEdge(1, interFrame.TakeTop(Gradient), greater(currentLayer.Top, layer.Top)),
+                        FillEdge(2, interFrame.TakeRight(Gradient), lower(currentLayer.Right, layer.Right)),
+                        FillEdge(3, interFrame.TakeBottom(Gradient), lower(currentLayer.Bottom, layer.Bottom)));
 
                     Action FillEdge(int index, FramePlane area, bool predicate) => RunIf(predicate,
                         () => area.FillGradient(0x00, opacityColor, opacityColor, 0x00, index),
@@ -178,23 +181,23 @@ namespace AutoOverlay.Filters
                     Action<FramePlane, T, T, T, T, int> fill) => Parallel.Invoke(
                     () => FillCorner(0,
                         interFrame.TakeLeft(Gradient).TakeTop(Gradient),
-                        () => currentLayer.Left > layer.Left,
-                        () => currentLayer.Top > layer.Top,
+                        () => greater(currentLayer.Left, layer.Left),
+                        () => greater(currentLayer.Top, layer.Top),
                         min, max, opacity, edge, calc, subtract, fill),
                     () => FillCorner(1,
                         interFrame.TakeRight(Gradient).TakeTop(Gradient),
-                        () => currentLayer.Top > layer.Top,
-                        () => currentLayer.Right < layer.Right,
+                        () => greater(currentLayer.Top, layer.Top),
+                        () => lower(currentLayer.Right, layer.Right),
                         min, max, opacity, edge, calc, subtract, fill),
                     () => FillCorner(2,
                         interFrame.TakeRight(Gradient).TakeBottom(Gradient),
-                        () => currentLayer.Right < layer.Right,
-                        () => currentLayer.Bottom < layer.Bottom,
+                        () => lower(currentLayer.Right, layer.Right),
+                        () => lower(currentLayer.Bottom, layer.Bottom),
                         min, max, opacity, edge, calc, subtract, fill),
                     () => FillCorner(3,
                         interFrame.TakeLeft(Gradient).TakeBottom(Gradient),
-                        () => currentLayer.Bottom < layer.Bottom,
-                        () => currentLayer.Left > layer.Left,
+                        () => lower(currentLayer.Bottom, layer.Bottom),
+                        () => greater(currentLayer.Left, layer.Left),
                         min, max, opacity, edge, calc, subtract, fill));
 
                 void FillCorner<T>(int index, FramePlane corner, 

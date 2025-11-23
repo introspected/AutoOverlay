@@ -88,6 +88,7 @@ namespace AutoOverlay
         public abstract RectangleD OuterBounds { get; protected set; } // 0-1
         public abstract Space OverlayBalance { get; set; } // 0-1 (-1 - source, 1 - overlay)
         public abstract bool FixedSource { get; protected set; }
+        public abstract bool IgnoreAspectRatio { get; protected set; }
         public abstract int OverlayOrder { get; protected set; }
         
         public abstract double StabilizationDiffTolerance { get; protected set; }
@@ -399,7 +400,7 @@ namespace AutoOverlay
                     var refMask = Crop(reference.Mask, reference.Rectangle, source.Rectangle);
                     return (srcMask, refMask) switch
                     {
-                        (not null, not null) => srcMask.Mask.Overlay(refMask, mode: "darken"),
+                        (not null, not null) => srcMask.Overlay(refMask, mode: "darken"),
                         _ => srcMask ?? refMask
                     };
                 }
@@ -507,7 +508,22 @@ namespace AutoOverlay
             {
                 var size = FullScreen ? ctx.TargetInfo.Size : primary.ActiveArea.Size;
                 var pixelType = ctx.SourceInfo.ColorSpace.ChangeBitDepth(BitDepth).GetName();
-                var blank = ctx.BackgroundClip ?? AvsUtils.InitClip(ctx.Source, ctx.TargetInfo.Size, ctx.DefaultColor, pixelType);
+                
+
+                dynamic blank;
+                if (ctx.BackgroundClip == null)
+                {
+                    blank = AvsUtils.InitClip(ctx.Source, ctx.TargetInfo.Size, ctx.DefaultColor, pixelType);
+                }
+                else
+                {
+                    var activeArea = primary.Data.ActiveArea; // TODO add crop
+                    var borders = new Point(
+                        (ctx.TargetInfo.Size.Width - activeArea.Width) / 2,
+                        (ctx.TargetInfo.Size.Height - activeArea.Height) / 2);
+                    var backgroundClip = ResizeRotate(ctx.BackgroundClip, Downsize, Rotate, activeArea.Width, activeArea.Height);
+                    blank = backgroundClip.AddBorders(borders.X, borders.Y, borders.X, borders.Y, color: ctx.Plane.IsChroma() ? 0x808080 : 0);
+                }
 
                 dynamic Finalize(dynamic background) => size == ctx.TargetInfo.Size
                     ? background
@@ -556,7 +572,7 @@ namespace AutoOverlay
 
             var excludedLayers = new List<int>(layers.Count);
 
-            var edgeMaskMode = EdgeGradient != EdgeGradient.NONE && !MaskMode && Gradient > 0;
+            var edgeMaskMode = EdgeGradient != EdgeGradient.NONE && Gradient > 0;
 
             void OverlayOnTop(OverlayLayer layer)
             {
@@ -734,6 +750,7 @@ namespace AutoOverlay
                 InnerBounds = InnerBounds,
                 OverlayBalance = OverlayBalance,
                 FixedSource = FixedSource,
+                IgnoreAspectRatio = IgnoreAspectRatio,
                 ExtraClips = ctx.ExtraClips
             };
             var canvasReal = OverlayMapper.For(history.First().FrameNumber, input, history, Stabilization, extra).GetCanvas();

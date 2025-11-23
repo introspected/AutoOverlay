@@ -72,9 +72,9 @@ namespace AutoOverlay
 
         public string Interval => First == Last ? First.ToString() : $"{First} ({Length})";
 
-        public string Placement => CheckFixed(p => p.Placement, p => $"{p.X:F2} : {p.Y:F2}");
+        public string Placement => CheckFixed(p => p.Placement, p => $"{p.X:F2}:{p.Y:F2}");
 
-        public string Size => CheckFixed(p => p.OverlaySize, p => $"{p.Width:F2} : {p.Height:F2}");
+        public string Size => CheckFixed(p => p.OverlaySize, p => $"{p.Width:F2}:{p.Height:F2}");
 
         public string Warp => CheckFixed(p => p.OverlayWarp, p => "fixed");
 

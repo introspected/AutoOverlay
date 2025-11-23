@@ -19,6 +19,7 @@ namespace AutoOverlay.Overlay
         public Space OverlayBalance { get; set; } // -1-0-1 (-1 - source, 1 - overlay, 0 - median)
 
         public bool FixedSource { get; set; }
+        public bool IgnoreAspectRatio { get; set; }
 
         public OverlayInput Scale(Size mult)
         {

@@ -200,10 +200,10 @@ Separate - обособление кадра. Join prev - присоединит
     OverlayRender(clip engine, clip source, clip overlay, clip sourceMask, clip overlayMask, 
                   clip sourceCrop, clip overlayCrop, string sourceChromaLocation, string overlayChromaLocation, 
                   clip extraClips, string preset, clip innerBounds, clip outerBounds, 
-                  float overlayBalanceX, float overlayBalanceY, bool fixedSource, int overlayOrder, 
-                  float stabilizationDiffTolerance, float stabilizationAreaTolerance, int stabilizationLength, 
-                  string overlayMode, int width, int height, string pixelType, int gradient, int noise, 
-                  int borderControl, float borderMaxDeviation, clip borderOffset, 
+                  float overlayBalanceX, float overlayBalanceY, bool fixedSource, bool IgnoreAspectRatio, 
+                  int overlayOrder, float stabilizationDiffTolerance, float stabilizationAreaTolerance, 
+                  int stabilizationLength, string overlayMode, int width, int height, string pixelType, 
+                  int gradient, int noise, int borderControl, float borderMaxDeviation, clip borderOffset, 
                   clip srcColorBorderOffset, rectangle overColorBorderOffset, bool maskMode, float opacity, 
                   float colorAdjust, int colorBuckets, float colorDither, int colorExclude, 
                   int colorFramesCount, float colorFramesDiff, float colorMaxDeviation, 
@@ -244,6 +244,7 @@ Separate - обособление кадра. Join prev - присоединит
 - **overlayBalanceX** (default 0) - центрирование изображения по ширине относительно основного клипа (-1) или накладываемого (1) в диапазоне от -1 до 1.
 - **overlayBalanceY** (default 0) - центрирование изображения по высоте относительно основного клипа (-1) или накладываемого (1) в диапазоне от -1 до 1.
 - **fixedSource** (default false) - фиксированное центрирование результирующего клипа относительно основного.
+- **ignoreAspectRatio** (default false) - растягивать во весь экран, игнориря соотношение сторон исходного клипа.
 - **overlayOrder** (default 0) - номер слоя для накладываемого клипа. Позволяет наложить клип после дополнительных.
 - **stabilizationDiffTolerance** (default 200) - допустимая разница diff между соседними кадрами при стабилизации рендеринга сцены.
 - **stabilizationAreaTolerance** (default 1.5) - допустимая разница в процентах между областями пересечения соседних кадров при стабилизации рендеринга сцены.
@@ -429,8 +430,8 @@ YuvRgb10 - двушаговая конвертация клипов в прои�
     StaticOverlayRender(clip source, clip overlay, float x, float y, float angle, float overlayWidth, float overlayHeight, 
                         string warpPoints, float diff, clip sourceMask, clip overlayMask, clip sourceCrop, clip overlayCrop,
                         string sourceChromaLocation, string overlayChromaLocation, clip extraClips, string preset, 
-                        clip innerBounds, clip outerBounds, space overlayBalance, bool fixedSource, string overlayMode, 
-                        int width, int height, string pixelType, int gradient, int noise, clip borderOffset,
+                        clip innerBounds, clip outerBounds, space overlayBalance, bool fixedSource, bool ignoreAspectRatio, 
+                        string overlayMode, int width, int height, string pixelType, int gradient, int noise, clip borderOffset,
                         clip srcColorBorderOffset, clip overColorBorderOffset, bool maskMode, float opacity, 
                         float colorAdjust, int colorBuckets, float colorDither, int colorExclude, int colorFramesCount, 
                         float colorFramesDiff, bool colorBufferedExtrapolation, string adjustChannels, float gradientColor, 
@@ -677,6 +678,11 @@ ComplexityOverlay целесообразно использовать до пр�
     ```OverlayEngine(clip1, clip2, maxDiff = 5, statFile = "diff.stat", editor = true)```
 
 ## История изменений
+### 23.11.2025 v0.7.12
+1. *OverlayEngine*: обновлен UI редактора: табы, масштабирование при просмотре, переопределение свойств конфигурации.
+2. *OverlayRender*: новый параметр *ignoreAspectRatio* для растягивания изображения во весь экран, игнорируя оригинальное соотношение сторон.
+3. *OverlayRender*: исправлена цветокоррекция при использовании нескольких масок.
+
 ### 12.05.2025 v0.7.11
 1. *OverlayRender* и *ColorMatchChain*: исправлена деградация производительности при использовании colorAdjust в простом режиме.
 
