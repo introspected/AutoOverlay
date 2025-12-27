@@ -4,13 +4,13 @@ using System.Linq;
 
 namespace AutoOverlay.Overlay
 {
-    public class OverlayCache(OverlayEngine engine)
+    public sealed class OverlayCache(OverlayEngine engine)
     {
         private readonly ConcurrentDictionary<IKey, OverlayInfo> cache = new();
 
-        public void NextFrame(int n)
+        public void NextFrame(int n, int length)
         {
-            var limit = engine.SceneBuffer + 1;
+            var limit = length + 1;
             foreach (var key in cache.Keys.Where(p => Math.Abs(p.Frame - n) > limit))
                 cache.TryRemove(key, out _);
         }

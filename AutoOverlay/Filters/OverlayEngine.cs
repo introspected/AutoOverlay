@@ -487,7 +487,7 @@ namespace AutoOverlay
 
         private OverlayInfo GetOverlayInfoImpl(int n, Action<Func<string>> log)
         {
-            cache.NextFrame(n);
+            cache.NextFrame(n, SceneBuffer);
 #if DEBUG
             if (Debug && n == 0 && StatFile == null)
                 return OverlayStat[n] = AutoAlign(n);
@@ -766,6 +766,7 @@ namespace AutoOverlay
 
         private OverlayInfo GetOverlayInfoLegacy(int n, Action<Func<string>> log)
         {
+            cache.NextFrame(n, Math.Max(BackwardFrames, ForwardFrames));
             log(() => $"Frame: {n}");
 
             if (BackwardFrames == 0) goto simple;
@@ -773,10 +774,11 @@ namespace AutoOverlay
             var backwardFramesCount = Math.Min(n, BackwardFrames);
 
             var prevInfo = n > 0 ? OverlayStat[n - 1] : null;
-            var prevFrames = Enumerable.Range(0, n)
-                .Reverse()
+            var prevFrames = Enumerable.Range(1, backwardFramesCount)
+                .Select(i => n - i)
+                .TakeWhile(p => !KeyFrames.Contains(p))
                 .Select(p => OverlayStat[p])
-                .TakeWhile((p, i) => i >= 0 && i < backwardFramesCount && p != null && p.Diff <= MaxDiff && !KeyFrames.Contains(i))
+                .TakeWhile((p, i) => p != null && p.Diff <= MaxDiff)
                 .ToArray();
 
             if (KeyFrames.Contains(n))

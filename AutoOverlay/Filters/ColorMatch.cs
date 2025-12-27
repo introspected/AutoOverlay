@@ -200,7 +200,7 @@ namespace AutoOverlay
             VideoFrame input, VideoFrame output,
             Action<FramePlane, FramePlane, int> action)
         {
-            var n = Environment.ProcessorCount / 2;
+            var n = Environment.ProcessorCount;
             var inPlanes = new FramePlane(inPlaneChannel, input, true).Split(n);
             var outPlanes = new FramePlane(outPlaneChannel, output, false).Split(n);
 
